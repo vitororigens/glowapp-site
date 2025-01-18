@@ -25,23 +25,23 @@ const BannerTwo = () => {
           <div className="story-two_content-column col-lg-6 col-md-12 col-sm-12">
             <div className="story-two_content-outer">
               <div className="sec-title">
-                <div className="sec-title_title">Descubra o Seu Novo Lar ou Espaço Comercial</div>
+                <div className="sec-title_title">Descubra o Seu Novo aplicativo de antes e depois</div>
                 <h2 className="sec-title_heading">
                   Site e App: Tudo em um Só Lugar
                 </h2>
                 <div className="sec-title_text">
-                  Encontre a casa dos seus sonhos ou o local perfeito para o seu negócio com nosso buscador de imóveis. Explore uma seleção exclusiva de propriedades que atendem aos mais altos padrões de qualidade e localização.
+                  Tenha todo um ecosistema para otimizar seus trabalho
                 </div>
               </div>
               <div className="row clearfix">
                 <div className="column col-lg-6 col-md-6 col-sm-12">
                   <div className="story-two_check">
-                    <i className="flaticon-check-mark"></i>Solução para Corretores Independentes
+                    <i className="flaticon-check-mark"></i>Solução para clinicas.
                   </div>
                 </div>
                 <div className="column col-lg-6 col-md-6 col-sm-12">
                   <div className="story-two_check">
-                    <i className="flaticon-check-mark"></i>Solução para Imobiliárias e Franquias
+                    <i className="flaticon-check-mark"></i>Solução para trabalhadores independentes.
                   </div>
                 </div>
               </div>
@@ -59,15 +59,6 @@ const BannerTwo = () => {
                     <span className="text-one">Saiba Mais</span>
                     <span className="text-two">Saiba Mais</span>
                   </span>
-                </a>
-                <a
-                  href="https://www.youtube.com/watch?v=kxPCFljwJws"
-                  className="lightbox-video story-two_play"
-                >
-                  <span className="flaticon-play">
-                    <i className="ripple"></i>
-                  </span>
-                  Assista ao Vídeo
                 </a>
               </div>
             </div>
