@@ -5,7 +5,8 @@
 @tailwind utilities;
 
 :root {
-	--main-color: rgb(235,32,39);
+	/* #ff339a in decimal RGB */
+	--main-color: rgb(255,51,154);
 	--color-two: rgb(23,27,42);
 	--color-three: rgb(245,245,245);
 	--color-four: rgb(249,249,249);

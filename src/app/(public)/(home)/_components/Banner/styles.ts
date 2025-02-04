@@ -1,4 +1,6 @@
-import styled from 'styled-components';
+import styled from 'styled-components'
+import imagebackground from './../../../../../../public/img/resource/background.png'
+import { StaticImageData } from 'next/image';
 
 export const Banner = styled.section`
   position: relative;
@@ -14,7 +16,7 @@ export const BannerContainer = styled.div`
   }
 `;
 // 
-export const BannerImage = styled.div`
+export const BannerImage = styled.div<{ image?: string | StaticImageData }>`
   position: absolute;
   left: 0;
   top: 0;
@@ -22,6 +24,9 @@ export const BannerImage = styled.div`
   bottom: 0;
   overflow: hidden;
   background-size: cover;
+  background-position: center;
+  background-image: ${({ image }) =>
+    typeof image === "string" ? `url(${image})` : `url(${image.src})`};
 
   &:before {
     position: absolute;
@@ -34,6 +39,8 @@ export const BannerImage = styled.div`
     background-color: var(--color-two);
   }
 `;
+
+
 export const BannerContentInner = styled.div`
   position: relative;
   padding-top: 220px;

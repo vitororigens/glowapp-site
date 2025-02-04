@@ -10,14 +10,14 @@ const BannerTwo = () => {
                 data-wow-delay="0ms"
                 data-wow-duration="1500ms"
               >
-                <img src="/img/resource/story-2.jpg" alt="" />
+                <img src="/img/resource/image01.png" alt="" />
               </div>
               <div
                 className="story-two_image-two wow fadeInRight"
                 data-wow-delay="0ms"
                 data-wow-duration="1500ms"
               >
-                <img src="/img/resource/story-3.jpg" alt="" />
+                <img src="/img/resource/image02.png" alt="" />
               </div>
             </div>
           </div>
@@ -59,15 +59,6 @@ const BannerTwo = () => {
                     <span className="text-one">Saiba Mais</span>
                     <span className="text-two">Saiba Mais</span>
                   </span>
-                </a>
-                <a
-                  href="https://www.youtube.com/watch?v=kxPCFljwJws"
-                  className="lightbox-video story-two_play"
-                >
-                  <span className="flaticon-play">
-                    <i className="ripple"></i>
-                  </span>
-                  Assista ao Vídeo
                 </a>
               </div>
             </div>
