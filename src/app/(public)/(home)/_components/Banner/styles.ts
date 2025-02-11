@@ -25,8 +25,9 @@ export const BannerImage = styled.div<{ image?: string | StaticImageData }>`
   overflow: hidden;
   background-size: cover;
   background-position: center;
-  background-image: ${({ image }) =>
-    typeof image === "string" ? `url(${image})` : `url(${image.src})`};
+  background-image: ${({ image }) => 
+  image ? (typeof image === "string" ? `url(${image})` : `url(${image.src})`) : "none"};
+
 
   &:before {
     position: absolute;
