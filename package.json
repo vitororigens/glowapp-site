@@ -29,6 +29,7 @@
     "recharts": "^2.15.1",
     "remask": "^1.2.2",
     "styled-components": "^6.1.14",
+    "swiper": "^11.2.2",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.1"
