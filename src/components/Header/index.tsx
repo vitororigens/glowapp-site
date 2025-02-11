@@ -45,7 +45,7 @@ const Header = () => {
           <S.Navbar>
             <a href="/">Home</a>
             <a href="/contato">Contato</a>
-            <a href="/imoveis">Sobre</a>
+            <a href="/">Sobre</a>
           </S.Navbar>
           <ProfileDropdown />
         </>
@@ -99,16 +99,10 @@ const MenuMobile = () => {
           <S.Navbar>
             <a href="/">Home</a>
             <a href="/contato">Contato</a>
-            <a href="/imoveis">Sobre</a>
+            <a href="/">Sobre</a>
             {user ? (
               <>
-                <a href="/perfil">Perfil</a>
-                {utilsInfo?.role === "broker" && (
-                  <>
-                    <a href="/meus-imoveis">Dashboard</a>
-                  </>
-                )}
-                <a href="/favoritos">Favoritos</a>
+                <a href="/dashboard">Dashboard</a>
                 <button onClick={handleSignOut}>Sair</button>
               </>
             ) : (
@@ -117,7 +111,7 @@ const MenuMobile = () => {
           </S.Navbar>
         </div>
       </div>
-    </S.MobileMenu>
+    </S.MobileMenu >
   );
 };
 
@@ -175,17 +169,15 @@ const ProfileDropdown = () => {
                   <IconUser />
                   Perfil
                 </a>
-                {utilsInfo?.role === "broker" && (
-                  <>
+     
                     <a
-                      href="/meus-imoveis"
+                      href="/dashboard"
                       className="block px-4 py-2 text-sm text-gray-700 flex flex-row gap-2"
                     >
                       <IconHome />
                       Dashboard
                     </a>
-                  </>
-                )}
+                
                 <button
                   className="block px-4 py-2 text-sm text-gray-700 flex flex-row gap-2"
                   onClick={handleSignOut}
