@@ -19,8 +19,6 @@ import firebase from 'firebase/compat/app';
 const useLogic = () => {
   const router = useRouter();
 
-  const { data: realStates } = useFirestoreCollection('RealState')
-
   // Firebase
 
   // React Hook Forms
@@ -51,10 +49,8 @@ const useLogic = () => {
 
           const docRef = doc(database, 'Register', uid);
           return setDoc(docRef, {
-            creci: data.creci || "",
             phone: data.phone || "",
-            realEstate: data.realEstate || "",
-            role: data.role || ""
+
           })
         }).then(() => {
           console.log('Usuário adicionado ao banco de dados.');
@@ -90,8 +86,6 @@ const useLogic = () => {
     data: {
       control,
       errors,
-      realStates: realStates || [],
-      role: watch('role')
     },
     methods: {
       register,

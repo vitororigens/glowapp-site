@@ -38,6 +38,7 @@
     "@builder.io/partytown": "^0.10.3",
     "@eslint/eslintrc": "^3",
     "@types/jquery": "^3.5.32",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
