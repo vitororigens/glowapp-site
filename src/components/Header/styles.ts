@@ -12,7 +12,7 @@ export const HeaderContainer = styled.header`
   justify-content: space-between;
   gap: 20px;
 
-  background-color: rgba(var(--color-two-rgb), 1);
+  background-color: white;
 
   padding: 10px 5vw;
   z-index: 1000;
@@ -28,13 +28,13 @@ export const Navbar = styled.nav`
   display: flex;
   align-items: center;
   gap: 20px;
-  background-color: rgba(var(--white-color-rgb), 0.08);
+  background-color: rgba(var(--black-color-rgb), 0.09);
   padding: 10px 30px;
   border-radius: 100px;
 
   a{
     font-weight: 500;
-    color: var(--white-color );
+    color: var(--black-color );
     font-size: 16px;
     transition: 400ms;
 
@@ -78,7 +78,7 @@ export const ActionsBtn = styled(Link)`
   border-radius: 50px;
   padding: 10px 35px;
   display: inline-block;
-  color: var(--white-color);
+  color: var(--black-color);
   text-transform: capitalize;
   background-color: var(--main-color);
 `;
@@ -99,8 +99,9 @@ export const ActionsLink = styled(Link)`
   -ms-transition: all 500ms ease;
   -o-transition: all 500ms ease;
 
-  color: var(--white-color);
-  background-color: rgba(var(--white-color-rgb), 0.08);
+  color: var(--black-color);
+  background-color: rgba(var(--black-color-rgb), 0.09);
+  background-color: #333; /* Fundo sólido preto para os botões */
 
   &:hover{
     background-color: var(--main-color);
@@ -231,7 +232,7 @@ export const MobileMenu = styled.div`
 `;
 export const OpenMenu = styled.button`
   display: flex;
-  color: var(--white-color);
+  color: var(--black-color);
 
   svg {
     width: 40px;

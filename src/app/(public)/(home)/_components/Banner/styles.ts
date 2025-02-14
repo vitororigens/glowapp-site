@@ -241,3 +241,7 @@ export const ButtonWrapper = styled.div`
   }
 `;
 
+export const ImageSize = styled.img`
+   width: 700px; /* Define um valor fixo para a largura */
+   height: auto; /* Mantém a proporção da imagem */
+  `;

@@ -55,14 +55,14 @@ const Footer = () => {
               <div className="icon">
                 <IconMail />
               </div>
-              <a target="_blank" rel="noopener noreferrer" href="mailto:support@brokerz.com">support@brokerx.com</a>
+              <a target="_blank" rel="noopener noreferrer" href="mailto:contato@glowapp.com.br">contato@glowapp.com.br</a>
             </div>
           </S.ContactInformation>
         </S.FooterWrapper>
 
         <S.SocialWrapper>
           <div className="copyright">
-            Copyright &copy; - Todos os direitos reservados
+            GlowApp@ - Todos os direitos reservados 
           </div>
 
           <div className="socials">
