@@ -69,12 +69,12 @@ const Footer = () => {
             <a target="_blank" rel="noopener noreferrer" href="https://wa.me/5566996315835">
               <IconBrandWhatsapp />
             </a>
-            <a target="_blank" rel="noopener noreferrer" href="https://www.instagram.com/brokerx.app/profilecard/?igsh=cGRjcGVweXc0cTBi">
+            {/* <a target="_blank" rel="noopener noreferrer" href="https://www.instagram.com/brokerx.app/profilecard/?igsh=cGRjcGVweXc0cTBi">
               <IconBrandInstagram />
             </a>
             <a target="_blank" rel="noopener noreferrer" href="https://www.facebook.com/share/19MTVABLe2/">
               <IconBrandFacebook />
-            </a>
+            </a> */}
           </div>
         </S.SocialWrapper>
       </S.FooterContainer>

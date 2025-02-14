@@ -2,17 +2,17 @@ import { ImageSize } from "../Banner/styles";
 
 const BannerTwo = () => {
   return (
-    <section className="story-two mt-20">
-      <div className="auto-container">
-        <div className="row clearfix">
-          <div className="story-two_image-column col-lg-6 col-md-12 col-sm-12">
+    <section className="story-two mt-20 ">
+      <div className="auto-container rounded-3">
+        <div className="row clearfix rounded-3">
+          <div className="story-two_image-column col-lg-6 col-md-12 col-sm-12 rounded-3">
             <div className="">
               <div
                 className="story-two_image wow fadeInLeft"
                 data-wow-delay="0ms"
                 data-wow-duration="1500ms"
               >
-                <ImageSize src="/img/resource/image01.png" alt=""  />
+                <ImageSize src="/img/resource/image01.png" alt="" className="rounded-3"/>
               </div>
             </div>
           </div>
