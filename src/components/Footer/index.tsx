@@ -29,22 +29,16 @@ const Footer = () => {
 
           <S.NavigationWrapper>
             <h5 className="title">Navegue</h5>
-            <a href="/">Home</a>
-            <a href="/contato">Contato</a>
-            {user && <a href="/perfil">Perfil</a>}
-            {user && <a href="/favoritos">Favoritos</a>}
-            {!user && <a href="/auth/login">Login</a>}
+            <Link href="/">Home</Link>
+            <Link href="/contato">Contato</Link>
+            {user && <Link href="/perfil">Perfil</Link>}
+            {user && <Link href="/favoritos">Favoritos</Link>}
+            {!user && <Link href="/auth/login">Login</Link>}
+            <Link href="/privacy-policy">Política de Privacidade</Link> {/* Adicionado aqui */}
           </S.NavigationWrapper>
 
           <S.ContactInformation>
             <h5 className="title">Informações de Contato</h5>
-            {/* <div className="wrapper">
-              <div className="icon">
-                <IconMapPin />
-              </div>
-              1426 StreetBend,7702, <br />
-              California, USA
-            </div> */}
             <div className="wrapper">
               <div className="icon">
                 <IconPhone />
@@ -62,19 +56,14 @@ const Footer = () => {
 
         <S.SocialWrapper>
           <div className="copyright">
-            GlowApp@ - Todos os direitos reservados 
+            GlowApp@ - Todos os direitos reservados |  
+            <Link href="/privacy-policy"> Política de Privacidade</Link> 
           </div>
 
           <div className="socials">
             <a target="_blank" rel="noopener noreferrer" href="https://wa.me/5566996315835">
               <IconBrandWhatsapp />
             </a>
-            {/* <a target="_blank" rel="noopener noreferrer" href="https://www.instagram.com/brokerx.app/profilecard/?igsh=cGRjcGVweXc0cTBi">
-              <IconBrandInstagram />
-            </a>
-            <a target="_blank" rel="noopener noreferrer" href="https://www.facebook.com/share/19MTVABLe2/">
-              <IconBrandFacebook />
-            </a> */}
           </div>
         </S.SocialWrapper>
       </S.FooterContainer>
