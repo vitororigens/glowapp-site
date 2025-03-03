@@ -25,6 +25,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { PlusIcon } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 const data = [
   { name: "Jan", receita: 4000, despesa: 2400 },
@@ -34,10 +38,25 @@ const data = [
 ];
 
 export default function FinanceiroPage() {
+  const router = useRouter();
+
+  function handleNewLaunch() {
+    router.push('/dashboard/financeiro/lancamentos/novo');
+  }
+  function handleHistoric() {
+    router.push('/dashboard/financeiro/lancamentos');
+  }
+
   return (
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Financeiro</h1>
+        <Button onClick={() => handleNewLaunch()}>
+          <PlusIcon className="mr-2 h-4 w-4" />
+          Adicionar lançamento
+        </Button>
+      </div>
+      <div className="flex items-center justify-between">
         <Select defaultValue="mes">
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Período" />
@@ -96,7 +115,14 @@ export default function FinanceiroPage() {
       </Card>
 
       <Card className="p-6">
-        <h2 className="mb-4 text-xl font-semibold">Últimas Transações</h2>
+      <div className="flex items-center justify-between">
+      <h2 className="mb-4 text-xl font-semibold">Últimas Transações</h2>
+        <Button onClick={() => handleHistoric()}>
+          <PlusIcon className="mr-2 h-4 w-4" />
+          Ver todas
+        </Button>
+      </div>
+       
         <Table>
           <TableHeader>
             <TableRow>
