@@ -36,7 +36,7 @@ export const Input: React.FC<InputProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onChange) {
-      onChange(e.target.value); // Chama a função onChange passando o novo valor
+      onChange(e.target.value); 
     }
   };
 
@@ -45,7 +45,7 @@ export const Input: React.FC<InputProps> = ({
       {showIcon && <FaSearch style={{ fontSize: 16, color: "gray" }} />}
       <InputContainer
         placeholder={placeholder}
-        onChange={(e) => handleChange(e)}  // Passando diretamente para o handleChange
+        onChange={(e) => handleChange(e)}  
         type={passwordType && !showPassword ? 'password' : 'text'}
         value={value}
       />

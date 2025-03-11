@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { FaCamera } from "react-icons/fa";
-import { ImageContainer, StyledImage, SubTitle, Title, ContentItems, Header, Items, Container  } from "./styles";
-import { PlusIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { collection, getDocs } from "firebase/firestore";
 import { database } from "@/services/firebase";
+import { PlusIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Container } from "./styles";
 
 // Tipagem do profissional
 type PropsCardProfessional = {
@@ -20,7 +20,7 @@ type PropsCardProfessional = {
   observations: string;
   registrationNumber: string;
   specialty: string;
-  imageUrl?: string;  // Adicionado para a URL da imagem, caso tenha
+  imageUrl?: string;
 };
 
 export default function Profissionais() {
@@ -29,7 +29,6 @@ export default function Profissionais() {
   const [showModal, setShowModal] = useState(false);
   const router = useRouter();
 
-  // Função para buscar os profissionais do Firestore
   const fetchProfessionals = async () => {
     const querySnapshot = await getDocs(collection(database, "Profissionals"));
     const fetchedProfessionals: PropsCardProfessional[] = [];
@@ -43,24 +42,22 @@ export default function Profissionais() {
     fetchProfessionals();
   }, []);
 
-  // Função para abrir o modal
   const handleSelectProfessional = (professional: PropsCardProfessional) => {
     setSelectedProfessional(professional);
     setShowModal(true);
   };
 
-  // Função para fechar o modal
   const handleCloseModal = () => {
     setShowModal(false);
   };
 
   function handleNewLaunch() {
-    router.push('/dashboard/profissionais/novo');
+    router.push("/dashboard/profissionais/novo");
   }
 
   return (
     <Container>
-      <div className="flex items-center justify-between" style={{ marginBottom: "30px" }}>
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Profissionais</h1>
         <Button onClick={handleNewLaunch}>
           <PlusIcon className="mr-2 h-4 w-4" />
@@ -68,133 +65,84 @@ export default function Profissionais() {
         </Button>
       </div>
 
-      <div className="cards-container" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-        {professionals.map((professional) => (
-          <div
-            key={professional.id}
-            className="card"
-            onClick={() => handleSelectProfessional(professional)}
-            style={{
-              cursor: "pointer",
-              width: "100%",
-              border: "1px solid #ddd",
-              borderRadius: "8px",
-              padding: "15px",
-              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-              backgroundColor: "#fff",
-            }}
-          >
-            <div>
-              <ImageContainer>
-                <StyledImage src={professional.imageUrl || "/default-image.png"} alt={professional.name} />
-              </ImageContainer>
-            </div>
-            <Title>{professional.name}</Title>
-            <SubTitle>{professional.specialty}</SubTitle>
-          </div>
-        ))}
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border border-gray-300 shadow-md rounded-lg">
+          <thead>
+            <tr className="bg-gray-200 text-gray-700">
+              <th className="py-2 px-4 border">Imagem</th>
+              <th className="py-2 px-4 border">Nome</th>
+              <th className="py-2 px-4 border">Especialidade</th>
+              <th className="py-2 px-4 border">Telefone</th>
+              <th className="py-2 px-4 border">Email</th>
+              <th className="py-2 px-4 border">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {professionals.map((professional) => (
+              <tr
+                key={professional.id}
+                className="text-center hover:bg-gray-100 cursor-pointer"
+                onClick={() => handleSelectProfessional(professional)}
+              >
+                <td className="py-2 px-4 border">
+                  <img
+                    src={professional.imageUrl || "/default-image.png"}
+                    alt={professional.name}
+                    className="w-12 h-12 rounded-full object-cover mx-auto"
+                  />
+                </td>
+                <td className="py-2 px-4 border">{professional.name}</td>
+                <td className="py-2 px-4 border">{professional.specialty}</td>
+                <td className="py-2 px-4 border">{professional.phone}</td>
+                <td className="py-2 px-4 border">{professional.email}</td>
+                <td className="py-2 px-4 border">
+                  <Button size="sm" onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelectProfessional(professional);
+                  }}>
+                    Ver Detalhes
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* Modal para exibir os detalhes do profissional selecionado */}
       {showModal && selectedProfessional && (
         <div
-          className="modal"
-          style={{
-            position: "fixed",
-            top: "0",
-            left: "0",
-            right: "0",
-            bottom: "0",
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
+          className="fixed top-0 left-0 right-0 bottom-0 flex justify-center items-center bg-black bg-opacity-50"
         >
-          <div
-            className="modal-content"
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "8px",
-              padding: "20px",
-              width: "80%",
-              maxWidth: "900px",
-              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-              position: "relative",
-              overflowY: "auto",
-              maxHeight: "80vh",
-            }}
-          >
+          <div className="bg-white p-6 rounded-lg shadow-lg w-3/4 max-w-lg relative">
             <button
               onClick={handleCloseModal}
-              style={{
-                position: "absolute",
-                top: "10px",
-                right: "10px",
-                backgroundColor: "transparent",
-                border: "none",
-                fontSize: "18px",
-                color: "#333",
-                cursor: "pointer",
-              }}
+              className="absolute top-2 right-2 text-gray-600 hover:text-black"
             >
               X
             </button>
 
-            <Header>
+            <div className="text-center">
               {selectedProfessional.imageUrl ? (
-                <ImageContainer>
-                  <StyledImage src={selectedProfessional.imageUrl} alt="Profissional" />
-                </ImageContainer>
+                <img
+                  src={selectedProfessional.imageUrl}
+                  alt={selectedProfessional.name}
+                  className="w-24 h-24 rounded-full object-cover mx-auto"
+                />
               ) : (
-                <ImageContainer>
-                  <FaCamera size={36} color="white" />
-                </ImageContainer>
+                <FaCamera size={36} className="text-gray-400 mx-auto" />
               )}
-            </Header>
+              <h2 className="text-xl font-semibold mt-2">{selectedProfessional.name}</h2>
+              <p className="text-gray-600">{selectedProfessional.specialty}</p>
+            </div>
 
-            <ContentItems>
-              <Items>
-                <Title>Nome:</Title>
-                <SubTitle>{selectedProfessional.name}</SubTitle>
-              </Items>
-
-              <Items>
-                <Title>Email:</Title>
-                <SubTitle>{selectedProfessional.email}</SubTitle>
-              </Items>
-              <Items>
-                <Title>Telefone:</Title>
-                <SubTitle>{selectedProfessional.phone}</SubTitle>
-              </Items>
-            </ContentItems>
-
-            <ContentItems>
-              <Items>
-                <Title>CNPJ/CPF:</Title>
-                <SubTitle>{selectedProfessional.cpfCnpj}</SubTitle>
-              </Items>
-
-              <Items>
-                <Title>Registration Number:</Title>
-                <SubTitle>{selectedProfessional.registrationNumber}</SubTitle>
-              </Items>
-              <Items>
-                <Title>Especialidade:</Title>
-                <SubTitle>{selectedProfessional.specialty}</SubTitle>
-              </Items>
-            </ContentItems>
-
-            <Items>
-              <Title>Historico</Title>
-              <SubTitle>Sem historico desse profissional</SubTitle>
-            </Items>
-
-            <div style={{ width: "100%", overflowY: "auto", maxHeight: "400px" }}>
+            <div className="mt-4 space-y-2">
+              <p><strong>Email:</strong> {selectedProfessional.email}</p>
+              <p><strong>Telefone:</strong> {selectedProfessional.phone}</p>
+              <p><strong>CNPJ/CPF:</strong> {selectedProfessional.cpfCnpj}</p>
+              <p><strong>Registro:</strong> {selectedProfessional.registrationNumber}</p>
+              <p><strong>Endereço:</strong> {selectedProfessional.address}</p>
               {selectedProfessional.observations && (
-                <Title style={{ textAlign: "center", marginBottom: 20 }}>
-                  Observações: {selectedProfessional.observations}
-                </Title>
+                <p><strong>Observações:</strong> {selectedProfessional.observations}</p>
               )}
             </div>
           </div>

@@ -1,7 +1,6 @@
 import styled from "styled-components";
-import { FaSearch, FaEye, FaEyeSlash, FaPlusCircle } from 'react-icons/fa';
 
-type InputTypeProps = 'PRIMARY' | 'SECONDARY' | 'TERTIARY';
+type InputTypeProps = "PRIMARY" | "SECONDARY" | "TERTIARY";
 
 type Props = {
   type: InputTypeProps;
@@ -11,14 +10,11 @@ export const Container = styled.div<Props>`
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100px;
+  min-height: 60px;
   max-height: 100px;
-  padding: 16px;
+  gap: 0px;
   background-color: white;
-  margin-bottom: 5px;
-  border-radius: ${({ type }) => type === 'PRIMARY' ? '8px' : '4px'};
-  border: 1px solid ;
-
+  border-radius: ${({ type }) => (type === "PRIMARY" ? "8px" : "4px")};
   & > button {
     margin-left: 10px;
   }
@@ -26,14 +22,29 @@ export const Container = styled.div<Props>`
 
 export const InputContainer = styled.input`
   flex: 1;
-  height: 60px;
-  color: gray;
- 
-  font-size: 16px;
-  padding: 15px;
-  border: none;
+  height: 40px;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background-color: white;
+  padding: 8px 12px;
+  font-size: 14px;
   outline: none;
-  border-radius: 4px;
+  transition: border 0.2s, box-shadow 0.2s;
+
+  &:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  }
+
+  &::placeholder {
+    color: #a1a1a1;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
 `;
 
 export const Button = styled.button`
@@ -41,4 +52,3 @@ export const Button = styled.button`
   border: none;
   cursor: pointer;
 `;
-

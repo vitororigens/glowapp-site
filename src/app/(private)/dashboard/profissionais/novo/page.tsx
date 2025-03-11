@@ -24,10 +24,11 @@ import { doc, setDoc, collection, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import { toast } from "react-toastify";
-import { applyPhoneMask, celularMask, celularUnMask, cnpjMask, cnpjUnMask, cpfMask, cpfUnMask, phoneUnMask,  } from "../../../../../utils/maks/masks";
+import { applyPhoneMask, celularMask, celularUnMask, cnpjMask, cnpjUnMask, cpfMask, phoneUnMask,  } from "../../../../../utils/maks/masks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthContext } from "@/context/AuthContext";
 import Image from "next/image";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z
     .object({
@@ -123,7 +124,7 @@ export default function NewProfessional() {
         const file = event.target.files?.[0];
         if (file) {
           setFile(file);
-          setImage(URL.createObjectURL(file)); // Mostra a imagem na tela antes de enviar
+          setImage(URL.createObjectURL(file)); 
         }
       };
 
@@ -179,7 +180,7 @@ export default function NewProfessional() {
         </div>
 
 
-            <ImageContainer>
+            <ImageContainer onClick={() => document.getElementById("fileInput")?.click()}>
                 {image ? (
                     <ContainerImage src={image} alt="Imagem do Profissional" />
                 ) : (
@@ -194,6 +195,7 @@ export default function NewProfessional() {
             </ImageContainer>
             <Content>
               <InputWrapper>
+                <Label>Nome*</Label>
                 <Controller
                     control={control}
                     name="name"
@@ -203,8 +205,6 @@ export default function NewProfessional() {
                             name="user"
                             value={value}
                             onChange={onChange}
-                            showIcon
-                            placeholder="Nome*"
                         />
                     )}
                 />
@@ -212,15 +212,16 @@ export default function NewProfessional() {
               </InputWrapper>
 
               <InputWrapper>
+              <Label>CPF/CNPJ*</Label>
                 <Controller
                     control={control}
                     name="cpfCnpj"
                     render={({ field: { onChange, value } }) => (
                         <Input
-                            placeholder="CPF/CNPJ*"
+                          
                             type="TERTIARY"
                             name="id-badge"
-                            showIcon
+                          
                             onChange={(text) => onChange(formatCpfCnpj(text))} 
                             value={formatCpfCnpj(value || "")}
                             editable={!isLoading}
@@ -231,6 +232,7 @@ export default function NewProfessional() {
               </InputWrapper>
 
               <InputWrapper>
+              <Label>Telefone*</Label>
                 <Controller
                     control={control}
                     name="phone"
@@ -240,7 +242,7 @@ export default function NewProfessional() {
                             name="phone"
                             value={applyPhoneMask(value)}
                             onChange={(text) => onChange(phoneUnMask(text))}
-                            placeholder="Telefone*"
+                    
                           
                         />
                     )}
@@ -248,16 +250,15 @@ export default function NewProfessional() {
                 {errors.phone && <TextError>{errors.phone.message}</TextError>}
               </InputWrapper>
 
-              <InputWrapper>
+        <InputWrapper>
+            <Label>Email*</Label>
                 <Controller
                     control={control}
                     name="email"
                     render={({ field: { onChange, value } }) => (
                         <Input
-                            placeholder="E-mail*"
                             type="TERTIARY"
                             name="envelope"
-                           
                             onChange={onChange}
                             value={value || ""}
                             editable={!isLoading}
@@ -265,35 +266,34 @@ export default function NewProfessional() {
                     )}
                 />
                 {errors.email && <TextError>{errors.email.message}</TextError>}
-              </InputWrapper>
+         </InputWrapper>
+       
 
               <InputWrapper>
+              <Label>Número de registro</Label>
                 <Controller
                     control={control}
                     name="registrationNumber"
                     render={({ field: { onChange, value } }) => (
                         <Input
-                            placeholder="Número de registro"
                             type="TERTIARY"
-                            name="id-card"
-                            showIcon
-                            
+                            name="id-card" 
                             onChange={onChange}
                             value={value ?? ""}
                         />
                     )}
                 />
               </InputWrapper>
+
               <InputWrapper>
+                <Label>Especialidade</Label>
                 <Controller
                     control={control}
                     name="specialty"
                     render={({ field: { onChange, value } }) => (
                         <Input
-                            placeholder="Especialidade"
                             type="SECONDARY"
                             name="user-md"
-                            showIcon
                             onChange={onChange}
                             value={value || ""}
                         />
@@ -303,6 +303,7 @@ export default function NewProfessional() {
             </Content>
             <Divider />
             <Content>
+             <InputWrapper>
                 <Controller
                     control={control}
                     name="observations"
@@ -315,6 +316,7 @@ export default function NewProfessional() {
                         />
                     )}
                 />
+             </InputWrapper>
             </Content>
             <Button
                 onClick={handleSubmit(handleSaveForm)}

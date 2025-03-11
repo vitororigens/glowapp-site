@@ -13,21 +13,21 @@ export const Container = styled.div`
 export const Content = styled.div`
     display: flex;
     flex-wrap: wrap;
-    gap: 16px; /* Espaço entre os inputs */
-    justify-content: space-between;
+    justify-content: space-between; display: flex;
+  flex-direction: column;
+  width: 100%;
 `;
 
 export const Divider = styled.div`
-  width: 100%;
+  width: 98%;
   height: 1px;
   background-color: gray;
-  margin: 15px;
+  margin: 10px;
 `;
 
 export const InputObservation = styled.textarea`
   min-height: 150px;
   max-height: 150px;
-  width: 100%;
   color: gray;
   font-size: 16px;
   padding: 15px;
@@ -39,8 +39,10 @@ export const InputObservation = styled.textarea`
 `;
 
 export const InputWrapper = styled.div`
-    width: 48%; /* Define que cada input ocupa 48% da largura para caberem lado a lado */
-    min-width: 280px; /* Evita inputs muito pequenos em telas menores */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  
 `;
 
 
@@ -91,4 +93,8 @@ export const ImageContainer = styled.div`
   align-items: center;
   width: 100%;
   margin: 20px 0;
+`;
+
+export const TextLabel = styled.textarea`
+
 `;
