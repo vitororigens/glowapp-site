@@ -122,3 +122,11 @@ export function cnpjMask(value: string): string {
 export function cnpjUnMask(maskedValue: string): string {
     return maskedValue.replace(/\D/g, '');
 }
+
+export function applyPhoneMask(value: string): string {
+    return celularMask(value);
+}
+
+export function phoneUnMask(value: string): string {
+    return celularUnMask(value);
+}
