@@ -13,6 +13,7 @@ import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
+import { currencyMask } from "@/utils/maks/masks";
 
 export default function LancamentosPage() {
   const router = useRouter();
@@ -30,13 +31,13 @@ export default function LancamentosPage() {
       ...item,
       type: "Receita",
       textColor: "text-green-600",
-      value: parseFloat(item.value.replace(',', '.')) 
+      value: parseFloat(String(item.value).replace(',', '.'))
     })),
     ...(expenseData || []).map((item) => ({
       ...item,
       type: "Despesa",
       textColor: "text-red-600",
-      value: parseFloat(item.value.replace(',', '.'))
+      value: parseFloat(String(item.value).replace(',', '.'))
     })),
   ];
 
@@ -71,7 +72,7 @@ export default function LancamentosPage() {
                   <TableCell>{item.description}</TableCell>
                   <TableCell>{item.type}</TableCell>
                   <TableCell className={`text-right ${item.textColor}`}>
-                    R$ {item.value.toFixed(2)}
+                    R$ {currencyMask(item.value.toFixed(2))}
                   </TableCell>
                 </TableRow>
               ))}

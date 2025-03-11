@@ -23,6 +23,7 @@ export function currencyUnMask(maskedValue: string) {
 
     return unMaskedValue;
 }
+
 export function formatCurrencyMask(value: string | undefined): string {
     if (!value) return '';
     const numericValue = parseFloat(value);
