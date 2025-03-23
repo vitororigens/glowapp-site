@@ -35,7 +35,9 @@ import { useState } from "react";
 
 export default function FinanceiroPage() {
   const router = useRouter();
-  const [period, setPeriod] = useState("mes");
+  type Period = "mes" | "trimestre" | "ano";
+
+  const [period, setPeriod] = useState<Period>("mes");
 
   const getStartDate = (period: string) => {
     const today = new Date();
@@ -52,7 +54,7 @@ export default function FinanceiroPage() {
     return startDate.toISOString().split("T")[0]; // Formato "YYYY-MM-DD"
   };
   
-  const queryParams = {
+  const queryParams: Record<Period, { field: string; operator: string; value: string }> = {
     mes: { field: "date", operator: ">=", value: getStartDate("mes") },
     trimestre: { field: "date", operator: ">=", value: getStartDate("trimestre") },
     ano: { field: "date", operator: ">=", value: getStartDate("ano") },
@@ -67,14 +69,23 @@ export default function FinanceiroPage() {
     queryParams[period]
   );
 
-  const transactions = [
-    ...(revenueData || []).map((item) => ({
+  type Transaction = {
+    uid: string;
+    date: string;
+    description: string;
+    value: number;
+    type: "Receita" | "Despesa";
+    textColor: string;
+  };
+
+  const transactions: Transaction[] = [
+    ...(revenueData || []).map((item: any) => ({
       ...item,
       type: "Receita",
       textColor: "text-green-600",
       value: parseFloat(String(item.value).replace(",", ".")),
     })),
-    ...(expenseData || []).map((item) => ({
+    ...(expenseData || []).map((item: any) => ({
       ...item,
       type: "Despesa",
       textColor: "text-red-600",
@@ -106,7 +117,7 @@ export default function FinanceiroPage() {
         </Button>
       </div>
       <div className="flex items-center justify-between">
-        <Select defaultValue="mes" onValueChange={setPeriod}>
+        <Select defaultValue="mes" onValueChange={(value: string) => setPeriod(value as Period)}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Período" />
           </SelectTrigger>

@@ -191,7 +191,8 @@ export default function NewProfessional() {
                     </ContainerIcon>
                 </label>
                 )}
-                <input id="fileInput" type="file" accept="image/*" onChange={pickImage} style={{ display: "none" }} />
+                <label htmlFor="fileInput" style={{ display: "none" }}>Upload Image</label>
+                <input id="fileInput" type="file" accept="image/*" onChange={pickImage} title="Upload Image" placeholder="Choose an image" className="hidden-input" />
             </ImageContainer>
             <Content>
               <InputWrapper>
@@ -205,6 +206,7 @@ export default function NewProfessional() {
                             name="user"
                             value={value}
                             onChange={onChange}
+                            placeholder="Nome completo"
                         />
                     )}
                 />

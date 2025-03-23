@@ -15,10 +15,25 @@ import { useRouter } from "next/navigation";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 import { currencyMask } from "@/utils/maks/masks";
 
+// Definir interfaces para os tipos de dados
+interface FinancialItem {
+  uid: string;
+  description: string;
+  date: string;
+  value: string | number;
+  [key: string]: any; // Para outras propriedades que possam existir
+}
+
+interface TransactionItem extends FinancialItem {
+  type: string;
+  textColor: string;
+  value: number;
+}
+
 export default function LancamentosPage() {
   const router = useRouter();
   const { data: revenueData, loading: revenueLoading } = useFirestoreCollection("Revenue");
-  const { data: expenseData, loading: expenseLoading } = useFirestoreCollection("Expense");
+  const { data: expenseData, loading: expenseLoading  } = useFirestoreCollection("Expense");
 
   console.log(revenueData, expenseData);
 
@@ -27,13 +42,13 @@ export default function LancamentosPage() {
   }
 
   const transactions = [
-    ...(revenueData || []).map((item) => ({
+    ...(revenueData || []).map((item: FinancialItem) => ({
       ...item,
       type: "Receita",
       textColor: "text-green-600",
       value: parseFloat(String(item.value).replace(',', '.'))
     })),
-    ...(expenseData || []).map((item) => ({
+    ...(expenseData || []).map((item: FinancialItem) => ({
       ...item,
       type: "Despesa",
       textColor: "text-red-600",
@@ -66,7 +81,7 @@ export default function LancamentosPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((item) => (
+              {transactions.map((item: TransactionItem) => (
                 <TableRow key={item.uid}>
                   <TableCell>{item.date}</TableCell>
                   <TableCell>{item.description}</TableCell>

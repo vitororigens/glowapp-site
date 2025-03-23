@@ -14,6 +14,7 @@ type InputProps = {
   name?: string;
   value: string;
   type: 'PRIMARY' | 'SECONDARY' | 'TERTIARY';
+  editable?: boolean; // Adicione esta linha
 };
 
 export const Input: React.FC<InputProps> = ({
@@ -27,6 +28,7 @@ export const Input: React.FC<InputProps> = ({
   type,
   showPlus = false,
   onPress,
+  editable,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -48,6 +50,7 @@ export const Input: React.FC<InputProps> = ({
         onChange={(e) => handleChange(e)}  
         type={passwordType && !showPassword ? 'password' : 'text'}
         value={value}
+        editable={editable} // Adicione esta linha se necessário
       />
       {passwordType && (
         <Button onClick={togglePasswordVisibility}>
