@@ -32,6 +32,7 @@ const ContactUs = () => {
                             type="text" 
                             id="subject" 
                             className="mt-1 w-full p-2.5 text-sm border rounded-lg bg-gray-50 border-gray-300 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Assunto"
                             required 
                         />
                     </div>
@@ -41,7 +42,7 @@ const ContactUs = () => {
                         </label>
                         <textarea 
                             id="message" 
-                            rows="4" 
+                            rows={4} 
                             className="mt-1 w-full p-2.5 text-sm border rounded-lg bg-gray-50 border-gray-300 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Descreva sua mensagem..."
                         ></textarea>

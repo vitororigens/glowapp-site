@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { database } from "@/services/firebase";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where, Query, CollectionReference } from "firebase/firestore";
 import { useEffect, useState } from "react";
 
 const useFirestoreCollection = (collectionName: string, queryParams?: { field: string, operator: any, value: any }) => {
@@ -8,13 +8,14 @@ const useFirestoreCollection = (collectionName: string, queryParams?: { field: s
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    let collectionRef = collection(database, collectionName);
+    const collectionRef: CollectionReference = collection(database, collectionName);
+    let collectionQuery: Query = collectionRef;
 
     if (queryParams) {
-      collectionRef = query(collectionRef, where(queryParams.field, queryParams.operator, queryParams.value));
+      collectionQuery = query(collectionRef, where(queryParams.field, queryParams.operator, queryParams.value));
     }
 
-    const unsubscribe = onSnapshot(collectionRef, (snapshot) => {
+    const unsubscribe = onSnapshot(collectionQuery, (snapshot) => {
       const collectionData: any = [];
       snapshot.docs.forEach((doc: any) => {
         collectionData.push({ id: doc.id, ...doc.data() });

@@ -24,7 +24,7 @@ import { doc, setDoc, collection, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import { toast } from "react-toastify";
-import { applyPhoneMask, celularMask, celularUnMask, cnpjMask, cnpjUnMask, cpfMask, phoneUnMask,  } from "../../../../../utils/maks/masks";
+import { applyPhoneMask, celularMask, celularUnMask, cnpjMask, cnpjUnMask, cpfMask, phoneUnMask } from "../../../../../utils/maks/masks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthContext } from "@/context/AuthContext";
 import Image from "next/image";
@@ -70,7 +70,6 @@ export default function NewProfessional() {
     const { user } = useAuthContext();
     const uid = user?.uid;
     const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-
 
     const {
         control,
@@ -179,7 +178,6 @@ export default function NewProfessional() {
             <h1 className="text-3xl font-bold">Adicionar Profissionais</h1>
         </div>
 
-
             <ImageContainer onClick={() => document.getElementById("fileInput")?.click()}>
                 {image ? (
                     <ContainerImage src={image} alt="Imagem do Profissional" />
@@ -220,12 +218,11 @@ export default function NewProfessional() {
                     name="cpfCnpj"
                     render={({ field: { onChange, value } }) => (
                         <Input
-                          
                             type="TERTIARY"
                             name="id-badge"
-                          
                             onChange={(text) => onChange(formatCpfCnpj(text))} 
                             value={formatCpfCnpj(value || "")}
+                            placeholder="CPF ou CNPJ"
                             editable={!isLoading}
                         />
                     )}
@@ -244,8 +241,7 @@ export default function NewProfessional() {
                             name="phone"
                             value={applyPhoneMask(value)}
                             onChange={(text) => onChange(phoneUnMask(text))}
-                    
-                          
+                            placeholder="Telefone"
                         />
                     )}
                 />
@@ -263,6 +259,7 @@ export default function NewProfessional() {
                             name="envelope"
                             onChange={onChange}
                             value={value || ""}
+                            placeholder="Email"
                             editable={!isLoading}
                         />
                     )}
@@ -282,6 +279,7 @@ export default function NewProfessional() {
                             name="id-card" 
                             onChange={onChange}
                             value={value ?? ""}
+                            placeholder="Número de registro"
                         />
                     )}
                 />
@@ -298,6 +296,7 @@ export default function NewProfessional() {
                             name="user-md"
                             onChange={onChange}
                             value={value || ""}
+                            placeholder="Especialidade"
                         />
                     )}
                 />

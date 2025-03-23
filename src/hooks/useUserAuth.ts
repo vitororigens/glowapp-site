@@ -4,8 +4,10 @@ import "firebase/auth";
 
 const USER_STORAGE_KEY = "@MyApp:userglowapp"; 
 
+type User = firebase.User | null;
+
 export function useUserAuth() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
