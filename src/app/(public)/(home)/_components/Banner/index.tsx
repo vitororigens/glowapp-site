@@ -17,11 +17,7 @@ const Banner = () => {
   return (
     <S.Banner>
       <S.BannerContainer>
-        {/* Aqui usa apenas o componente com a prop image */}
         <S.BannerImage image={BackgroundImage.src} />
-
-       
-
         <S.BannerSocials>
           <div className="socials">
             <a target="_blank" rel="noopener noreferrer" href="https://wa.me/5566996315835">

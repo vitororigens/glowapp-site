@@ -1,4 +1,4 @@
-export default function GlowAppBanner() {
+export function GlowAppBanner() {
     return (
         <section className="relative p-20 bg-gray-100 overflow-hidden">
             {/* Shapes */}
@@ -7,7 +7,7 @@ export default function GlowAppBanner() {
 
             <div className="relative z-10 auto-container rounded-3">
                 <div className="row clearfix rounded-3 g-4">
-                    <div className="col-lg-6 col-md-12 col-sm-12 rounded-3">
+                    <div className="col-lg-6 col-md-12 col-sm-12 rounded-3 flex flex-col justify-center items-start">
                         <h2 className="text-gray-800 text-2xl font-medium">
                             Descubra o seu <br />
                             <span className="text-blue-600 font-bold text-4xl">Novo Aplicativo</span> <br />
@@ -22,8 +22,8 @@ export default function GlowAppBanner() {
                             precisa em um só lugar, desde organização até gestão financeira.
                         </p>
                     </div>
-                    <div className="story-two_content-column col-lg-6 col-md-12 col-sm-12">
-                        {/* Adicione a imagem do smartphone como PNG aqui */}
+                    <div className="story-two_content-column col-lg-6 col-md-12 col-sm-12 items-center justify-center flex">
+                        <img src="/img/resource/mockup.png" width={250} alt="Mockup de um smarphone com a logo do GlowApp" />
                     </div>
                 </div>
             </div>
