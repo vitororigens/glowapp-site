@@ -44,7 +44,7 @@ const Header = () => {
         <>
           <S.Navbar>
             <a href="/">Home</a>
-            <a href="/contato">Contato</a>
+            <a href="/contact-us">Contato</a>
             <a href="/">Sobre</a>
           </S.Navbar>
           <ProfileDropdown />
@@ -98,7 +98,7 @@ const MenuMobile = () => {
         <div className="menu-outer">
           <S.Navbar>
             <a href="/">Home</a>
-            <a href="/contato">Contato</a>
+            <a href="/contact-us">Contato</a>
             <a href="/">Sobre</a>
             {user ? (
               <>

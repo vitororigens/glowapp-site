@@ -28,7 +28,7 @@ const Forms = () => {
             type="email"
             id="password-addon"
             className="form-password text-dark text-base font-medium block w-full rounded-md py-2.5 px-4 border border-gray-300 focus:border-primary focus:outline-0 placeholder:text-light placeholder:text-base"
-            placeholder="Henry Cavil"
+            placeholder="Seu email"
           />
         </div>
       </div>
