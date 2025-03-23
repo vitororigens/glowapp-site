@@ -23,6 +23,7 @@ export function currencyUnMask(maskedValue: string) {
 
     return unMaskedValue;
 }
+
 export function formatCurrencyMask(value: string | undefined): string {
     if (!value) return '';
     const numericValue = parseFloat(value);
@@ -120,4 +121,12 @@ export function cnpjMask(value: string): string {
 
 export function cnpjUnMask(maskedValue: string): string {
     return maskedValue.replace(/\D/g, '');
+}
+
+export function applyPhoneMask(value: string): string {
+    return celularMask(value);
+}
+
+export function phoneUnMask(value: string): string {
+    return celularUnMask(value);
 }

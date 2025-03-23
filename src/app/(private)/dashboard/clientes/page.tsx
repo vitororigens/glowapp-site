@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -9,8 +11,36 @@ import {
 } from "@/components/ui/table";
 import { PlusIcon } from "lucide-react";
 import Link from "next/link";
+import { useLogic } from "./logic";
 
 export default function ClientesPage() {
+  const { data, methods } = useLogic();
+
+  if (!data.loadingContacts && !data.contacts.length) {
+    return (
+      <div className="max-w-[1080px] w-[90%] flex flex-col gap-6 mx-auto md-10 md:my-20">
+        <Button
+          className="mt-3 w-fit"
+          onClick={() => {
+            methods.setScheduleView({
+              open: true,
+              type: "create",
+            });
+          }}
+        >
+          Criar o primeiro contato
+        </Button>
+        <div
+          className="bg-red-100 border-l-4 border-[var(--main-color)] text-[var(--main-color)] p-4 rounded-lg"
+          role="alert"
+        >
+          <p className="font-bold">QUE PENA!</p>
+          <p>Não há contatos registrados 😢</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
@@ -32,12 +62,22 @@ export default function ClientesPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow>
-            <TableCell className="font-medium">João Silva</TableCell>
-            <TableCell>joao@email.com</TableCell>
-            <TableCell>(11) 99999-9999</TableCell>
-            <TableCell>10/04/2024</TableCell>
-          </TableRow>
+          {data.contacts && data.contacts.length > 0 ? (
+            data.contacts.map((contact: any) => (
+              <TableRow key={contact.id}>
+                <TableCell className="font-medium">{contact.name}</TableCell>
+                <TableCell>{contact.email}</TableCell>
+                <TableCell>{contact.phone}</TableCell>
+                <TableCell>{contact.lastVisit ? contact.lastVisit : "Não visitado"}</TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={4} className="text-center">
+                Nenhum cliente encontrado.
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </div>

@@ -34,7 +34,7 @@ const Footer = () => {
             {user && <Link href="/perfil">Perfil</Link>}
             {user && <Link href="/favoritos">Favoritos</Link>}
             {!user && <Link href="/auth/login">Login</Link>}
-            <Link href="/privacy-policy">Política de Privacidade</Link> {/* Adicionado aqui */}
+            <Link href="/privacy-policy">Política de Privacidade</Link>
           </S.NavigationWrapper>
 
           <S.ContactInformation>
