@@ -2,7 +2,10 @@ import { ImageSize } from "../Banner/styles";
 
 const BannerTwo = () => {
   return (
-    <section className="story-two mt-20 ">
+    <section className="relative story-two mt-20 ">
+                  {/* Shapes */}
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-pink-500 rounded-3xl -translate-x-10 -translate-y-10"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600 rounded-3xl translate-x-20 translate-y-20"></div>
       <div className="auto-container rounded-3">
         <div className="row clearfix rounded-3">
           <div className="story-two_image-column col-lg-6 col-md-12 col-sm-12 rounded-3">
@@ -20,7 +23,7 @@ const BannerTwo = () => {
           <div className="story-two_content-column col-lg-6 col-md-12 col-sm-12">
             <div className="story-two_content-outer">
               <div className="sec-title">
-                <div className="sec-title_title">Descubra o Seu Novo aplicativo de antes e depois</div>
+                <div className="sec-title_title">Descubra o Seu Novo software de antes e depois</div>
                 <h2 className="sec-title_heading">
                   Site e App: Tudo em um Só Lugar
                 </h2>
