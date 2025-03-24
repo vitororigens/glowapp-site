@@ -10,9 +10,15 @@ import {
 import * as S from "./styles";
 import { useRouter } from "next/navigation";
 import BackgroundImage from './../../../../../../public/img/resource/background.png'
+import { motion } from 'framer-motion';
 
 const Banner = () => {
   const router = useRouter();
+
+  const animationVariants = {
+    hidden: { opacity: 0, y: -50 },
+    visible: { opacity: 1, y: 0, transition: { duration: 1 } }
+  };
 
   return (
     <S.Banner>
@@ -43,9 +49,15 @@ const Banner = () => {
         <S.BannerContentInner>
           <S.BannerTitle>Do antes ao depois </S.BannerTitle>
           <S.BannerHeading>
-            Documente, <br />
-            Organize e Compartilhe <br />
-            <span>Suas Transformações </span>
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={animationVariants}
+            >
+              Documente, <br />
+              Organize e Compartilhe <br />
+              <span>Suas Transformações </span>
+            </motion.div>
           </S.BannerHeading>
           <S.BannerText>
           O GlowApp é uma plataforma digital inovadora, disponível em app e web, que revoluciona a organização diária de profissionais, especialmente aqueles que buscam otimizar seu tempo e melhorar a gestão do trabalho. 

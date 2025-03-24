@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import "./styles.css"; // Importando o arquivo de estilos
 
 const plans = [
     {
@@ -65,12 +66,12 @@ const plans = [
 
 export default function SubscriptionPlans() {
     return (
-        <div className="bg-gray-100">
-            <div className="container mx-auto py-12  bg-gray-100">
+        <div className="mt-20">
+            <div className="container mx-auto py-12">
                 <h2 className="text-3xl font-bold text-center mb-8">Escolha seu Plano</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {plans.map((plan, index) => (
-                        <Card key={index} className="shadow-lg p-4 rounded-2xl border border-gray-200 flex flex-col h-full">
+                        <Card key={index} className="card shadow-lg p-4 rounded-2xl border border-gray-200 flex flex-col h-full">
                             <CardHeader>
                                 <CardTitle className="text-xl font-bold text-center">{plan.name}</CardTitle>
                                 <p className="text-center text-lg font-semibold text-gray-700">{plan.price}</p>
@@ -92,6 +93,5 @@ export default function SubscriptionPlans() {
                 </div>
             </div>
         </div>
-
     );
 }

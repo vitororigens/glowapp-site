@@ -1,6 +1,6 @@
 const BannerFour = () => {
     return (
-      <div className="px-6 p-20">
+      <div className="px-6 p-20 bg-gray-100 overflow-hidden">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-4xl font-bold text-blue-600">
             Organização total do seu negócio
@@ -11,13 +11,13 @@ const BannerFour = () => {
           </p>
   
           <div className="mt-8 flex flex-col md:flex-row gap-6 justify-center">
-            <div className="bg-pink-500 flex justify-center items-center text-white text-lg font-bold rounded-2xl px-6 py-4 md:w-1/3">
+            <div className="card bg-pink-500 flex justify-center items-center text-white text-lg font-bold rounded-2xl px-6 py-4 md:w-1/3">
               Armazenamento completo dos dados de cada cliente
             </div>
-            <div className="bg-blue-600 flex justify-center items-center text-white text-lg font-bold rounded-2xl px-6 py-4 md:w-1/3">
+            <div className="card bg-blue-600 flex justify-center items-center text-white text-lg font-bold rounded-2xl px-6 py-4 md:w-1/3">
               Lista de contatos exclusiva
             </div>
-            <div className="bg-pink-500 flex justify-center items-center text-white text-lg font-bold rounded-2xl px-6 py-4 md:w-1/3">
+            <div className="card bg-pink-500 flex justify-center items-center text-white text-lg font-bold rounded-2xl px-6 py-4 md:w-1/3">
               Gerenciamento de informações importantes de forma prática e segura
             </div>
           </div>

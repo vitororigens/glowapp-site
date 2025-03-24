@@ -4,7 +4,7 @@ import { TiShoppingCart } from "react-icons/ti";
 
 const BannerTree = () => {
     return (
-        <section className="p-20 bg-gray-100">
+        <section className="p-20 mt-20">
             <div className="auto-container rounded-3">
                 <div className="row clearfix rounded-3 g-4">
 
