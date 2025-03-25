@@ -88,7 +88,9 @@ export default function DashboardLayout({
                     >
                       <MenuIcon className="h-6 w-6" />
                     </button>
+                    <div className={sidebarOpen ? "mr-80" : "mr-4"}>
                     <ProfileDropdown />
+                    </div>
                   </div>
                 </header>
                 <main className="container mx-auto px-4 pt-20">{children}</main>
