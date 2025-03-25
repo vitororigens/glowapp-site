@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { database } from "@/services/firebase";
-import { collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
-import { useAuthContext } from "@/context/AuthContext";
+import { deleteDoc, doc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import {
@@ -16,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { currencyMask } from "@/utils/maks/masks";
+import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 
 interface Service {
   id: string;
@@ -45,44 +44,14 @@ interface Service {
 }
 
 export default function Services() {
-  const [services, setServices] = useState<Service[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuthContext();
+  const { data: services, loading } = useFirestoreCollection("Services");
   const router = useRouter();
-  const uid = user?.uid;
-
-  const fetchServices = async () => {
-    if (!uid) return;
-
-    try {
-      const servicesRef = collection(database, "Services");
-      const q = query(servicesRef, where("uid", "==", uid));
-      const querySnapshot = await getDocs(q);
-      
-      const servicesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Service[];
-
-      setServices(servicesData);
-    } catch (error) {
-      console.error("Erro ao buscar serviços:", error);
-      toast.error("Erro ao carregar serviços!");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchServices();
-  }, [uid]);
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Tem certeza que deseja excluir este serviço?")) {
       try {
         await deleteDoc(doc(database, "Services", id));
         toast.success("Serviço excluído com sucesso!");
-        fetchServices();
       } catch (error) {
         console.error("Erro ao excluir serviço:", error);
         toast.error("Erro ao excluir serviço!");
@@ -103,9 +72,9 @@ export default function Services() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {loading ? (
         <div className="text-center py-4">Carregando...</div>
-      ) : services.length === 0 ? (
+      ) : !services || services.length === 0 ? (
         <div className="text-center py-4">Nenhum serviço cadastrado.</div>
       ) : (
         <div className="overflow-x-auto">
@@ -121,7 +90,7 @@ export default function Services() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {services.map((service) => (
+              {services.map((service: Service) => (
                 <TableRow key={service.id}>
                   <TableCell>{service.name}</TableCell>
                   <TableCell>{service.date}</TableCell>

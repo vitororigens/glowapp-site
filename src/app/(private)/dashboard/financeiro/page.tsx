@@ -32,147 +32,152 @@ import { useRouter } from "next/navigation";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 import { currencyMask } from "@/utils/maks/masks";
 import { useState } from "react";
+import { database } from "@/services/firebase";
+import { deleteDoc, doc } from "firebase/firestore";
+import { toast } from "react-toastify";
 
-export default function FinanceiroPage() {
+interface Transaction {
+  id: string;
+  name: string;
+  date: string;
+  value: string | number;
+  type: string;
+  category: string;
+  description: string;
+  collection: "Revenue" | "Expense";
+}
+
+export default function Financeiro() {
   const router = useRouter();
-  type Period = "mes" | "trimestre" | "ano";
+  const { data: revenues, loading: revenuesLoading } = useFirestoreCollection<Transaction>("Revenue");
+  const { data: expenses, loading: expensesLoading } = useFirestoreCollection<Transaction>("Expense");
 
-  const [period, setPeriod] = useState<Period>("mes");
-
-  const getStartDate = (period: string) => {
-    const today = new Date();
-    let startDate = new Date();
-  
-    if (period === "mes") {
-      startDate.setMonth(today.getMonth() - 1);
-    } else if (period === "trimestre") {
-      startDate.setMonth(today.getMonth() - 3);
-    } else if (period === "ano") {
-      startDate.setFullYear(today.getFullYear() - 1);
+  const handleDelete = async (id: string, collection: "Revenue" | "Expense") => {
+    if (window.confirm("Tem certeza que deseja excluir este registro?")) {
+      try {
+        await deleteDoc(doc(database, collection, id));
+        toast.success("Registro excluído com sucesso!");
+      } catch (error) {
+        console.error("Erro ao excluir registro:", error);
+        toast.error("Erro ao excluir registro!");
+      }
     }
-  
-    return startDate.toISOString().split("T")[0]; // Formato "YYYY-MM-DD"
-  };
-  
-  const queryParams: Record<Period, { field: string; operator: string; value: string }> = {
-    mes: { field: "date", operator: ">=", value: getStartDate("mes") },
-    trimestre: { field: "date", operator: ">=", value: getStartDate("trimestre") },
-    ano: { field: "date", operator: ">=", value: getStartDate("ano") },
-  };
-  
-  const { data: revenueData, loading: revenueLoading } = useFirestoreCollection(
-    "Revenue",
-    queryParams[period]
-  );
-  const { data: expenseData, loading: expenseLoading } = useFirestoreCollection(
-    "Expense",
-    queryParams[period]
-  );
-
-  type Transaction = {
-    uid: string;
-    date: string;
-    description: string;
-    value: number;
-    type: "Receita" | "Despesa";
-    textColor: string;
   };
 
-  const transactions: Transaction[] = [
-    ...(revenueData || []).map((item: any) => ({
-      ...item,
-      type: "Receita",
-      textColor: "text-green-600",
-      value: parseFloat(String(item.value).replace(",", ".")),
-    })),
-    ...(expenseData || []).map((item: any) => ({
-      ...item,
-      type: "Despesa",
-      textColor: "text-red-600",
-      value: parseFloat(String(item.value).replace(",", ".")),
-    })),
-  ];
+  const handleEdit = (id: string, collection: "Revenue" | "Expense") => {
+    router.push(`/dashboard/financeiro/novo?id=${id}&type=${collection}`);
+  };
 
-  const totalReceita = transactions
-    .filter((t) => t.type === "Receita")
-    .reduce((acc, curr) => acc + curr.value, 0);
-  const totalDespesa = transactions
-    .filter((t) => t.type === "Despesa")
-    .reduce((acc, curr) => acc + curr.value, 0);
+  const formatPrice = (price: string | number | undefined, isExpense: boolean = false) => {
+    if (!price) return "R$ 0,00";
+    const formattedValue = currencyMask(String(price));
+    return isExpense ? `- ${formattedValue}` : formattedValue;
+  };
 
-  function handleNewLaunch() {
-    router.push("/dashboard/financeiro/lancamentos/novo");
+  if (revenuesLoading || expensesLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Carregando dados...</p>
+        </div>
+      </div>
+    );
   }
-  function handleHistoric() {
-    router.push("/dashboard/financeiro/lancamentos");
-  }
+
+  // Combina receitas e despesas em uma única lista
+  const allTransactions = [
+    ...(revenues || []).map(rev => ({ ...rev, collection: "Revenue" as const })),
+    ...(expenses || []).map(exp => ({ ...exp, collection: "Expense" as const }))
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Calcula totais
+  const totalRevenue = (revenues || []).reduce((acc, curr) => {
+    const value = parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
+    return acc + value;
+  }, 0);
+
+  const totalExpense = (expenses || []).reduce((acc, curr) => {
+    const value = parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
+    return acc + value;
+  }, 0);
+
+  const balance = totalRevenue - totalExpense;
 
   return (
-    <div className="grid gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Financeiro</h1>
-        <Button onClick={() => handleNewLaunch()}>
-          <PlusIcon className="mr-2 h-4 w-4" />
-          Adicionar lançamento
+    <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Financeiro</h1>
+        <Button onClick={() => router.push("/dashboard/financeiro/novo")}>
+          Novo Registro
         </Button>
       </div>
-      <div className="flex items-center justify-between">
-        <Select defaultValue="mes" onValueChange={(value: string) => setPeriod(value as Period)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="mes">Último Mês</SelectItem>
-            <SelectItem value="trimestre">Último Trimestre</SelectItem>
-            <SelectItem value="ano">Último Ano</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-6">
-          <h3 className="text-lg font-medium">Receita Total</h3>
-          <p className="mt-2 text-3xl font-bold text-green-600">R$ {currencyMask(totalReceita.toFixed(2))}</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card className="p-4">
+          <h3 className="text-sm font-medium text-gray-500">Receitas</h3>
+          <p className="text-2xl font-bold text-green-600">{currencyMask(totalRevenue.toString())}</p>
         </Card>
-        <Card className="p-6">
-          <h3 className="text-lg font-medium">Despesas</h3>
-          <p className="mt-2 text-3xl font-bold text-red-600">R$ {currencyMask(totalDespesa.toFixed(2))}</p>
+        <Card className="p-4">
+          <h3 className="text-sm font-medium text-gray-500">Despesas</h3>
+          <p className="text-2xl font-bold text-red-600">{currencyMask(totalExpense.toString())}</p>
         </Card>
-        <Card className="p-6">
-          <h3 className="text-lg font-medium">Lucro</h3>
-          <p className="mt-2 text-3xl font-bold">R$ {currencyMask((totalReceita - totalDespesa).toFixed(2))}</p>
+        <Card className="p-4">
+          <h3 className="text-sm font-medium text-gray-500">Saldo</h3>
+          <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {currencyMask(balance.toString())}
+          </p>
         </Card>
       </div>
 
-      <Card className="p-6">
-        <h2 className="mb-4 text-xl font-semibold">Últimas Transações</h2>
-        {revenueLoading || expenseLoading ? (
-          <p>Carregando...</p>
-        ) : (
+      {allTransactions.length === 0 ? (
+        <div className="text-center py-4">Nenhum registro encontrado.</div>
+      ) : (
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Nome</TableHead>
                 <TableHead>Data</TableHead>
-                <TableHead>Descrição</TableHead>
                 <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((item) => (
-                <TableRow key={item.uid}>
-                  <TableCell>{item.date}</TableCell>
-                  <TableCell>{item.description}</TableCell>
-                  <TableCell>{item.type}</TableCell>
-                  <TableCell className={`text-right ${item.textColor}`}>
-                    R$ {currencyMask(item.value.toFixed(2))}
+              {allTransactions.map((transaction) => (
+                <TableRow key={`${transaction.collection}-${transaction.id}`}>
+                  <TableCell>{transaction.name}</TableCell>
+                  <TableCell>{transaction.date}</TableCell>
+                  <TableCell>{transaction.type}</TableCell>
+                  <TableCell>{transaction.category}</TableCell>
+                  <TableCell className={transaction.collection === "Expense" ? "text-red-600" : "text-green-600"}>
+                    {formatPrice(transaction.value, transaction.collection === "Expense")}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mr-2"
+                      onClick={() => handleEdit(transaction.id, transaction.collection)}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(transaction.id, transaction.collection)}
+                    >
+                      Excluir
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        )}
-      </Card>
+        </div>
+      )}
     </div>
   );
 }

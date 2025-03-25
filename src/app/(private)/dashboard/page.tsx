@@ -1,135 +1,184 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { useAuthContext } from "@/context/AuthContext";
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { database } from "@/services/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useAuthContext } from "@/context/AuthContext";
 import { currencyMask } from "@/utils/maks/masks";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import useFirestoreCollection from "@/hooks/useFirestoreCollection";
+
+interface Service {
+  id: string;
+  name: string;
+  date: string;
+  price: string;
+  budget: boolean;
+}
+
+interface DashboardData {
+  totalClients: number;
+  totalServices: number;
+  totalRevenue: number;
+  recentServices: Array<{
+    id: string;
+    name: string;
+    date: string;
+    price: string;
+    budget: boolean;
+  }>;
+}
 
 export default function DashboardHome() {
-  const [contacts, setContacts] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [services, setServices] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuthContext();
-  const uid = user?.uid;
+  const { data: services, loading: servicesLoading, error: servicesError } = useFirestoreCollection("Services");
+  const { data: clients, loading: clientsLoading, error: clientsError } = useFirestoreCollection("Contacts");
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
+    totalClients: 0,
+    totalServices: 0,
+    totalRevenue: 0,
+    recentServices: [],
+  });
 
   useEffect(() => {
-    if (uid) {
-      fetchData();
-    }
-  }, [uid]);
+    if (!services || !clients) return;
 
-  const fetchData = async () => {
-    try {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      
-      // Buscar contatos
-      const contactsRef = collection(database, "Contacts");
-      const contactsQuery = query(contactsRef, where("uid", "==", uid));
-      const contactsSnapshot = await getDocs(contactsQuery);
-      setContacts(contactsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    // Calcula totais
+    const totalServices = services.length;
+    const totalClients = clients.length;
+    const totalRevenue = services.reduce((acc: number, service: Service) => {
+      const price = parseFloat(service.price.replace(/[^\d,-]/g, "").replace(",", "."));
+      return acc + price;
+    }, 0);
 
-      // Buscar eventos do dia
-      const eventsRef = collection(database, "Notebook");
-      const eventsQuery = query(eventsRef, where("uid", "==", uid), where("date", "==", today));
-      const eventsSnapshot = await getDocs(eventsQuery);
-      setEvents(eventsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    // Ordena serviços por data (mais recentes primeiro)
+    const recentServices = [...services]
+      .sort((a, b) => {
+        const dateA = new Date(a.date.split("/").reverse().join("-"));
+        const dateB = new Date(b.date.split("/").reverse().join("-"));
+        return dateB.getTime() - dateA.getTime();
+      })
+      .slice(0, 5)
+      .map(service => ({
+        id: service.id,
+        name: service.name,
+        date: service.date,
+        price: service.price,
+        budget: service.budget
+      }));
 
-      // Buscar serviços do mês
-      const servicesRef = collection(database, "Services");
-      const servicesQuery = query(servicesRef, where("uid", "==", uid));
-      const servicesSnapshot = await getDocs(servicesQuery);
-      setServices(servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    setDashboardData({
+      totalClients,
+      totalServices,
+      totalRevenue,
+      recentServices,
+    });
+  }, [services, clients]);
 
-    } catch (error) {
-      console.error("Erro ao carregar dados:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  if (servicesLoading || clientsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Carregando dados...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const calcularReceitaMensal = () => {
-    return services.reduce((total, service) => total + Number(service.price.replace(/\D/g, '')), 0);
-  };
+  if (servicesError) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center text-red-500">
+          <p>Erro ao carregar serviços. Por favor, tente novamente mais tarde.</p>
+          <p className="text-sm mt-2">Detalhes: {servicesError.message}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (clientsError) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center text-red-500">
+          <p>Erro ao carregar clientes. Por favor, tente novamente mais tarde.</p>
+          <p className="text-sm mt-2">Detalhes: {clientsError.message}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="grid gap-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
-      
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-6">
-          <h3 className="text-lg font-medium">Total de Clientes</h3>
-          <p className="mt-2 text-3xl font-bold">{contacts.length}</p>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Total de Clientes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{dashboardData.totalClients}</p>
+          </CardContent>
         </Card>
-        <Card className="p-6">
-          <h3 className="text-lg font-medium">Agendamentos Hoje</h3>
-          <p className="mt-2 text-3xl font-bold">{events.length}</p>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Total de Serviços</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{dashboardData.totalServices}</p>
+          </CardContent>
         </Card>
-        <Card className="p-6">
-          <h3 className="text-lg font-medium">Receita Mensal</h3>
-          <p className="mt-2 text-3xl font-bold">{currencyMask(calcularReceitaMensal().toString())}</p>
-        </Card>
-        <Card className="p-6">
-          <h3 className="text-lg font-medium">Serviços Ativos</h3>
-          <p className="mt-2 text-3xl font-bold">{services.length}</p>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Faturamento Total</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">
+              {currencyMask(dashboardData.totalRevenue.toString())}
+            </p>
+          </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="p-6">
-          <h3 className="text-lg font-medium mb-4">Próximos Agendamentos</h3>
-          <ScrollArea className="h-[300px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Horário</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {events.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell>{event.hour}</TableCell>
-                    <TableCell>{event.name}</TableCell>
-                    <TableCell>{event.isChecked ? "Confirmado" : "Pendente"}</TableCell>
-                  </TableRow>
+      <Card>
+        <CardHeader>
+          <CardTitle>Serviços Recentes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2">Cliente</th>
+                  <th className="text-left py-2">Data</th>
+                  <th className="text-left py-2">Valor</th>
+                  <th className="text-left py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dashboardData.recentServices.map((service) => (
+                  <tr key={service.id} className="border-b">
+                    <td className="py-2">{service.name}</td>
+                    <td className="py-2">{service.date}</td>
+                    <td className="py-2">{currencyMask(service.price)}</td>
+                    <td className="py-2">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        service.budget 
+                          ? "bg-yellow-100 text-yellow-800" 
+                          : "bg-green-100 text-green-800"
+                      }`}>
+                        {service.budget ? "Orçamento" : "Serviço"}
+                      </span>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </Card>
-
-        <Card className="p-6">
-          <h3 className="text-lg font-medium mb-4">Últimos Serviços</h3>
-          <ScrollArea className="h-[300px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Data</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {services.slice(0, 5).map((service) => (
-                  <TableRow key={service.id}>
-                    <TableCell>{service.name}</TableCell>
-                    <TableCell>{currencyMask(service.price)}</TableCell>
-                    <TableCell>{format(new Date(service.date), 'dd/MM/yyyy')}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </Card>
-      </div>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
