@@ -1,6 +1,14 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { useAuthContext } from "@/context/AuthContext";
+import { database } from "@/services/firebase";
+import { collection, getDocs, query, where, deleteDoc, doc } from "firebase/firestore";
+import { toast } from "react-toastify";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { celularMask, cpfMask } from "@/utils/maks/masks";
 import {
   Table,
   TableBody,
@@ -9,77 +17,143 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PlusIcon } from "lucide-react";
-import Link from "next/link";
-import { useLogic } from "./logic";
+import { Pencil, Trash2 } from "lucide-react";
 
-export default function ClientesPage() {
-  const { data, methods } = useLogic();
+interface Contact {
+  id: string;
+  name: string;
+  cpf: string;
+  phone: string;
+  email: string;
+  observations: string;
+  imageUrl?: string;
+  createdAt: string;
+}
 
-  if (!data.loadingContacts && !data.contacts.length) {
-    return (
-      <div className="max-w-[1080px] w-[90%] flex flex-col gap-6 mx-auto md-10 md:my-20">
-        <Button
-          className="mt-3 w-fit"
-          onClick={() => {
-            methods.setScheduleView({
-              open: true,
-              type: "create",
-            });
-          }}
-        >
-          Criar o primeiro contato
-        </Button>
-        <div
-          className="bg-red-100 border-l-4 border-[var(--main-color)] text-[var(--main-color)] p-4 rounded-lg"
-          role="alert"
-        >
-          <p className="font-bold">QUE PENA!</p>
-          <p>Não há contatos registrados 😢</p>
-        </div>
-      </div>
-    );
+export default function Contacts() {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuthContext();
+  const uid = user?.uid;
+  const router = useRouter();
+
+  useEffect(() => {
+    if (uid) {
+      fetchContacts();
+    }
+  }, [uid]);
+
+  const fetchContacts = async () => {
+    try {
+      const contactsRef = collection(database, "Contacts");
+      const q = query(contactsRef, where("uid", "==", uid));
+      const querySnapshot = await getDocs(q);
+      
+      const contactsData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Contact[];
+      
+      setContacts(contactsData.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ));
+    } catch (error) {
+      console.error("Erro ao buscar clientes:", error);
+      toast.error("Erro ao carregar clientes!");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este cliente?")) return;
+
+    try {
+      await deleteDoc(doc(database, "Contacts", id));
+      setContacts(contacts.filter(contact => contact.id !== id));
+      toast.success("Cliente excluído com sucesso!");
+    } catch (error) {
+      console.error("Erro ao excluir cliente:", error);
+      toast.error("Erro ao excluir cliente!");
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    router.push(`/dashboard/clientes/novo?id=${id}`);
+  };
+
+  if (isLoading) {
+    return <div className="p-4">Carregando...</div>;
   }
 
   return (
-    <div className="grid gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Clientes</h1>
-        <Button asChild>
-          <Link href="/dashboard/clientes/novo">
-            <PlusIcon className="mr-2 h-4 w-4" />
-            Novo Cliente
-          </Link>
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Clientes</h1>
+        <Button onClick={() => router.push("/dashboard/clientes/novo")}>
+          Novo Cliente
         </Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Telefone</TableHead>
-            <TableHead>Última Visita</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.contacts && data.contacts.length > 0 ? (
-            data.contacts.map((contact: any) => (
-              <TableRow key={contact.id}>
-                <TableCell className="font-medium">{contact.name}</TableCell>
-                <TableCell>{contact.email}</TableCell>
-                <TableCell>{contact.phone}</TableCell>
-                <TableCell>{contact.lastVisit ? contact.lastVisit : "Não visitado"}</TableCell>
-              </TableRow>
-            ))
-          ) : (
+
+      <div className="bg-white rounded-lg shadow">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={4} className="text-center">
-                Nenhum cliente encontrado.
-              </TableCell>
+              <TableHead>Cliente</TableHead>
+              <TableHead>CPF</TableHead>
+              <TableHead>Telefone</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {contacts.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-4">
+                  Nenhum cliente encontrado.
+                </TableCell>
+              </TableRow>
+            ) : (
+              contacts.map((contact) => (
+                <TableRow key={contact.id}>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={contact.imageUrl} />
+                        <AvatarFallback>
+                          {contact.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>{contact.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{cpfMask(contact.cpf)}</TableCell>
+                  <TableCell>{celularMask(contact.phone)}</TableCell>
+                  <TableCell>{contact.email}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(contact.id)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(contact.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

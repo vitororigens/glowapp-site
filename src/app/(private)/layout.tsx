@@ -33,9 +33,7 @@ export default function DashboardLayout({
     { href: "/dashboard/servicos", label: "Serviços" },
     { href: "/dashboard/servicos/novo", label: "Novo Serviço" },
     { href: "/dashboard/procedimentos", label: "Procedimentos" },
-    { href: "/dashboard/procedimentos/novo", label: "Add Procedimento" },
     { href: "/dashboard/profissionais", label: "Profissionais" },
-    { href: "/dashboard/profissionais/novo", label: "Add Profissional" },
     { href: "/dashboard/financeiro", label: "Financeiro" },
   ];
 
