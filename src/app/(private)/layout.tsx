@@ -4,6 +4,7 @@ import { MenuIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import ProfileDropdown from "@/components/ProfileDropdown";
 
 import "../../styles/bootstrap.css";
 import "../../styles/globals.css";
@@ -87,6 +88,7 @@ export default function DashboardLayout({
                     >
                       <MenuIcon className="h-6 w-6" />
                     </button>
+                    <ProfileDropdown />
                   </div>
                 </header>
                 <main className="container mx-auto px-4 pt-20">{children}</main>
