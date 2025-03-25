@@ -12,10 +12,10 @@ export function GlowAppBanner() {
   };
 
   return (
-    <section className="relative p-20 bg-gray-100 overflow-hidden">
+    <section className="relative p-6 md:p-20 bg-gray-100 overflow-hidden">
       {/* Shapes */}
-      <div className="absolute bottom-0 right-0 w-64 h-64 bg-pink-500 rounded-3xl -translate-x-10 -translate-y-10"></div>
-      <div className="absolute bottom-0 right-0 w-64 h-64 bg-blue-600 rounded-3xl translate-x-20 translate-y-20"></div>
+      <div className="absolute bottom-0 right-0 w-32 h-32 md:w-64 md:h-64 bg-pink-500 rounded-3xl -translate-x-5 -translate-y-5 md:-translate-x-10 md:-translate-y-10"></div>
+      <div className="absolute bottom-0 right-0 w-32 h-32 md:w-64 md:h-64 bg-blue-600 rounded-3xl translate-x-10 translate-y-10 md:translate-x-20 md:translate-y-20"></div>
 
       <div className="relative z-10 auto-container rounded-3">
         <div className="row clearfix rounded-3 g-4">
@@ -41,7 +41,7 @@ export function GlowAppBanner() {
                 variants={buttonVariants}
                 whileHover="hover"
               >
-                <img src="/img/resource/app-store.png" className='w-64' alt="Button loja Apple store" />
+                <img src="/img/resource/app-store.png" className='w-32 md:w-64' alt="Button loja Apple store" />
               </motion.a>
               <motion.a
                 href="https://play.google.com"
@@ -50,12 +50,12 @@ export function GlowAppBanner() {
                 variants={buttonVariants}
                 whileHover="hover"
               >
-                <img src="/img/resource/play-store.png" className='w-64' alt="Button loja Play store" />
+                <img src="/img/resource/play-store.png" className='w-32 md:w-64' alt="Button loja Play store" />
               </motion.a>
             </div>
           </div>
           <div className="story-two_content-column col-lg-6 col-md-12 col-sm-12 items-center justify-center flex">
-            <img src="/img/resource/mockup.png" width={250} alt="Mockup de um smarphone com a logo do GlowApp" />
+            <img src="/img/resource/mockup.png" className='w-40 md:w-96' alt="Mockup de um smarphone com a logo do GlowApp" />
           </div>
         </div>
       </div>

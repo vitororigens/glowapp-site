@@ -2,7 +2,7 @@
 
 import { Banner } from "./_components/Banner";
 import { BannerFour } from "./_components/BannerFour";
-import { BannerTree } from "./_components/BannerThree";
+import { BannerThree } from "./_components/BannerThree";
 import { BannerTwo } from "./_components/BannerTwo";
 import Contact from "./_components/Contact";
 import {GlowAppBanner} from "./_components/GlowAppBanner";
@@ -14,7 +14,7 @@ const Home = () => {
       <Banner />
       <BannerTwo />
       <GlowAppBanner />
-      <BannerTree />
+      <BannerThree />
       <BannerFour />
       <SubscriptionPlans />
       <Contact />
