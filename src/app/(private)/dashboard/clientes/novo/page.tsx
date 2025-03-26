@@ -148,16 +148,21 @@ export default function NewContact() {
                 </Avatar>
                 <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
                   <label className="cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImageUpload(file);
-                      }}
-                      disabled={isUploading}
-                    />
+                    <label title="Upload Image">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        title="Upload an image"
+                        placeholder="Choose an image file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload(file);
+                        }}
+                        disabled={isUploading}
+                      />
+                      <span className="sr-only">Upload Image</span>
+                    </label>
                     <PlusCircle className="h-8 w-8 text-white" />
                   </label>
                 </div>

@@ -44,7 +44,7 @@ interface Service {
 }
 
 export default function Services() {
-  const { data: services, loading } = useFirestoreCollection("Services");
+  const { data: services, loading } = useFirestoreCollection<Service>("Services");
   const router = useRouter();
 
   const handleDelete = async (id: string) => {
@@ -97,11 +97,13 @@ export default function Services() {
                   <TableCell>{service.time}</TableCell>
                   <TableCell>{currencyMask(service.price)}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      service.budget 
-                        ? "bg-yellow-100 text-yellow-800" 
-                        : "bg-green-100 text-green-800"
-                    }`}>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        service.budget
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
+                    >
                       {service.budget ? "Orçamento" : "Serviço"}
                     </span>
                   </TableCell>

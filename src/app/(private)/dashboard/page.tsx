@@ -16,6 +16,13 @@ interface Service {
   budget: boolean;
 }
 
+interface Contact {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
 interface DashboardData {
   totalClients: number;
   totalServices: number;
@@ -30,8 +37,8 @@ interface DashboardData {
 }
 
 export default function DashboardHome() {
-  const { data: services, loading: servicesLoading, error: servicesError } = useFirestoreCollection("Services");
-  const { data: clients, loading: clientsLoading, error: clientsError } = useFirestoreCollection("Contacts");
+  const { data: services, loading: servicesLoading, error: servicesError } = useFirestoreCollection<Service>("Services");
+  const { data: clients, loading: clientsLoading, error: clientsError } = useFirestoreCollection<Contact>("Contacts");
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     totalClients: 0,
     totalServices: 0,
@@ -45,7 +52,7 @@ export default function DashboardHome() {
     // Calcula totais
     const totalServices = services.length;
     const totalClients = clients.length;
-    const totalRevenue = services.reduce((acc: number, service: Service) => {
+    const totalRevenue = services.reduce((acc, service) => {
       const price = parseFloat(service.price.replace(/[^\d,-]/g, "").replace(",", "."));
       return acc + price;
     }, 0);

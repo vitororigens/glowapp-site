@@ -2,7 +2,7 @@
 
 import { MenuIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import ProfileDropdown from "@/components/ProfileDropdown";
 
@@ -56,6 +56,7 @@ export default function DashboardLayout({
                   <button
                     onClick={() => setSidebarOpen(false)}
                     className="rounded-lg p-2 hover:bg-gray-100 lg:hidden"
+                    title="Close sidebar"
                   >
                     <MenuIcon className="h-6 w-6" />
                   </button>
@@ -89,11 +90,21 @@ export default function DashboardLayout({
                       <MenuIcon className="h-6 w-6" />
                     </button>
                     <div className={sidebarOpen ? "mr-80" : "mr-4"}>
-                    <ProfileDropdown />
+                      <ProfileDropdown />
                     </div>
                   </div>
                 </header>
-                <main className="container mx-auto px-4 pt-20">{children}</main>
+                <main className="container mx-auto px-4 pt-20">
+                  <Suspense
+                    fallback={
+                      <div className="flex items-center justify-center h-screen">
+                        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid"></div>
+                      </div>
+                    }
+                  >
+                    {children}
+                  </Suspense>
+                </main>
               </div>
             </div>
             <Cursor />
