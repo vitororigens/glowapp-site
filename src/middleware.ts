@@ -2,13 +2,16 @@ import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { checkIsPrivateRoute } from '@/utils/router/app-routes';
 
-export async function middleware(request: NextRequest) {
+type MiddlewareResponse = NextResponse;
+
+export async function middleware(request: NextRequest): Promise<MiddlewareResponse> {
     // Verify if token is Valid
     const session =  request.cookies.get('session')?.value;
+    const pathname = request.nextUrl.pathname;
 
-    const isPrivateRoutes = checkIsPrivateRoute(request.nextUrl.pathname);
+    const isPrivateRoutes = checkIsPrivateRoute(pathname);
 
-    const isAuthPages = request.nextUrl.pathname.includes('/auth')
+    const isAuthPages = pathname.includes('/auth')
 
     if (isAuthPages && session) {
         return NextResponse.redirect(new URL('/', request.url));

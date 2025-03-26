@@ -9,14 +9,21 @@ import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 import { getInitialNameLetters } from "@/utils/formater/get-inital-name-letter";
 import { Home, LogOut, User } from "lucide-react";
 
+interface UserData {
+  id: string;
+  imageUrl?: string;
+  name?: string;
+  email?: string;
+}
+
 export default function ProfileDropdown() {
   const router = useRouter();
   const { user } = useAuthContext();
   const [showDropdown, setShowDropdown] = useState(false);
-  const { data: userDatas } = useFirestoreCollection("Register");
+  const { data: userDatas } = useFirestoreCollection<UserData>("Register");
   
   const utilsInfo = (userDatas || []).find(
-    (item: any) => item.id === user?.uid
+    (item) => item.id === user?.uid
   );
 
   const handleSignOut = async () => {
@@ -43,41 +50,37 @@ export default function ProfileDropdown() {
             src={utilsInfo.imageUrl}
             alt="Avatar"
             className="w-full h-full object-cover"
+            width={48}
+            height={48}
           />
         ) : (
-          <div className="bg-gray-500 w-full h-full object-cover flex items-center justify-center">
-            <span className="font-bold text-white">
-              {user?.displayName ? getInitialNameLetters(user.displayName) : "U"}
+          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <span className="text-gray-600 text-lg font-medium">
+              {getInitialNameLetters(utilsInfo?.name || user?.email || '')}
             </span>
           </div>
         )}
       </button>
 
       {showDropdown && (
-        <div className="absolute right-0 z-50 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
-          <div className="py-1" role="menu">
+        <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+          <div className="py-1">
             <a
-              href="/dashboard/perfil"
-              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              role="menuitem"
+              href="/dashboard"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
-              <User className="mr-2 h-4 w-4" />
-              Perfil
+              Dashboard
             </a>
             <a
-              href="/"
-              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              role="menuitem"
+              href="/perfil"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
-              <Home className="mr-2 h-4 w-4" />
-              Home
+              Perfil
             </a>
             <button
               onClick={handleSignOut}
-              className="flex w-full items-center px-4 py-2 text-sm text-red-700 hover:bg-gray-100"
-              role="menuitem"
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
-              <LogOut className="mr-2 h-4 w-4" />
               Sair
             </button>
           </div>

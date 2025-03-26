@@ -1,8 +1,15 @@
-export const checkIsPrivateRoute = (asPath: string) => {
-    const privates = 
-        asPath === '/perfil' ||
-        asPath === '/favoritos'
+type RouteType = 'public' | 'private';
 
-    return privates
+const PRIVATE_ROUTES: string[] = [
+  '/perfil',
+  '/favoritos'
+];
+
+export const checkIsPrivateRoute = (asPath: string): boolean => {
+  return PRIVATE_ROUTES.includes(asPath);
+};
+
+export const getRouteType = (asPath: string): RouteType => {
+  return checkIsPrivateRoute(asPath) ? 'private' : 'public';
 };
 

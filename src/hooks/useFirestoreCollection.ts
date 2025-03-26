@@ -1,7 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
-import { collection, onSnapshot, query, where, Query, CollectionReference } from "firebase/firestore";
+import { 
+  collection, 
+  onSnapshot, 
+  query, 
+  where, 
+  Query, 
+  CollectionReference,
+  WhereFilterOp,
+  DocumentData
+} from "firebase/firestore";
 import { useEffect, useState } from "react";
 
 interface UseFirestoreCollectionResult<T> {
@@ -10,7 +19,20 @@ interface UseFirestoreCollectionResult<T> {
   error: Error | null;
 }
 
-const useFirestoreCollection = <T>(collectionName: string, queryParams?: { field: string, operator: any, value: any }): UseFirestoreCollectionResult<T> => {
+interface QueryParams {
+  field: string;
+  operator: WhereFilterOp;
+  value: DocumentData;
+}
+
+interface FirestoreDocument extends DocumentData {
+  id: string;
+}
+
+const useFirestoreCollection = <T extends FirestoreDocument>(
+  collectionName: string, 
+  queryParams?: QueryParams
+): UseFirestoreCollectionResult<T> => {
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
@@ -34,7 +56,10 @@ const useFirestoreCollection = <T>(collectionName: string, queryParams?: { field
 
     // Adiciona filtros adicionais se existirem
     if (queryParams) {
-      collectionQuery = query(collectionQuery, where(queryParams.field, queryParams.operator, queryParams.value));
+      collectionQuery = query(
+        collectionQuery, 
+        where(queryParams.field, queryParams.operator, queryParams.value)
+      );
     }
 
     const unsubscribe = onSnapshot(
@@ -48,14 +73,14 @@ const useFirestoreCollection = <T>(collectionName: string, queryParams?: { field
           setData(collectionData);
         } catch (err) {
           console.error(`Erro ao processar dados de ${collectionName}:`, err);
-          setError(err instanceof Error ? err : new Error('Erro ao processar dados'));
+          setError(err instanceof Error ? err : new Error('Erro desconhecido'));
         } finally {
           setLoading(false);
         }
       },
       (err) => {
-        console.error(`Erro ao buscar dados de ${collectionName}:`, err);
-        setError(err instanceof Error ? err : new Error('Erro ao buscar dados'));
+        console.error(`Erro ao escutar ${collectionName}:`, err);
+        setError(err instanceof Error ? err : new Error('Erro desconhecido'));
         setLoading(false);
       }
     );

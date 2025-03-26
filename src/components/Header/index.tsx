@@ -26,6 +26,13 @@ import { Button } from "../Button";
 import * as S from "./styles";
 import { getInitialNameLetters } from "@/utils/formater/get-inital-name-letter";
 
+interface UserData {
+  id: string;
+  imageUrl?: string;
+  name?: string;
+  email?: string;
+}
+
 const Header = () => {
   const { isMobile } = useIsMobile({ breakpoint: 1080 });
 
@@ -68,9 +75,9 @@ const MenuMobile = () => {
   const { user } = useAuthContext();
   const router = useRouter();
 
-  const { data: userDatas } = useFirestoreCollection("Register");
+  const { data: userDatas } = useFirestoreCollection<UserData>("Register");
   const utilsInfo = (userDatas || []).find(
-    (item: any) => item.id === user?.uid
+    (item) => item.id === user?.uid
   );
 
   const handleCloseMenu = () => {
@@ -111,19 +118,18 @@ const MenuMobile = () => {
           </S.Navbar>
         </div>
       </div>
-    </S.MobileMenu >
+    </S.MobileMenu>
   );
 };
 
 const ProfileDropdown = () => {
   const router = useRouter();
-
   const { user } = useAuthContext();
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const { data: userDatas } = useFirestoreCollection("Register");
+  const { data: userDatas } = useFirestoreCollection<UserData>("Register");
   const utilsInfo = (userDatas || []).find(
-    (item: any) => item.id === user?.uid
+    (item) => item.id === user?.uid
   );
 
   const handleSignOut = async () => {
@@ -144,45 +150,40 @@ const ProfileDropdown = () => {
           >
             {utilsInfo?.imageUrl ? (
               <img
-                src={utilsInfo?.imageUrl}
+                src={utilsInfo.imageUrl}
                 alt="Avatar"
                 className="w-full h-full object-cover"
                 width={50}
                 height={50}
               />
             ) : (
-              <div className="bg-gray-500 w-full h-full object-cover flex items-center justify-center">
-                <span className="font-bold text-white">
-                  {getInitialNameLetters(user.displayName)}
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <span className="text-gray-600 text-lg font-medium">
+                  {getInitialNameLetters(utilsInfo?.name || user.email || '')}
                 </span>
               </div>
             )}
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-              <div className="py-1" role="none">
+            <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+              <div className="py-1">
+                <a
+                  href="/dashboard"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Dashboard
+                </a>
                 <a
                   href="/perfil"
-                  className="block px-4 py-2 text-sm text-gray-700 flex flex-row gap-2"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
-                  <IconUser />
                   Perfil
                 </a>
-     
-                    <a
-                      href="/dashboard"
-                      className="block px-4 py-2 text-sm text-gray-700 flex flex-row gap-2"
-                    >
-                      <IconHome />
-                      Dashboard
-                    </a>
-                
                 <button
-                  className="block px-4 py-2 text-sm text-gray-700 flex flex-row gap-2"
                   onClick={handleSignOut}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
-                  <IconLogout />
                   Sair
                 </button>
               </div>
@@ -190,9 +191,7 @@ const ProfileDropdown = () => {
           )}
         </div>
       ) : (
-        <a href={"/auth/login"}>
-          <Button>Login</Button>
-        </a>
+        <Button onClick={() => router.push("/auth/login")}>Login</Button>
       )}
     </S.ActionsWrapper>
   );
