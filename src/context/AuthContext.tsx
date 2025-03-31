@@ -9,12 +9,12 @@ import {
 } from "react";
 
 import { auth } from "@/services/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 
 import Cookies from "js-cookie";
 
 type ContextTypes = {
-  user: any;
+  user: User | null;
 };
 
 const AuthContext = createContext<ContextTypes>({
@@ -22,10 +22,10 @@ const AuthContext = createContext<ContextTypes>({
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState();
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const handleUser = (user: any) => {
+    const handleUser = (user: User | null) => {
       if (user) {
         setUser(user);
       } else {
