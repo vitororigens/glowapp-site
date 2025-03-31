@@ -4,7 +4,7 @@ import { TiShoppingCart } from "react-icons/ti";
 
 const BannerThree = () => {
   return (
-    <section className="p-6 md:p-20 mt-10 md:mt-20">
+    <section className="p-2 md:p-20 mt-10 md:mt-20">
       <div className="auto-container rounded-3">
         <div className="row clearfix rounded-3 g-4">
           <div className="col-lg-6 col-md-12 col-sm-12 rounded-3">
