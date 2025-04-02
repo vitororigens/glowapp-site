@@ -1,14 +1,6 @@
 import { ImageSize } from "../Banner/styles";
-import { motion } from 'framer-motion';
 
 const BannerTwo = () => {
-  const bounceTransition = {
-    y: {
-      duration: 0.4,
-      yoyo: Infinity,
-      ease: "easeOut"
-    }
-  };
 
   return (
     <section className="relative story-two p-2 md:p-20 mt-10 md:mt-20">
@@ -17,17 +9,13 @@ const BannerTwo = () => {
       <div className="absolute bottom-0 left-0 w-32 h-32 md:w-64 md:h-64 bg-blue-600 rounded-3xl translate-x-5 translate-y-5 md:translate-x-20 md:translate-y-20"></div>
       <div className="auto-container rounded-3">
         <div className="row clearfix rounded-3 g-4">
-          <div className="story-two_image-column col-lg-6 col-md-12 col-sm-12 rounded-3 items-center justify-center flex">
-            <div className="w-28 mt-20 md:w-96 h-28 md:h-96 flex items-center justify-center">
-              <motion.div
-                className="story-two_image wow fadeInLeft"
-                data-wow-delay="0ms"
-                data-wow-duration="1500ms"
-                animate={{ y: ["0%", "-30%"] }}
-                transition={bounceTransition}
-              >
-                <ImageSize src="/img/logos/Logo2.png" alt="" className="rounded-3" />
-              </motion.div>
+          <div className="story-two_image-column col-lg-6 col-md-12 col-sm-12 rounded-3 items-start justify-center flex">
+            <div className="relative w-28 mt-10 md:w-96 h-28 md:h-96 flex items-center justify-center">
+                <div className="absolute top-0 left-0 w-full flex justify-between px-4">
+                    <span className="text-pink-500 font-bold text-lg md:text-2xl">Antes</span>
+                    <span className="text-blue-600 font-bold text-lg md:text-2xl">Depois</span>
+                </div>
+                <ImageSize src="/img/resource/afterAndBefore.png" alt="" className="rounded-3" />
             </div>
           </div>
 

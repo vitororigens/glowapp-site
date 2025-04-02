@@ -37,6 +37,22 @@ export default function Agenda() {
   const uid = user?.uid;
   const router = useRouter();
 
+  // Função para verificar se uma data tem eventos
+  const hasEventsOnDate = (date: Date) => {
+    return events.some(event => {
+      try {
+        const [day, month, year] = event.date.split('/');
+        const eventDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        return eventDate.getDate() === date.getDate() &&
+               eventDate.getMonth() === date.getMonth() &&
+               eventDate.getFullYear() === date.getFullYear();
+      } catch (error) {
+        console.error('Erro ao processar data do evento:', error);
+        return false;
+      }
+    });
+  };
+
   useEffect(() => {
     if (uid) {
       fetchEvents();
@@ -55,6 +71,7 @@ export default function Agenda() {
         isChecked: false,
       })) as Event[];
       
+      console.log('Eventos carregados:', eventsData);
       setEvents(eventsData.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       ));
@@ -94,11 +111,17 @@ export default function Agenda() {
                          event.category.toLowerCase().includes(searchTerm.toLowerCase());
     
     try {
-      // Converte a data do evento (formato dd/mm/yyyy) para objeto Date
       const [day, month, year] = event.date.split('/');
       const eventDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       
-      // Compara apenas a data (ignorando o horário)
+      console.log('Comparando datas:', {
+        eventDate: eventDate.toISOString(),
+        selectedDate: selectedDate.toISOString(),
+        matches: eventDate.getDate() === selectedDate.getDate() &&
+                eventDate.getMonth() === selectedDate.getMonth() &&
+                eventDate.getFullYear() === selectedDate.getFullYear()
+      });
+      
       const matchesDate = eventDate.getDate() === selectedDate.getDate() &&
                          eventDate.getMonth() === selectedDate.getMonth() &&
                          eventDate.getFullYear() === selectedDate.getFullYear();
@@ -128,6 +151,21 @@ export default function Agenda() {
             onSelect={(date) => date && setSelectedDate(date)}
             locale={ptBR}
             className="rounded-md border"
+            modifiers={{
+              hasEvents: (date) => hasEventsOnDate(date),
+              selected: (date) => date.getTime() === selectedDate.getTime(),
+            }}
+            modifiersStyles={{
+              hasEvents: {
+                backgroundColor: 'rgba(244, 114, 182, 0.2)',
+                borderRadius: '50%',
+              },
+              selected: {
+                backgroundColor: 'hsl(var(--primary))',
+                color: 'hsl(var(--primary-foreground))',
+                borderRadius: '50%',
+              },
+            }}
           />
         </Card>
 
@@ -175,7 +213,7 @@ export default function Agenda() {
                         <div>
                           <h3 className="font-medium">{event.name}</h3>
                           <p className="text-sm text-gray-500">
-                            {event.category} • {event.hour}
+                            {event.category} • {event.hour.replace(/(\d{2})(\d{2})/, '$1:$2')}
                           </p>
                         </div>
                       </div>
