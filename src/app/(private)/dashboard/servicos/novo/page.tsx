@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { currencyMask, currencyUnMask, cpfMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
 import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
-import { doc, getDoc, setDoc, collection } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { z } from "zod";
 import { toast } from "react-toastify";
 import { Switch } from "@/components/ui/switch";
@@ -19,11 +19,13 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CustomModalServices } from "@/components/CustomModalServices";
 import { CustomModalProfessionals } from "@/components/CustomModalProfessionals";
+import { CustomModalClients } from "@/components/CustomModalClients";
 import { ItemService } from "@/components/ItemService";
 import { ItemProfessional } from "@/components/ItemProfessional";
 import { FileIcon } from "@/components/icons/FileIcon";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/services/firebase";
+import { Plus } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -68,6 +70,7 @@ type FormSchemaType = z.infer<typeof formSchema>;
 export default function NewService() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showClientsModal, setShowClientsModal] = useState(false);
   const { user } = useAuthContext();
   const uid = user?.uid;
   const router = useRouter();
@@ -149,6 +152,30 @@ export default function NewService() {
     
     setIsLoading(true);
     try {
+      // Primeiro verifica se o cliente já existe
+      const contactsRef = collection(database, "Contacts");
+      const q = query(
+        contactsRef, 
+        where("uid", "==", uid),
+        where("cpf", "==", cpfUnMask(data.cpf))
+      );
+      const querySnapshot = await getDocs(q);
+
+      // Se o cliente não existir, cria um novo
+      if (querySnapshot.empty) {
+        const newContactRef = doc(collection(database, "Contacts"));
+        await setDoc(newContactRef, {
+          name: data.name,
+          cpf: cpfUnMask(data.cpf),
+          phone: celularUnMask(data.phone),
+          email: data.email || "",
+          uid,
+          createdAt: new Date().toISOString(),
+        });
+        toast.success("Novo cliente cadastrado!");
+      }
+
+      // Cria ou atualiza o serviço
       const docRef = serviceId
         ? doc(database, "Services", serviceId)
         : doc(collection(database, "Services"));
@@ -242,43 +269,69 @@ export default function NewService() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label>Nome do Cliente*</Label>
-            <Input {...register("name")} placeholder="Nome completo" />
+          <div className="space-y-2">
+            <Label>Nome Completo</Label>
+            <div className="flex gap-2">
+              <Input
+                {...register("name")}
+                placeholder="Nome completo"
+                className={errors.name ? "border-red-500" : ""}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowClientsModal(true)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
             {errors.name && (
-              <p className="text-red-500 text-sm">{errors.name.message}</p>
+              <span className="text-sm text-red-500">{errors.name.message}</span>
             )}
           </div>
 
-          <div>
-            <Label>CPF*</Label>
-            <Input 
-              {...register("cpf")} 
+          <div className="space-y-2">
+            <Label>CPF</Label>
+            <Input
+              {...register("cpf")}
               placeholder="CPF"
-              onChange={(e) => setValue("cpf", cpfMask(e.target.value))}
+              className={errors.cpf ? "border-red-500" : ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setValue("cpf", cpfMask(value));
+              }}
             />
             {errors.cpf && (
-              <p className="text-red-500 text-sm">{errors.cpf.message}</p>
+              <span className="text-sm text-red-500">{errors.cpf.message}</span>
             )}
           </div>
 
-          <div>
-            <Label>Telefone*</Label>
-            <Input 
-              {...register("phone")} 
+          <div className="space-y-2">
+            <Label>Telefone</Label>
+            <Input
+              {...register("phone")}
               placeholder="Telefone"
-              onChange={(e) => setValue("phone", celularMask(e.target.value))}
+              className={errors.phone ? "border-red-500" : ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setValue("phone", celularMask(value));
+              }}
             />
             {errors.phone && (
-              <p className="text-red-500 text-sm">{errors.phone.message}</p>
+              <span className="text-sm text-red-500">{errors.phone.message}</span>
             )}
           </div>
 
-          <div>
+          <div className="space-y-2">
             <Label>Email</Label>
-            <Input {...register("email")} placeholder="Email" />
+            <Input
+              {...register("email")}
+              placeholder="Email"
+              className={errors.email ? "border-red-500" : ""}
+            />
             {errors.email && (
-              <p className="text-red-500 text-sm">{errors.email.message}</p>
+              <span className="text-sm text-red-500">{errors.email.message}</span>
             )}
           </div>
 
@@ -637,6 +690,21 @@ export default function NewService() {
           setShowProfessionalsModal(false);
         }}
         title="Selecione os profissionais"
+      />
+
+      <CustomModalClients
+        visible={showClientsModal}
+        onClose={() => setShowClientsModal(false)}
+        onSelect={(client) => {
+          setValue("name", client.name);
+          setValue("cpf", cpfMask(client.cpf));
+          setValue("phone", celularMask(client.phone));
+          if (client.email) {
+            setValue("email", client.email);
+          }
+          setShowClientsModal(false);
+        }}
+        title="Selecionar Cliente"
       />
     </div>
   );
