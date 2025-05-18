@@ -153,9 +153,12 @@ export default function NewService() {
         ? doc(database, "Services", serviceId)
         : doc(collection(database, "Services"));
 
+      // Remove caracteres não numéricos e converte para número
+      const price = Number(data.price.replace(/\D/g, ''));
+
       await setDoc(docRef, {
         ...data,
-        price: currencyUnMask(data.price),
+        price,
         cpf: cpfUnMask(data.cpf),
         phone: celularUnMask(data.phone),
         uid,
@@ -550,13 +553,49 @@ export default function NewService() {
         onClose={() => setShowServicesModal(false)}
         onConfirm={(selectedItems) => {
           const currentServices = services || [];
-          const newServices = selectedItems
-            .map(id => {
-              const service = services.find(s => s.id === id);
-              return service;
-            })
-            .filter((service): service is NonNullable<typeof service> => service !== undefined);
-          setValue("services", [...currentServices, ...newServices]);
+          // Filtra os serviços que já existem para não duplicar
+          const existingIds = currentServices.map(s => s.id);
+          const newServices = selectedItems.filter(id => !existingIds.includes(id));
+          
+          // Busca os serviços selecionados da coleção Procedures
+          const fetchSelectedServices = async () => {
+            try {
+              const servicesRef = collection(database, "Procedures");
+              const selectedDocs = await Promise.all(
+                newServices.map(id => getDoc(doc(servicesRef, id)))
+              );
+              
+              const selectedServices = selectedDocs
+                .filter(doc => doc.exists())
+                .map(doc => ({
+                  id: doc.id,
+                  name: doc.data().name,
+                  code: doc.data().code,
+                  price: doc.data().price,
+                  date: doc.data().date
+                }));
+
+              // Atualiza a lista de serviços
+              const updatedServices = [...currentServices, ...selectedServices];
+              setValue("services", updatedServices);
+
+              // Calcula o valor total
+              const total = updatedServices.reduce((sum, service) => {
+                const price = typeof service.price === 'string' 
+                  ? Number(service.price.replace(/\D/g, ''))
+                  : Number(service.price);
+                return sum + price;
+              }, 0);
+
+              // Atualiza o valor total
+              setValue("price", currencyMask(total));
+            } catch (error) {
+              console.error("Erro ao buscar serviços selecionados:", error);
+              toast.error("Erro ao adicionar serviços!");
+            }
+          };
+
+          fetchSelectedServices();
           setShowServicesModal(false);
         }}
         title="Selecione os serviços"
@@ -567,13 +606,34 @@ export default function NewService() {
         onClose={() => setShowProfessionalsModal(false)}
         onConfirm={(selectedItems) => {
           const currentProfessionals = professionals || [];
-          const newProfessionals = selectedItems
-            .map(id => {
-              const professional = professionals.find(p => p.id === id);
-              return professional;
-            })
-            .filter((professional): professional is NonNullable<typeof professional> => professional !== undefined);
-          setValue("professionals", [...currentProfessionals, ...newProfessionals]);
+          // Filtra os profissionais que já existem para não duplicar
+          const existingIds = currentProfessionals.map(p => p.id);
+          const newProfessionals = selectedItems.filter(id => !existingIds.includes(id));
+          
+          // Busca os profissionais selecionados da coleção Profissionals
+          const fetchSelectedProfessionals = async () => {
+            try {
+              const professionalsRef = collection(database, "Profissionals");
+              const selectedDocs = await Promise.all(
+                newProfessionals.map(id => getDoc(doc(professionalsRef, id)))
+              );
+              
+              const selectedProfessionals = selectedDocs
+                .filter(doc => doc.exists())
+                .map(doc => ({
+                  id: doc.id,
+                  name: doc.data().name,
+                  specialty: doc.data().specialty
+                }));
+
+              setValue("professionals", [...currentProfessionals, ...selectedProfessionals]);
+            } catch (error) {
+              console.error("Erro ao buscar profissionais selecionados:", error);
+              toast.error("Erro ao adicionar profissionais!");
+            }
+          };
+
+          fetchSelectedProfessionals();
           setShowProfessionalsModal(false);
         }}
         title="Selecione os profissionais"

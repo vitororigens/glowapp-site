@@ -12,7 +12,7 @@ interface Service {
   id: string;
   name: string;
   date: string;
-  price: string;
+  price: string | number;
   budget: boolean;
 }
 
@@ -31,7 +31,7 @@ interface DashboardData {
     id: string;
     name: string;
     date: string;
-    price: string;
+    price: string | number;
     budget: boolean;
   }>;
 }
@@ -50,12 +50,21 @@ export default function DashboardHome() {
     if (!services || !clients) return;
 
     // Calcula totais
-    const totalServices = services.length;
+    const totalServices = services.filter(service => !service.budget).length;
     const totalClients = clients.length;
-    const totalRevenue = services.reduce((acc, service) => {
-      const price = parseFloat(service.price.replace(/[^\d,-]/g, "").replace(",", "."));
-      return acc + price;
-    }, 0);
+    
+    // Calcula o faturamento total apenas dos serviços (não orçamentos)
+    const totalRevenue = services
+      .filter(service => !service.budget)
+      .reduce((acc, service) => {
+        let price = 0;
+        if (typeof service.price === 'number') {
+          price = service.price;
+        } else {
+          price = Number(service.price.replace(/[^\d,-]/g, "").replace(",", "."));
+        }
+        return acc + price;
+      }, 0);
 
     // Ordena serviços por data (mais recentes primeiro)
     const recentServices = [...services]
@@ -130,7 +139,7 @@ export default function DashboardHome() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Total de Serviços</CardTitle>
+            <CardTitle>Total de Serviços Realizados</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{dashboardData.totalServices}</p>
@@ -139,7 +148,7 @@ export default function DashboardHome() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Faturamento Total</CardTitle>
+            <CardTitle>Faturamento de Serviços</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">
@@ -169,13 +178,18 @@ export default function DashboardHome() {
                   <tr key={service.id} className="border-b">
                     <td className="py-2">{service.name}</td>
                     <td className="py-2">{service.date}</td>
-                    <td className="py-2">{currencyMask(service.price)}</td>
+                    <td className="py-2">{typeof service.price === 'number' 
+                      ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(service.price / 100)
+                      : currencyMask(service.price)
+                    }</td>
                     <td className="py-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        service.budget 
-                          ? "bg-yellow-100 text-yellow-800" 
-                          : "bg-green-100 text-green-800"
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          service.budget
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
                         {service.budget ? "Orçamento" : "Serviço"}
                       </span>
                     </td>

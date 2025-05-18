@@ -24,7 +24,7 @@ interface Service {
   email: string;
   date: string;
   time: string;
-  price: string;
+  price: number;
   priority: string;
   duration: string;
   observations: string;
@@ -46,6 +46,18 @@ interface Service {
 export default function Services() {
   const { data: services, loading } = useFirestoreCollection<Service>("Services");
   const router = useRouter();
+
+  const formatPrice = (price: number | string) => {
+    // Se for string, converte para número
+    if (typeof price === 'string') {
+      price = Number(price.replace(/\D/g, ''));
+    }
+    
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(price / 100);
+  };
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Tem certeza que deseja excluir este serviço?")) {
@@ -95,7 +107,7 @@ export default function Services() {
                   <TableCell>{service.name}</TableCell>
                   <TableCell>{service.date}</TableCell>
                   <TableCell>{service.time}</TableCell>
-                  <TableCell>{currencyMask(service.price)}</TableCell>
+                  <TableCell>{formatPrice(service.price)}</TableCell>
                   <TableCell>
                     <span
                       className={`px-2 py-1 rounded-full text-xs ${

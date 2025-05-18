@@ -47,10 +47,19 @@ interface Transaction {
   collection: "Revenue" | "Expense";
 }
 
+interface Service {
+  id: string;
+  name: string;
+  date: string;
+  price: string;
+  budget: boolean;
+}
+
 export default function Financeiro() {
   const router = useRouter();
   const { data: revenues, loading: revenuesLoading } = useFirestoreCollection<Transaction>("Revenue");
   const { data: expenses, loading: expensesLoading } = useFirestoreCollection<Transaction>("Expense");
+  const { data: services, loading: servicesLoading } = useFirestoreCollection<Service>("Services");
 
   const handleDelete = async (id: string, collection: "Revenue" | "Expense") => {
     if (window.confirm("Tem certeza que deseja excluir este registro?")) {
@@ -74,7 +83,7 @@ export default function Financeiro() {
     return isExpense ? `- ${formattedValue}` : formattedValue;
   };
 
-  if (revenuesLoading || expensesLoading) {
+  if (revenuesLoading || expensesLoading || servicesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -88,11 +97,29 @@ export default function Financeiro() {
   // Combina receitas e despesas em uma única lista
   const allTransactions = [
     ...(revenues || []).map(rev => ({ ...rev, collection: "Revenue" as const })),
-    ...(expenses || []).map(exp => ({ ...exp, collection: "Expense" as const }))
+    ...(expenses || []).map(exp => ({ ...exp, collection: "Expense" as const })),
+    // Adiciona serviços não-orçamentos como receitas
+    ...(services || [])
+      .filter(service => !service.budget)
+      .map(service => ({
+        id: service.id,
+        name: service.name,
+        date: service.date,
+        value: service.price,
+        type: "Serviço",
+        category: "Serviços",
+        description: "Serviço realizado",
+        collection: "Revenue" as const
+      }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   // Calcula totais
-  const totalRevenue = (revenues || []).reduce((acc, curr) => {
+  const totalRevenue = [
+    ...(revenues || []),
+    ...(services || [])
+      .filter(service => !service.budget)
+      .map(service => ({ value: service.price }))
+  ].reduce((acc, curr) => {
     const value = parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
     return acc + value;
   }, 0);
@@ -115,7 +142,7 @@ export default function Financeiro() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-500">Receitas</h3>
+          <h3 className="text-sm font-medium text-gray-500">Receitas (incluindo serviços)</h3>
           <p className="text-2xl font-bold text-green-600">{currencyMask(totalRevenue.toString())}</p>
         </Card>
         <Card className="p-4">
@@ -156,21 +183,25 @@ export default function Financeiro() {
                     {formatPrice(transaction.value, transaction.collection === "Expense")}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mr-2"
-                      onClick={() => handleEdit(transaction.id, transaction.collection)}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(transaction.id, transaction.collection)}
-                    >
-                      Excluir
-                    </Button>
+                    {transaction.type !== "Serviço" && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mr-2"
+                          onClick={() => handleEdit(transaction.id, transaction.collection)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(transaction.id, transaction.collection)}
+                        >
+                          Excluir
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

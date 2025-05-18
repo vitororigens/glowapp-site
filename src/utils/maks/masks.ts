@@ -2,26 +2,30 @@
 
 import { currency } from "remask";
 
-export function currencyMask(value: string) {
-    const numericValue = Number(value.replace(/\D/g, '')) / 100;
+export function currencyMask(value: string | number | undefined) {
+    if (value === undefined || value === null) return '';
+    
+    // Se for número, formata diretamente
+    if (typeof value === 'number') {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(value / 100);
+    }
 
-    const maskedValue = currency.mask({
-        locale: 'pt-BR',
-        currency: 'BRL',
-        value: numericValue
-    });
+    // Se for string, remove caracteres não numéricos e converte para número
+    const stringValue = String(value);
+    const numericValue = Number(stringValue.replace(/\D/g, ''));
 
-    return maskedValue;
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(numericValue / 100);
 }
 
-export function currencyUnMask(maskedValue: string) {
-    const unMaskedValue = currency.unmask({
-        locale: 'pt-BR',
-        currency: 'BRL',
-        value: maskedValue
-    });
-
-    return unMaskedValue;
+export function currencyUnMask(maskedValue: string | undefined) {
+    if (!maskedValue) return '0';
+    return maskedValue.replace(/\D/g, '');
 }
 
 export function formatCurrencyMask(value: string | undefined): string {

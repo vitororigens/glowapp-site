@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { FaCamera } from "react-icons/fa";
 import { useRouter } from "next/navigation";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { database } from "@/services/firebase";
 import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "./styles";
+import { useAuthContext } from "@/context/AuthContext";
 
 // Tipagem do profissional
 type PropsCardProfessional = {
@@ -28,9 +29,16 @@ export default function Profissionais() {
   const [selectedProfessional, setSelectedProfessional] = useState<PropsCardProfessional | null>(null);
   const [showModal, setShowModal] = useState(false);
   const router = useRouter();
+  const { user } = useAuthContext();
+  const uid = user?.uid;
 
   const fetchProfessionals = async () => {
-    const querySnapshot = await getDocs(collection(database, "Profissionals"));
+    if (!uid) return;
+
+    const professionalsRef = collection(database, "Profissionals");
+    const q = query(professionalsRef, where("uid", "==", uid));
+    const querySnapshot = await getDocs(q);
+    
     const fetchedProfessionals: PropsCardProfessional[] = [];
     querySnapshot.forEach((doc) => {
       fetchedProfessionals.push({ id: doc.id, ...doc.data() } as PropsCardProfessional);
@@ -40,7 +48,7 @@ export default function Profissionais() {
 
   useEffect(() => {
     fetchProfessionals();
-  }, []);
+  }, [uid]);
 
   const handleSelectProfessional = (professional: PropsCardProfessional) => {
     setSelectedProfessional(professional);
