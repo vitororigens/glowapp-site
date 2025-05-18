@@ -54,7 +54,7 @@
     "eslint": "8.49.0",
     "eslint-config-next": "13.5.1",
     "firebase": "^11.2.0",
-    "framer-motion": "^12.5.0",
+    "framer-motion": "^12.12.1",
     "gsap": "^3.12.7",
     "input-otp": "^1.2.4",
     "jquery": "^3.7.1",

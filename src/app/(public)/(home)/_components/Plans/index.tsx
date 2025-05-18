@@ -42,24 +42,10 @@ const plans = [
             "Orçamentos",
             "Checklist",
             "Histórico de Tarefas",
-            "*Clientes ilimitados e 10 fotos por cliente"
-        ],
-    },
-    {
-        name: "Premium",
-        price: "R$139,90",
-        features: [
-            "Foto antes e depois*",
-            "Agenda",
-            "Controle Financeiro",
-            "Lista de Procedimentos",
-            "Orçamentos",
-            "Checklist",
-            "Histórico de Tarefas",
+            "Clientes ilimitados",
+            "Fotos ilimitadas",
             "Primeiras atualizações",
-            "Utilização de IA",
-            "Controle de mais profissionais",
-            "*Clientes e fotos ilimitados"
+            "Utilização de IA"
         ],
     },
 ];
@@ -69,7 +55,7 @@ export default function SubscriptionPlans() {
         <div className="mt-20">
             <div className="container mx-auto py-12">
                 <h2 className="text-3xl font-bold text-center mb-8">Escolha seu Plano</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {plans.map((plan, index) => (
                         <Card key={index} className="card shadow-lg p-4 rounded-2xl border border-gray-200 flex flex-col h-full">
                             <CardHeader>

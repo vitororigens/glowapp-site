@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
+import { IconBrandWhatsapp } from "@tabler/icons-react";
 
 export default function Contact() {
   return (
@@ -16,7 +16,17 @@ export default function Contact() {
             <CardContent>
               <ul className="space-y-4 text-gray-600">
                 <li>Tem interesse em um plano personalizado ou saber mais entre em contato</li>
-                <li>📞 +55 66 9217-0388</li>
+                <li>
+                  <a 
+                    href="https://wa.me/5566992170388" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-green-600 hover:text-green-700 transition-colors"
+                  >
+                    <IconBrandWhatsapp size={24} />
+                    Fale conosco no WhatsApp
+                  </a>
+                </li>
               </ul>
             </CardContent>
           </div>
