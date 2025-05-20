@@ -213,31 +213,28 @@ export default function Agenda() {
         <div className="space-y-4">
           <Card className="p-6">
             <Card className="p-6">
-  <Calendar
-    mode="single"
-    selected={selectedDate}
-    onSelect={(date) => date && setSelectedDate(date)}
-    locale={ptBR}
-    modifiers={{ hasItems: (date) => hasItemsOnDate(date) }}
-    modifiersStyles={{
-      hasItems: {
-        backgroundColor: "rgba(244, 114, 182, 0.2)",
-        borderRadius: "50%",
-      },
-    }}
-    className={`
-      w-full
-      /* transforma a linha de nomes dos dias em grid de 7 colunas */
-      [&_.rdp-weekdays]:grid
-      [&_.rdp-weekdays]:grid-cols-7
-      /* centraliza cada célula de nome */
-      [&_.rdp-head_cell]:flex
-      [&_.rdp-head_cell]:items-center
-      [&_.rdp-head_cell]:justify-center
-      /* adiciona gap entre as colunas, se quiser */
-      [&_.rdp-weekdays]:gap-2
-    `}
-  />
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                locale={ptBR}
+                modifiers={{ hasItems: (date) => hasItemsOnDate(date) }}
+                modifiersStyles={{
+                  hasItems: {
+                    backgroundColor: "rgba(244, 114, 182, 0.2)",
+                    borderRadius: "50%",
+                  },
+                }}
+                className={`
+                  w-full
+                  [&_.rdp-weekdays]:grid
+                  [&_.rdp-weekdays]:grid-cols-7
+                  [&_.rdp-head_cell]:flex
+                  [&_.rdp-head_cell]:items-center
+                  [&_.rdp-head_cell]:justify-center
+                  [&_.rdp-weekdays]:gap-2
+                `}
+              />
 </Card>
 
           </Card>

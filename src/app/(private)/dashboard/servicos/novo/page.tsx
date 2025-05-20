@@ -26,6 +26,7 @@ import { FileIcon } from "@/components/icons/FileIcon";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/services/firebase";
 import { Plus } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -51,6 +52,8 @@ const formSchema = z.object({
     specialty: z.string(),
   })).optional(),
   budget: z.boolean().default(false),
+  paymentMethod: z.enum(["dinheiro", "pix", "cartao"]).optional(),
+  installments: z.number().optional(),
   documents: z.array(z.object({
     name: z.string(),
     url: z.string(),
@@ -71,6 +74,7 @@ export default function NewService() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showClientsModal, setShowClientsModal] = useState(false);
+  const [showInstallmentsModal, setShowInstallmentsModal] = useState(false);
   const { user } = useAuthContext();
   const uid = user?.uid;
   const router = useRouter();
@@ -103,6 +107,8 @@ export default function NewService() {
       services: [],
       professionals: [],
       budget: false,
+      paymentMethod: undefined,
+      installments: undefined,
       documents: [],
       beforePhotos: [],
       afterPhotos: [],
@@ -115,6 +121,7 @@ export default function NewService() {
   const documents = watch("documents") || [];
   const beforePhotos = watch("beforePhotos") || [];
   const afterPhotos = watch("afterPhotos") || [];
+  const paymentMethod = watch("paymentMethod");
 
   useEffect(() => {
     if (serviceId) {
@@ -137,6 +144,8 @@ export default function NewService() {
               services: data.services || [],
               professionals: data.professionals || [],
               budget: data.budget || false,
+              paymentMethod: data.paymentMethod || undefined,
+              installments: data.installments || undefined,
               documents: data.documents || [],
               beforePhotos: data.beforePhotos || [],
               afterPhotos: data.afterPhotos || [],
@@ -182,15 +191,33 @@ export default function NewService() {
 
       // Remove caracteres não numéricos e converte para número
       const price = Number(data.price.replace(/\D/g, ''));
-
-      await setDoc(docRef, {
-        ...data,
-        price,
+      
+      // Dados do serviço
+      const serviceData = {
+        name: data.name,
         cpf: cpfUnMask(data.cpf),
         phone: celularUnMask(data.phone),
+        email: data.email || "",
+        date: data.date,
+        time: data.time,
+        price: price,
+        priority: data.priority || "",
+        duration: data.duration || "",
+        observations: data.observations || "",
+        services: data.services || [],
+        professionals: data.professionals || [],
+        budget: data.budget || false,
+        paymentMethod: data.paymentMethod || null,
+        installments: data.installments || null,
+        documents: data.documents || [],
+        beforePhotos: data.beforePhotos || [],
+        afterPhotos: data.afterPhotos || [],
         uid,
         createdAt: new Date().toISOString(),
-      });
+        updatedAt: new Date().toISOString(),
+      };
+
+      await setDoc(docRef, serviceData);
 
       toast.success(serviceId ? "Serviço atualizado!" : "Serviço adicionado!");
       router.back();
@@ -258,6 +285,25 @@ export default function NewService() {
     } else if (type === 'after') {
       const newPhotos = afterPhotos.filter((_, i) => i !== index);
       setValue('afterPhotos', newPhotos);
+    }
+  };
+
+  // Função para selecionar o número de parcelas
+  const handleInstallmentsSelect = (installments: number) => {
+    setValue("installments", installments);
+    setShowInstallmentsModal(false);
+  };
+
+  // Função para lidar com a mudança do método de pagamento
+  const handlePaymentMethodChange = (value: string) => {
+    setValue("paymentMethod", value as "dinheiro" | "pix" | "cartao");
+    
+    // Se cartão for selecionado, abre o modal de parcelas
+    if (value === "cartao") {
+      setShowInstallmentsModal(true);
+    } else {
+      // Se não for cartão, remove o valor de parcelas
+      setValue("installments", undefined);
     }
   };
 
@@ -370,14 +416,6 @@ export default function NewService() {
               <p className="text-red-500 text-sm">{errors.duration.message}</p>
             )}
           </div>
-
-          <div>
-            <Label>Prioridade</Label>
-            <Input {...register("priority")} placeholder="Prioridade" />
-            {errors.priority && (
-              <p className="text-red-500 text-sm">{errors.priority.message}</p>
-            )}
-          </div>
         </div>
 
         <div>
@@ -399,6 +437,34 @@ export default function NewService() {
             onCheckedChange={(checked) => setValue("budget", checked)}
           />
           <Label htmlFor="budget">Orçamento</Label>
+        </div>
+
+        {/* Método de Pagamento */}
+        <div className="space-y-2">
+          <Label>Método de Pagamento</Label>
+          <RadioGroup
+            value={paymentMethod}
+            onValueChange={handlePaymentMethodChange}
+            className="flex space-x-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="dinheiro" id="dinheiro" />
+              <Label htmlFor="dinheiro">Dinheiro</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="pix" id="pix" />
+              <Label htmlFor="pix">PIX</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="cartao" id="cartao" />
+              <Label htmlFor="cartao">Cartão</Label>
+            </div>
+          </RadioGroup>
+          {paymentMethod === "cartao" && watch("installments") && (
+            <div className="mt-2 text-sm text-gray-600">
+              Parcelado em {watch("installments")}x
+            </div>
+          )}
         </div>
 
         <Card className="p-4">
@@ -706,6 +772,32 @@ export default function NewService() {
         }}
         title="Selecionar Cliente"
       />
+
+      {/* Modal de parcelas */}
+      {showInstallmentsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Selecione o número de parcelas</h2>
+              <Button variant="ghost" onClick={() => setShowInstallmentsModal(false)}>
+                Fechar
+              </Button>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
+                <Button 
+                  key={num} 
+                  variant="outline" 
+                  onClick={() => handleInstallmentsSelect(num)}
+                  className="p-4"
+                >
+                  {num}x
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

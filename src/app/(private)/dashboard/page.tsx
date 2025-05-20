@@ -14,6 +14,8 @@ interface Service {
   date: string;
   price: string | number;
   budget: boolean;
+  paymentMethod?: 'dinheiro' | 'pix' | 'cartao';
+  installments?: number;
 }
 
 interface Contact {
@@ -33,6 +35,8 @@ interface DashboardData {
     date: string;
     price: string | number;
     budget: boolean;
+    paymentMethod?: 'dinheiro' | 'pix' | 'cartao';
+    installments?: number;
   }>;
 }
 
@@ -79,7 +83,9 @@ export default function DashboardHome() {
         name: service.name,
         date: service.date,
         price: service.price,
-        budget: service.budget
+        budget: service.budget,
+        paymentMethod: service.paymentMethod,
+        installments: service.installments
       }));
 
     setDashboardData({
@@ -171,6 +177,7 @@ export default function DashboardHome() {
                   <th className="text-left py-2">Data</th>
                   <th className="text-left py-2">Valor</th>
                   <th className="text-left py-2">Status</th>
+                  <th className="text-left py-2">Pagamento</th>
                 </tr>
               </thead>
               <tbody>
@@ -192,6 +199,29 @@ export default function DashboardHome() {
                       >
                         {service.budget ? "Orçamento" : "Serviço"}
                       </span>
+                    </td>
+                    <td className="py-2">
+                      {service.budget ? (
+                        "-"
+                      ) : service.paymentMethod ? (
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${
+                            service.paymentMethod === "dinheiro"
+                              ? "bg-blue-100 text-blue-800"
+                              : service.paymentMethod === "pix"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-orange-100 text-orange-800"
+                          }`}
+                        >
+                          {service.paymentMethod === "dinheiro"
+                            ? "Dinheiro"
+                            : service.paymentMethod === "pix"
+                            ? "PIX"
+                            : `Cartão ${service.installments ? `${service.installments}x` : ""}`}
+                        </span>
+                      ) : (
+                        "-"
+                      )}
                     </td>
                   </tr>
                 ))}
