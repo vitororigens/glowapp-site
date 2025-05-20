@@ -2,13 +2,6 @@
 
 import { Card } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -16,22 +9,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 import { currencyMask } from "@/utils/maks/masks";
-import { useState } from "react";
 import { database } from "@/services/firebase";
 import { deleteDoc, doc } from "firebase/firestore";
 import { toast } from "react-toastify";
@@ -73,9 +54,9 @@ export default function Financeiro() {
     }
   };
 
-  const handleEdit = (id: string, collection: "Revenue" | "Expense") => {
-    router.push(`/dashboard/financeiro/novo?id=${id}&type=${collection}`);
-  };
+  function handleEdit(item: { id: string, type: string }) {
+    router.push(`/dashboard/financeiro/novo?id=${item.id}&type=${item.type}`);
+  }
 
   const formatPrice = (price: string | number | undefined, isExpense: boolean = false) => {
     if (!price) return "R$ 0,00";
@@ -189,7 +170,7 @@ export default function Financeiro() {
                           variant="outline"
                           size="sm"
                           className="mr-2"
-                          onClick={() => handleEdit(transaction.id, transaction.collection)}
+                          onClick={() => handleEdit(transaction)}
                         >
                           Editar
                         </Button>

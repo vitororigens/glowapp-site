@@ -7,86 +7,127 @@ import { formSchema, FormSchemaType } from "./schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { currencyMask, currencyUnMask } from "@/utils/maks/masks";
 import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export default function NewLaunch() {
+  // Estados do componente
   const [selectedType, setSelectedType] = useState<"revenue" | "expense" | "">("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  
+  // Hook Form
   const { register, handleSubmit, setValue, formState: { errors }, reset } = useForm<FormSchemaType>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      category: "",
+      date: "",
+      time: "",
+      value: "",
+      description: "",
+    }
   });
+  
+  // Contextos e navegação
   const { user } = useAuthContext();
   const uid = user?.uid;
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Parâmetros da URL (similar ao useRoute no React Native)
+  const itemId = searchParams.get('id');
+  const itemType = searchParams.get('type') as "revenue" | "expense" | null;
 
+  // Configura o tipo selecionado baseado na URL
   useEffect(() => {
-    if (selectedItemId && selectedType) {
-      const collectionName = selectedType === "revenue" ? "Revenue" : "Expense";
-      const docRef = doc(database, collectionName, selectedItemId);
+    if (itemType) {
+      setSelectedType(itemType);
+    }
+  }, [itemType]);
 
+  // Carrega os dados para edição (similar ao useEffect no NewLaunch.tsx do React Native)
+  useEffect(() => {
+    if (itemId && itemType) {
+      const collectionName = itemType === "revenue" ? "Revenue" : "Expense";
+      const docRef = doc(database, collectionName, itemId);
+      
       getDoc(docRef)
         .then((docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            if (data) {
-              reset({
-                name: data.name || "",
-                category: data.category || "",
-                date: data.date || "",
-                time: data.time || "",
-                value: currencyMask(data.value) || "",
-                description: data.description || "",
-              });
-            }
+            // Reseta o formulário com os dados do documento
+            reset({
+              name: data.name || "",
+              category: data.category || "",
+              date: data.date || "",
+              time: data.time || "",
+              value: data.value ? currencyMask(data.value.toString()) : "",
+              description: data.description || "",
+              type: itemType
+            });
+          } else {
+            alert("Lançamento não encontrado!");
           }
         })
         .catch((error) => {
           console.error("Erro ao buscar lançamento: ", error);
+          alert("Erro ao carregar dados do lançamento!");
         });
     }
-  }, [selectedItemId, selectedType, reset]);
+  }, [itemId, itemType, reset]);
 
+  // Função de submit (similar ao onSubmit no NewLaunch.tsx do React Native)
   const onSubmit = async (data: FormSchemaType) => {
-    if (!data.name || !data.value || !data.category || !data.date || !data.time) {
-      alert("Por favor, preencha todos os campos obrigatórios antes de salvar.");
-      return;
-    }
+  const resolvedType = itemType || selectedType;
 
-    setIsLoading(true);
+  if (!resolvedType) {
+    alert("Tipo de lançamento inválido.");
+    return;
+  }
 
-    const collectionName = selectedType === "revenue" ? "Revenue" : "Expense";
-    const docRef = doc(database, collectionName, selectedItemId || crypto.randomUUID());
+  const collectionName = resolvedType === "revenue" ? "Revenue" : "Expense";
+  const docId = itemId || crypto.randomUUID(); // só cria novo se não for edição
+  const docRef = doc(database, collectionName, docId);
 
-    const baseData = {
-      ...data,
-      uid,
-      value: currencyUnMask(data.value),
-      type: selectedType,
-      createdAt: new Date().toISOString(),
-    };
+ const numericValue = Number(currencyUnMask(data.value));
+  if (isNaN(numericValue)) {
+    alert("Valor inválido.");
+    return;
+  }
 
-    try {
-      await setDoc(docRef, baseData);
-      alert(selectedItemId ? "Lançamento atualizado!" : "Lançamento adicionado!");
-      reset();
-      router.back();
-    } catch (error) {
-      console.error("Erro ao criar/atualizar lançamento: ", error);
-      alert("Erro ao criar/atualizar lançamento!");
-    } finally {
-      setIsLoading(false);
-    }
+  const baseData = {
+    ...data,
+    uid,
+    type: resolvedType,
+    value: numericValue,
+    updatedAt: new Date().toISOString(),
+    ...(itemId ? {} : { createdAt: new Date().toISOString() }),
   };
+
+  try {
+    setIsLoading(true);
+    await setDoc(docRef, baseData);
+    alert(itemId ? "Lançamento atualizado!" : "Lançamento adicionado!");
+    router.back();
+  } catch (error) {
+    console.error("Erro ao criar/atualizar lançamento: ", error);
+    alert("Erro ao salvar lançamento.");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
-      <h2 className="text-xl font-bold mb-4">Adicionar {selectedType === "expense" ? "Despesa" : "Receita" }</h2>
-      {!selectedType ? (
+      <h2 className="text-xl font-bold mb-4">
+        {itemId ? "Editar" : "Novo"} {selectedType === "expense" ? "Despesa" : "Receita"}
+      </h2>
+
+      {!selectedType && !itemId ? (
         <div>
           <Label>Escolha o tipo</Label>
           <div className="flex gap-4 mt-2">
@@ -100,7 +141,7 @@ export default function NewLaunch() {
         </div>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <input type="hidden" {...register("type")} value={selectedType} />
+          <input type="hidden" {...register("type")} value={itemType || selectedType} />
 
           <div>
             <Label>Categoria</Label>
@@ -128,7 +169,11 @@ export default function NewLaunch() {
 
           <div>
             <Label>Valor</Label>
-            <Input type="text" {...register("value")} onChange={(e) => setValue("value", currencyMask(e.target.value))} />
+            <Input 
+              type="text" 
+              {...register("value")} 
+              onChange={(e) => setValue("value", currencyMask(e.target.value))} 
+            />
             {errors.value && <p className="text-red-500 text-sm">{errors.value.message}</p>}
           </div>
 
@@ -142,7 +187,7 @@ export default function NewLaunch() {
             <Button type="submit" disabled={isLoading}>
               {isLoading ? "Salvando..." : "Salvar"}
             </Button>
-            <Button onClick={() => setSelectedType("")} variant="outline">
+            <Button onClick={() => router.back()} variant="outline">
               Voltar
             </Button>
           </div>
