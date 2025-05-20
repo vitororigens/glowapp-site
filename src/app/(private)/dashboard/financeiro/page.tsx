@@ -34,6 +34,8 @@ interface Service {
   date: string;
   price: string;
   budget: boolean;
+  paymentMethod?: 'dinheiro' | 'pix' | 'cartao';
+  installments?: number;
 }
 
 export default function Financeiro() {
@@ -55,7 +57,13 @@ export default function Financeiro() {
   };
 
   function handleEdit(item: { id: string, type: string }) {
-    router.push(`/dashboard/financeiro/novo?id=${item.id}&type=${item.type}`);
+    if (item.type === "Serviço") {
+      // Quando for serviço, redireciona para a página de edição de serviços
+      router.push(`/dashboard/servicos/novo?id=${item.id}`);
+    } else {
+      // Para outros registros (receitas e despesas)
+      router.push(`/dashboard/financeiro/novo?id=${item.id}&type=${item.type}`);
+    }
   }
 
   const formatPrice = (price: string | number | undefined, isExpense: boolean = false) => {
@@ -90,7 +98,9 @@ export default function Financeiro() {
         type: "Serviço",
         category: "Serviços",
         description: "Serviço realizado",
-        collection: "Revenue" as const
+        collection: "Revenue" as const,
+        paymentMethod: service.paymentMethod,
+        installments: service.installments
       }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -150,6 +160,7 @@ export default function Financeiro() {
                 <TableHead>Tipo</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Valor</TableHead>
+                <TableHead>Pagamento</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -163,8 +174,29 @@ export default function Financeiro() {
                   <TableCell className={transaction.collection === "Expense" ? "text-red-600" : "text-green-600"}>
                     {formatPrice(transaction.value, transaction.collection === "Expense")}
                   </TableCell>
+                  <TableCell>
+                    {transaction.type === "Serviço" && (transaction as any).paymentMethod ? (
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          (transaction as any).paymentMethod === "dinheiro"
+                            ? "bg-blue-100 text-blue-800"
+                            : (transaction as any).paymentMethod === "pix"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-orange-100 text-orange-800"
+                        }`}
+                      >
+                        {(transaction as any).paymentMethod === "dinheiro"
+                          ? "Dinheiro"
+                          : (transaction as any).paymentMethod === "pix"
+                          ? "PIX"
+                          : `Cartão ${(transaction as any).installments ? `${(transaction as any).installments}x` : ""}`}
+                      </span>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
-                    {transaction.type !== "Serviço" && (
+                    {transaction.type !== "Serviço" ? (
                       <>
                         <Button
                           variant="outline"
@@ -182,6 +214,14 @@ export default function Financeiro() {
                           Excluir
                         </Button>
                       </>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(transaction)}
+                      >
+                        Editar
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>

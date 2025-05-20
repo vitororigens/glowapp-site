@@ -41,6 +41,8 @@ interface Service {
     specialty: string;
   }>;
   budget: boolean;
+  paymentMethod?: 'dinheiro' | 'pix' | 'cartao';
+  installments?: number;
 }
 
 export default function Services() {
@@ -98,6 +100,7 @@ export default function Services() {
                 <TableHead>Hora</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Pagamento</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -118,6 +121,29 @@ export default function Services() {
                     >
                       {service.budget ? "Orçamento" : "Serviço"}
                     </span>
+                  </TableCell>
+                  <TableCell>
+                    {service.budget ? (
+                      "-"
+                    ) : service.paymentMethod ? (
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          service.paymentMethod === "dinheiro"
+                            ? "bg-blue-100 text-blue-800"
+                            : service.paymentMethod === "pix"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-orange-100 text-orange-800"
+                        }`}
+                      >
+                        {service.paymentMethod === "dinheiro"
+                          ? "Dinheiro"
+                          : service.paymentMethod === "pix"
+                          ? "PIX"
+                          : `Cartão ${service.installments ? `${service.installments}x` : ""}`}
+                      </span>
+                    ) : (
+                      "-"
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button
