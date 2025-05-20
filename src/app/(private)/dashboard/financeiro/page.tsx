@@ -34,8 +34,13 @@ interface Service {
   date: string;
   price: string;
   budget: boolean;
-  paymentMethod?: 'dinheiro' | 'pix' | 'cartao';
-  installments?: number;
+  payments?: Array<{
+    method: 'dinheiro' | 'pix' | 'cartao' | 'boleto';
+    value: string | number;
+    date: string;
+    installments?: number;
+    status: 'pendente' | 'pago';
+  }>;
 }
 
 export default function Financeiro() {
@@ -99,8 +104,7 @@ export default function Financeiro() {
         category: "Serviços",
         description: "Serviço realizado",
         collection: "Revenue" as const,
-        paymentMethod: service.paymentMethod,
-        installments: service.installments
+        payments: service.payments
       }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -175,22 +179,34 @@ export default function Financeiro() {
                     {formatPrice(transaction.value, transaction.collection === "Expense")}
                   </TableCell>
                   <TableCell>
-                    {transaction.type === "Serviço" && (transaction as any).paymentMethod ? (
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          (transaction as any).paymentMethod === "dinheiro"
-                            ? "bg-blue-100 text-blue-800"
-                            : (transaction as any).paymentMethod === "pix"
-                            ? "bg-purple-100 text-purple-800"
-                            : "bg-orange-100 text-orange-800"
-                        }`}
-                      >
-                        {(transaction as any).paymentMethod === "dinheiro"
-                          ? "Dinheiro"
-                          : (transaction as any).paymentMethod === "pix"
-                          ? "PIX"
-                          : `Cartão ${(transaction as any).installments ? `${(transaction as any).installments}x` : ""}`}
-                      </span>
+                    {transaction.type === "Serviço" && (transaction as any).payments && (transaction as any).payments.length > 0 ? (
+                      <div className="space-y-1">
+                        {(transaction as any).payments.length === 1 ? (
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs ${
+                              (transaction as any).payments[0].method === "dinheiro"
+                                ? "bg-blue-100 text-blue-800"
+                                : (transaction as any).payments[0].method === "pix"
+                                ? "bg-purple-100 text-purple-800"
+                                : (transaction as any).payments[0].method === "boleto"
+                                ? "bg-teal-100 text-teal-800"
+                                : "bg-orange-100 text-orange-800"
+                            }`}
+                          >
+                            {(transaction as any).payments[0].method === "dinheiro"
+                              ? "Dinheiro"
+                              : (transaction as any).payments[0].method === "pix"
+                              ? "PIX"
+                              : (transaction as any).payments[0].method === "boleto"
+                              ? "Boleto"
+                              : `Cartão ${(transaction as any).payments[0].installments ? `${(transaction as any).payments[0].installments}x` : ""}`}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
+                            Múltiplos ({(transaction as any).payments.length})
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       "-"
                     )}

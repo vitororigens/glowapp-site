@@ -41,8 +41,13 @@ interface Service {
     specialty: string;
   }>;
   budget: boolean;
-  paymentMethod?: 'dinheiro' | 'pix' | 'cartao';
-  installments?: number;
+  payments?: Array<{
+    method: 'dinheiro' | 'pix' | 'cartao' | 'boleto';
+    value: string | number;
+    date: string;
+    installments?: number;
+    status: 'pendente' | 'pago';
+  }>;
 }
 
 export default function Services() {
@@ -125,22 +130,34 @@ export default function Services() {
                   <TableCell>
                     {service.budget ? (
                       "-"
-                    ) : service.paymentMethod ? (
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          service.paymentMethod === "dinheiro"
-                            ? "bg-blue-100 text-blue-800"
-                            : service.paymentMethod === "pix"
-                            ? "bg-purple-100 text-purple-800"
-                            : "bg-orange-100 text-orange-800"
-                        }`}
-                      >
-                        {service.paymentMethod === "dinheiro"
-                          ? "Dinheiro"
-                          : service.paymentMethod === "pix"
-                          ? "PIX"
-                          : `Cartão ${service.installments ? `${service.installments}x` : ""}`}
-                      </span>
+                    ) : service.payments && service.payments.length > 0 ? (
+                      <div className="space-y-1">
+                        {service.payments.length === 1 ? (
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs ${
+                              service.payments[0].method === "dinheiro"
+                                ? "bg-blue-100 text-blue-800"
+                                : service.payments[0].method === "pix"
+                                ? "bg-purple-100 text-purple-800"
+                                : service.payments[0].method === "boleto"
+                                ? "bg-teal-100 text-teal-800"
+                                : "bg-orange-100 text-orange-800"
+                            }`}
+                          >
+                            {service.payments[0].method === "dinheiro"
+                              ? "Dinheiro"
+                              : service.payments[0].method === "pix"
+                              ? "PIX"
+                              : service.payments[0].method === "boleto"
+                              ? "Boleto"
+                              : `Cartão ${service.payments[0].installments ? `${service.payments[0].installments}x` : ""}`}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
+                            Múltiplos ({service.payments.length})
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       "-"
                     )}

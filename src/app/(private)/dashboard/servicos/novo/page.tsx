@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { currencyMask, currencyUnMask, cpfMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
 import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
-import { doc, getDoc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
 import { z } from "zod";
 import { toast } from "react-toastify";
 import { Switch } from "@/components/ui/switch";
@@ -25,7 +25,7 @@ import { ItemProfessional } from "@/components/ItemProfessional";
 import { FileIcon } from "@/components/icons/FileIcon";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/services/firebase";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const formSchema = z.object({
@@ -52,8 +52,13 @@ const formSchema = z.object({
     specialty: z.string(),
   })).optional(),
   budget: z.boolean().default(false),
-  paymentMethod: z.enum(["dinheiro", "pix", "cartao"]).optional(),
-  installments: z.number().optional(),
+  payments: z.array(z.object({
+    method: z.enum(["dinheiro", "pix", "cartao", "boleto"]),
+    value: z.string().min(1, "Valor é obrigatório"),
+    date: z.string().min(1, "Data é obrigatória"),
+    installments: z.number().optional(),
+    status: z.enum(["pendente", "pago"]).default("pendente"),
+  })).default([]),
   documents: z.array(z.object({
     name: z.string(),
     url: z.string(),
@@ -75,6 +80,7 @@ export default function NewService() {
   const [isUploading, setIsUploading] = useState(false);
   const [showClientsModal, setShowClientsModal] = useState(false);
   const [showInstallmentsModal, setShowInstallmentsModal] = useState(false);
+  const [currentPaymentIndex, setCurrentPaymentIndex] = useState(-1);
   const { user } = useAuthContext();
   const uid = user?.uid;
   const router = useRouter();
@@ -83,6 +89,13 @@ export default function NewService() {
   const [showServicesModal, setShowServicesModal] = useState(false);
   const [showProfessionalsModal, setShowProfessionalsModal] = useState(false);
   const [uploadType, setUploadType] = useState<'document' | 'before' | 'after' | null>(null);
+  const [newPayment, setNewPayment] = useState({
+    method: "dinheiro" as "dinheiro" | "pix" | "cartao" | "boleto",
+    value: "",
+    date: new Date().toISOString().split('T')[0],
+    installments: 1 as number | undefined,
+    status: "pendente" as "pendente" | "pago"
+  });
 
   const {
     register,
@@ -107,8 +120,7 @@ export default function NewService() {
       services: [],
       professionals: [],
       budget: false,
-      paymentMethod: undefined,
-      installments: undefined,
+      payments: [],
       documents: [],
       beforePhotos: [],
       afterPhotos: [],
@@ -121,7 +133,14 @@ export default function NewService() {
   const documents = watch("documents") || [];
   const beforePhotos = watch("beforePhotos") || [];
   const afterPhotos = watch("afterPhotos") || [];
-  const paymentMethod = watch("paymentMethod");
+  const payments = watch("payments") || [];
+  const totalPrice = watch("price") ? Number(watch("price").replace(/\D/g, '')) : 0;
+
+  const totalPaid = payments.reduce((acc, payment) => {
+    return acc + Number(payment.value.replace(/\D/g, ''));
+  }, 0);
+
+  const remainingAmount = totalPrice - totalPaid;
 
   useEffect(() => {
     if (serviceId) {
@@ -144,8 +163,10 @@ export default function NewService() {
               services: data.services || [],
               professionals: data.professionals || [],
               budget: data.budget || false,
-              paymentMethod: data.paymentMethod || undefined,
-              installments: data.installments || undefined,
+              payments: data.payments ? data.payments.map((p: any) => ({
+                ...p,
+                value: currencyMask(p.value)
+              })) : [],
               documents: data.documents || [],
               beforePhotos: data.beforePhotos || [],
               afterPhotos: data.afterPhotos || [],
@@ -157,73 +178,89 @@ export default function NewService() {
   }, [serviceId, reset]);
 
   const onSubmit = async (data: FormSchemaType) => {
-    if (!uid) return;
+    console.log("onSubmit function called", data);
+    if (!uid) {
+      console.error("UID não encontrado");
+      return;
+    }
     
     setIsLoading(true);
+    
     try {
-      // Primeiro verifica se o cliente já existe
-      const contactsRef = collection(database, "Contacts");
-      const q = query(
-        contactsRef, 
-        where("uid", "==", uid),
-        where("cpf", "==", cpfUnMask(data.cpf))
-      );
-      const querySnapshot = await getDocs(q);
+      console.log("Iniciando processamento...");
+      
+      // Processar pagamentos de forma segura
+      const processedPayments = data.payments ? data.payments.map(payment => ({
+        method: payment.method,
+        value: Number(payment.value.replace(/\D/g, '')),
+        date: payment.date,
+        installments: payment.installments || null,
+        status: payment.status || "pendente"
+      })) : [];
 
-      // Se o cliente não existir, cria um novo
-      if (querySnapshot.empty) {
-        const newContactRef = doc(collection(database, "Contacts"));
-        await setDoc(newContactRef, {
+      // Converte o preço
+      const price = Number(data.price.replace(/\D/g, ''));
+      
+      if (serviceId) {
+        console.log("Editando serviço existente:", serviceId);
+        
+        // Referência ao documento
+        const serviceRef = doc(database, "Services", serviceId);
+        
+        // Dados simplificados para teste
+        const updateData = {
+          name: data.name,
+          price: price,
+          observations: data.observations || "",
+          payments: processedPayments,
+          updatedAt: new Date().toISOString()
+        };
+        
+        console.log("Dados para atualização:", updateData);
+        
+        // Tenta atualizar
+        await updateDoc(serviceRef, updateData);
+        console.log("Atualização concluída");
+        
+        toast.success("Serviço atualizado!");
+        setTimeout(() => router.back(), 1000);
+      } else {
+        console.log("Criando novo serviço");
+        
+        // Dados completos para novos documentos
+        const newServiceData = {
           name: data.name,
           cpf: cpfUnMask(data.cpf),
           phone: celularUnMask(data.phone),
           email: data.email || "",
+          date: data.date,
+          time: data.time,
+          price: price,
+          priority: data.priority || "",
+          duration: data.duration || "",
+          observations: data.observations || "",
+          services: data.services || [],
+          professionals: data.professionals || [],
+          budget: data.budget || false,
+          payments: processedPayments,
+          documents: data.documents || [],
+          beforePhotos: data.beforePhotos || [],
+          afterPhotos: data.afterPhotos || [],
           uid,
           createdAt: new Date().toISOString(),
-        });
-        toast.success("Novo cliente cadastrado!");
+          updatedAt: new Date().toISOString()
+        };
+        
+        // Cria novo doc
+        const newServiceRef = doc(collection(database, "Services"));
+        await setDoc(newServiceRef, newServiceData);
+        
+        toast.success("Serviço adicionado!");
+        setTimeout(() => router.back(), 1000);
       }
-
-      // Cria ou atualiza o serviço
-      const docRef = serviceId
-        ? doc(database, "Services", serviceId)
-        : doc(collection(database, "Services"));
-
-      // Remove caracteres não numéricos e converte para número
-      const price = Number(data.price.replace(/\D/g, ''));
-      
-      // Dados do serviço
-      const serviceData = {
-        name: data.name,
-        cpf: cpfUnMask(data.cpf),
-        phone: celularUnMask(data.phone),
-        email: data.email || "",
-        date: data.date,
-        time: data.time,
-        price: price,
-        priority: data.priority || "",
-        duration: data.duration || "",
-        observations: data.observations || "",
-        services: data.services || [],
-        professionals: data.professionals || [],
-        budget: data.budget || false,
-        paymentMethod: data.paymentMethod || null,
-        installments: data.installments || null,
-        documents: data.documents || [],
-        beforePhotos: data.beforePhotos || [],
-        afterPhotos: data.afterPhotos || [],
-        uid,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      await setDoc(docRef, serviceData);
-
-      toast.success(serviceId ? "Serviço atualizado!" : "Serviço adicionado!");
-      router.back();
-    } catch (error) {
-      console.error("Erro ao criar/atualizar serviço: ", error);
-      toast.error("Erro ao criar/atualizar serviço!");
+    } catch (error: any) {
+      console.error("Erro ao processar:", error);
+      toast.error("Erro: " + (error.message || "Desconhecido"));
     } finally {
       setIsLoading(false);
     }
@@ -232,6 +269,27 @@ export default function NewService() {
   const handleRemoveService = (id: string) => {
     const updatedServices = services.filter(item => item.id !== id);
     setValue("services", updatedServices);
+    
+    // Recalcular o valor total após remover o serviço
+    const total = updatedServices.reduce((sum, service) => {
+      const servicePrice = typeof service.price === 'string' 
+        ? Number(service.price.replace(/\D/g, ''))
+        : Number(service.price);
+      return sum + servicePrice;
+    }, 0);
+    
+    // Atualizar o valor total do serviço
+    setValue("price", currencyMask(total.toString()));
+    
+    // Verificar se os pagamentos existentes excedem o novo valor total
+    const currentTotalPaid = payments.reduce((acc, payment) => {
+      return acc + Number(payment.value.replace(/\D/g, ''));
+    }, 0);
+    
+    // Se o valor dos pagamentos exceder o novo valor total, ajustar os pagamentos
+    if (currentTotalPaid > total && payments.length > 0) {
+      toast.warning('O valor total foi reduzido. Verifique as formas de pagamento.');
+    }
   };
 
   const handleRemoveProfessional = (id: string) => {
@@ -288,23 +346,147 @@ export default function NewService() {
     }
   };
 
-  // Função para selecionar o número de parcelas
+  const handlePaymentMethodChange = (value: "dinheiro" | "pix" | "cartao" | "boleto") => {
+    setNewPayment({
+      ...newPayment,
+      method: value,
+      installments: value === "cartao" ? 1 : undefined
+    });
+    
+    if (value === "cartao") {
+      setShowInstallmentsModal(true);
+    }
+  };
+
   const handleInstallmentsSelect = (installments: number) => {
-    setValue("installments", installments);
+    setNewPayment({
+      ...newPayment,
+      installments: installments
+    });
     setShowInstallmentsModal(false);
   };
 
-  // Função para lidar com a mudança do método de pagamento
-  const handlePaymentMethodChange = (value: string) => {
-    setValue("paymentMethod", value as "dinheiro" | "pix" | "cartao");
-    
-    // Se cartão for selecionado, abre o modal de parcelas
-    if (value === "cartao") {
-      setShowInstallmentsModal(true);
-    } else {
-      // Se não for cartão, remove o valor de parcelas
-      setValue("installments", undefined);
+  const handleAddPayment = () => {
+    if (!newPayment.value) {
+      toast.error("Informe o valor do pagamento");
+      return;
     }
+
+    const value = Number(newPayment.value.replace(/\D/g, ''));
+    
+    if (value <= 0) {
+      toast.error("O valor do pagamento deve ser maior que zero");
+      return;
+    }
+
+    // Calcular o total pago, excluindo o valor do pagamento que está sendo editado
+    let adjustedTotalPaid = totalPaid;
+    
+    if (currentPaymentIndex !== -1) {
+      // Se estiver editando, remove o valor anterior deste pagamento do total
+      const oldPaymentValue = Number(payments[currentPaymentIndex].value.replace(/\D/g, ''));
+      adjustedTotalPaid = adjustedTotalPaid - oldPaymentValue;
+    }
+    
+    // Agora verifica se o novo valor total excederia o preço do serviço
+    if (adjustedTotalPaid + value > totalPrice) {
+      toast.error(`O valor total dos pagamentos (${currencyMask((adjustedTotalPaid + value).toString())}) não pode exceder o valor do serviço (${currencyMask(totalPrice.toString())})`);
+      return;
+    }
+
+    const formattedValue = currencyMask(newPayment.value);
+    
+    if (currentPaymentIndex === -1) {
+      // Adicionar novo pagamento
+      setValue("payments", [
+        ...payments, 
+        {
+          ...newPayment,
+          value: formattedValue
+        }
+      ]);
+    } else {
+      // Atualizar pagamento existente
+      const updatedPayments = [...payments];
+      updatedPayments[currentPaymentIndex] = {
+        ...newPayment,
+        value: formattedValue
+      };
+      setValue("payments", updatedPayments);
+      setCurrentPaymentIndex(-1);
+    }
+
+    // Resetar o novo pagamento
+    setNewPayment({
+      method: "dinheiro",
+      value: "",
+      date: new Date().toISOString().split('T')[0],
+      installments: 1 as number | undefined,
+      status: "pendente"
+    });
+  };
+
+  const handleEditPayment = (index: number) => {
+    const payment = payments[index];
+    setNewPayment({
+      method: payment.method,
+      value: payment.value,
+      date: payment.date,
+      installments: payment.installments || 1,
+      status: payment.status
+    });
+    setCurrentPaymentIndex(index);
+  };
+
+  const handleRemovePayment = (index: number) => {
+    const updatedPayments = [...payments];
+    updatedPayments.splice(index, 1);
+    setValue("payments", updatedPayments);
+  };
+
+  // Monitorar mudanças no preço total para validar pagamentos
+  useEffect(() => {
+    if (totalPrice > 0 && totalPaid > totalPrice) {
+      toast.warning('O valor dos pagamentos excede o valor total do serviço. Por favor, ajuste os valores.');
+      
+      // Se o usuário já tinha pagamentos registrados, mostrar um alerta mais detalhado
+      if (payments.length > 1) {
+        toast.info(`Valor total do serviço: ${currencyMask(totalPrice.toString())}, Total já registrado em pagamentos: ${currencyMask(totalPaid.toString())}`);
+      }
+    }
+  }, [totalPrice, totalPaid, payments.length]);
+
+  // Função para verificar e limpar pagamentos inválidos
+  const validatePayments = () => {
+    if (totalPaid > totalPrice && payments.length > 0) {
+      // Opção 1: Limpar todos os pagamentos
+      if (window.confirm('Os pagamentos registrados excedem o valor total do serviço. Deseja limpar todos os pagamentos?')) {
+        setValue('payments', []);
+        toast.success('Pagamentos limpos. Você pode registrar novos pagamentos agora.');
+      }
+    }
+  };
+
+  // Adicionar botão para validar/limpar pagamentos
+  const renderPaymentWarning = () => {
+    if (totalPaid > totalPrice && payments.length > 0) {
+      return (
+        <div className="flex items-center justify-between bg-yellow-50 p-3 rounded-md border border-yellow-200 mt-2">
+          <p className="text-sm text-yellow-700">
+            Pagamentos excedem o valor total do serviço.
+          </p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={validatePayments}
+            className="text-yellow-700 border-yellow-300 hover:bg-yellow-100"
+          >
+            Limpar Pagamentos
+          </Button>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -313,7 +495,13 @@ export default function NewService() {
         {serviceId ? "Editar" : "Novo"} Serviço
       </h2>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form 
+        onSubmit={handleSubmit((data) => {
+          console.log("Form submitted with data:", data);
+          onSubmit(data);
+        })} 
+        className="space-y-4"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Nome Completo</Label>
@@ -411,7 +599,11 @@ export default function NewService() {
 
           <div>
             <Label>Duração</Label>
-            <Input {...register("duration")} placeholder="Duração do serviço" />
+            <Input 
+              type="time"
+              {...register("duration")} 
+              placeholder="Duração do serviço"
+            />
             {errors.duration && (
               <p className="text-red-500 text-sm">{errors.duration.message}</p>
             )}
@@ -439,33 +631,160 @@ export default function NewService() {
           <Label htmlFor="budget">Orçamento</Label>
         </div>
 
-        {/* Método de Pagamento */}
-        <div className="space-y-2">
-          <Label>Método de Pagamento</Label>
-          <RadioGroup
-            value={paymentMethod}
-            onValueChange={handlePaymentMethodChange}
-            className="flex space-x-4"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="dinheiro" id="dinheiro" />
-              <Label htmlFor="dinheiro">Dinheiro</Label>
+        <Card className="p-4">
+          <h3 className="text-lg font-medium mb-2">Formas de Pagamento</h3>
+          
+          <div className="bg-gray-50 p-3 rounded-md mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <span>Valor total do serviço:</span>
+              <span className="font-semibold">{currencyMask(totalPrice.toString())}</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="pix" id="pix" />
-              <Label htmlFor="pix">PIX</Label>
+            <div className="flex justify-between items-center mb-2">
+              <span>Total pago:</span>
+              <span className="font-semibold text-green-600">{currencyMask(totalPaid.toString())}</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="cartao" id="cartao" />
-              <Label htmlFor="cartao">Cartão</Label>
+            <div className="flex justify-between items-center">
+              <span>Restante a pagar:</span>
+              <span className={`font-semibold ${remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {currencyMask(remainingAmount.toString())}
+              </span>
             </div>
-          </RadioGroup>
-          {paymentMethod === "cartao" && watch("installments") && (
-            <div className="mt-2 text-sm text-gray-600">
-              Parcelado em {watch("installments")}x
+          </div>
+
+          {renderPaymentWarning()}
+
+          <div className="space-y-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Método de Pagamento</Label>
+                <RadioGroup
+                  value={newPayment.method}
+                  onValueChange={(value) => handlePaymentMethodChange(value as "dinheiro" | "pix" | "cartao" | "boleto")}
+                  className="flex space-x-4 mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="dinheiro" id="method-dinheiro" />
+                    <Label htmlFor="method-dinheiro">Dinheiro</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="pix" id="method-pix" />
+                    <Label htmlFor="method-pix">PIX</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="cartao" id="method-cartao" />
+                    <Label htmlFor="method-cartao">Cartão</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="boleto" id="method-boleto" />
+                    <Label htmlFor="method-boleto">Boleto</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div>
+                <Label>Data do Pagamento</Label>
+                <Input
+                  type="date"
+                  value={newPayment.date}
+                  onChange={(e) => setNewPayment({...newPayment, date: e.target.value})}
+                  className="mt-2"
+                />
+              </div>
             </div>
-          )}
-        </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Valor</Label>
+                <Input
+                  placeholder="Valor do pagamento"
+                  value={newPayment.value}
+                  onChange={(e) => setNewPayment({...newPayment, value: currencyMask(e.target.value)})}
+                  className="mt-2"
+                />
+              </div>
+
+              <div>
+                <Label>Status</Label>
+                <RadioGroup
+                  value={newPayment.status}
+                  onValueChange={(value) => setNewPayment({...newPayment, status: value as "pendente" | "pago"})}
+                  className="flex space-x-4 mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="pendente" id="status-pendente" />
+                    <Label htmlFor="status-pendente">Pendente</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="pago" id="status-pago" />
+                    <Label htmlFor="status-pago">Pago</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            </div>
+
+            {newPayment.method === "cartao" && newPayment.installments && (
+              <div className="mt-2 text-sm text-gray-600">
+                Parcelado em {newPayment.installments}x
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                onClick={handleAddPayment}
+                disabled={!newPayment.value || Number(newPayment.value.replace(/\D/g, '')) <= 0}
+              >
+                {currentPaymentIndex === -1 ? "Adicionar Pagamento" : "Atualizar Pagamento"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <h4 className="font-medium mb-2">Pagamentos Registrados</h4>
+            {payments.length === 0 ? (
+              <p className="text-gray-500 italic">Nenhum pagamento registrado</p>
+            ) : (
+              <div className="space-y-2">
+                {payments.map((payment, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                    <div>
+                      <div className="font-medium">
+                        {payment.method === "dinheiro" 
+                          ? "Dinheiro" 
+                          : payment.method === "pix" 
+                          ? "PIX"
+                          : payment.method === "boleto"
+                          ? "Boleto"
+                          : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {payment.date} - {payment.value} - {payment.status === "pago" ? "Pago" : "Pendente"}
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleEditPayment(index)}
+                      >
+                        Editar
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={() => handleRemovePayment(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
 
         <Card className="p-4">
           <div className="flex justify-between items-center mb-4">
@@ -658,10 +977,20 @@ export default function NewService() {
         </Card>
 
         <div className="flex flex-row justify-between align-center">
-          <Button type="submit" disabled={isLoading}>
+          <Button 
+            type="submit" 
+            disabled={isLoading}
+          >
             {isLoading ? "Salvando..." : "Salvar"}
           </Button>
-          <Button onClick={() => router.back()} variant="outline">
+          <Button 
+            type="button" 
+            onClick={(e) => {
+              e.preventDefault();
+              router.back();
+            }} 
+            variant="outline"
+          >
             Voltar
           </Button>
         </div>
@@ -672,11 +1001,9 @@ export default function NewService() {
         onClose={() => setShowServicesModal(false)}
         onConfirm={(selectedItems) => {
           const currentServices = services || [];
-          // Filtra os serviços que já existem para não duplicar
           const existingIds = currentServices.map(s => s.id);
           const newServices = selectedItems.filter(id => !existingIds.includes(id));
           
-          // Busca os serviços selecionados da coleção Procedures
           const fetchSelectedServices = async () => {
             try {
               const servicesRef = collection(database, "Procedures");
@@ -694,11 +1021,9 @@ export default function NewService() {
                   date: doc.data().date
                 }));
 
-              // Atualiza a lista de serviços
               const updatedServices = [...currentServices, ...selectedServices];
               setValue("services", updatedServices);
 
-              // Calcula o valor total
               const total = updatedServices.reduce((sum, service) => {
                 const price = typeof service.price === 'string' 
                   ? Number(service.price.replace(/\D/g, ''))
@@ -706,8 +1031,11 @@ export default function NewService() {
                 return sum + price;
               }, 0);
 
-              // Atualiza o valor total
-              setValue("price", currencyMask(total));
+              setValue("price", currencyMask(total.toString()));
+              
+              if (total < totalPaid && payments.length > 0) {
+                toast.warning('O valor total foi atualizado, mas os pagamentos registrados excedem o novo valor.');
+              }
             } catch (error) {
               console.error("Erro ao buscar serviços selecionados:", error);
               toast.error("Erro ao adicionar serviços!");
@@ -725,11 +1053,9 @@ export default function NewService() {
         onClose={() => setShowProfessionalsModal(false)}
         onConfirm={(selectedItems) => {
           const currentProfessionals = professionals || [];
-          // Filtra os profissionais que já existem para não duplicar
           const existingIds = currentProfessionals.map(p => p.id);
           const newProfessionals = selectedItems.filter(id => !existingIds.includes(id));
           
-          // Busca os profissionais selecionados da coleção Profissionals
           const fetchSelectedProfessionals = async () => {
             try {
               const professionalsRef = collection(database, "Profissionals");
@@ -773,7 +1099,6 @@ export default function NewService() {
         title="Selecionar Cliente"
       />
 
-      {/* Modal de parcelas */}
       {showInstallmentsModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
