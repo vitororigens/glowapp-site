@@ -148,7 +148,9 @@ export default function NewService() {
       getDoc(docRef).then((docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
+          console.log("Dados carregados do serviço:", data);
           if (data) {
+            console.log("Pagamentos carregados:", data.payments);
             reset({
               name: data.name || "",
               cpf: cpfMask(data.cpf || ""),
@@ -164,13 +166,17 @@ export default function NewService() {
               professionals: data.professionals || [],
               budget: data.budget || false,
               payments: data.payments ? data.payments.map((p: any) => ({
-                ...p,
-                value: currencyMask(p.value)
+                method: p.method,
+                value: currencyMask(String(p.value || 0)),
+                date: p.date,
+                installments: p.installments || undefined,
+                status: p.status || "pendente"
               })) : [],
               documents: data.documents || [],
               beforePhotos: data.beforePhotos || [],
               afterPhotos: data.afterPhotos || [],
             });
+            console.log("Formulário resetado com os dados carregados.");
           }
         }
       });
@@ -190,40 +196,105 @@ export default function NewService() {
       console.log("Iniciando processamento...");
       
       // Processar pagamentos de forma segura
-      const processedPayments = data.payments ? data.payments.map(payment => ({
-        method: payment.method,
-        value: Number(payment.value.replace(/\D/g, '')),
-        date: payment.date,
-        installments: payment.installments || null,
-        status: payment.status || "pendente"
-      })) : [];
+      const processedPayments = data.payments ? data.payments.map(payment => {
+        // Primeiro converter o valor para número
+        const numericValue = typeof payment.value === 'string' 
+          ? Number(payment.value.replace(/\D/g, ''))
+          : Number(payment.value);
+        
+        // Retornar o objeto de pagamento processado
+        return {
+          method: payment.method,
+          value: numericValue,
+          date: payment.date,
+          installments: payment.installments || null,
+          status: payment.status // Preservar o status exatamente como está
+        };
+      }) : [];
 
+      console.log("Pagamentos processados:", processedPayments);
+      
+      // Calcular o valor total pago (apenas pagamentos com status "pago")
+      const paidAmount = processedPayments
+        .filter(payment => payment.status === 'pago')
+        .reduce((sum, payment) => sum + payment.value, 0);
+      
       // Converte o preço
       const price = Number(data.price.replace(/\D/g, ''));
       
       if (serviceId) {
         console.log("Editando serviço existente:", serviceId);
+        console.log("Payments antes do processamento:", data.payments);
         
         // Referência ao documento
         const serviceRef = doc(database, "Services", serviceId);
         
-        // Dados simplificados para teste
+        // Extrair dados completos para atualização
         const updateData = {
           name: data.name,
+          cpf: cpfUnMask(data.cpf),
+          phone: celularUnMask(data.phone),
+          email: data.email || "",
+          date: data.date,
+          time: data.time,
           price: price,
+          paidAmount: paidAmount, // Valor pago
+          pendingAmount: price - paidAmount, // Valor pendente
+          priority: data.priority || "",
+          duration: data.duration || "",
           observations: data.observations || "",
-          payments: processedPayments,
+          services: data.services || [],
+          professionals: data.professionals || [],
+          budget: data.budget || false,
+          payments: processedPayments, // Importante: todos os pagamentos processados
+          documents: data.documents || [],
+          beforePhotos: data.beforePhotos || [],
+          afterPhotos: data.afterPhotos || [],
           updatedAt: new Date().toISOString()
         };
         
-        console.log("Dados para atualização:", updateData);
+        console.log("Dados completos para atualização:", updateData);
+        console.log("Pagamentos processados para atualização:", processedPayments);
         
-        // Tenta atualizar
-        await updateDoc(serviceRef, updateData);
-        console.log("Atualização concluída");
-        
-        toast.success("Serviço atualizado!");
-        setTimeout(() => router.back(), 1000);
+        try {
+          // Tenta atualizar
+          await updateDoc(serviceRef, updateData);
+          console.log("Atualização concluída com sucesso");
+          
+          // Mostrar todas as notificações na tela claramente, com atraso entre elas
+          toast.success("Serviço atualizado com sucesso!", {
+            position: "top-center",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+          
+          // Recarregar os dados do serviço para confirmar que as alterações foram aplicadas
+          const updatedDoc = await getDoc(serviceRef);
+          if (updatedDoc.exists()) {
+            console.log("Dados atualizados confirmados:", updatedDoc.data());
+            console.log("Pagamentos após atualização:", updatedDoc.data().payments);
+          }
+          
+          // Redirecionar após um tempo
+          setTimeout(() => {
+            console.log("Redirecionando...");
+            router.back();
+          }, 2000);
+        } catch (error: any) {
+          console.error("Erro específico na atualização:", error);
+          toast.error("Erro ao atualizar: " + (error.message || "Desconhecido"), {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+          setIsLoading(false);
+        }
       } else {
         console.log("Criando novo serviço");
         
@@ -236,6 +307,8 @@ export default function NewService() {
           date: data.date,
           time: data.time,
           price: price,
+          paidAmount: paidAmount, // Adicionando o valor pago
+          pendingAmount: price - paidAmount, // Adicionando o valor pendente
           priority: data.priority || "",
           duration: data.duration || "",
           observations: data.observations || "",
@@ -366,6 +439,30 @@ export default function NewService() {
     setShowInstallmentsModal(false);
   };
 
+  const handleEditPayment = (index: number) => {
+    const payment = payments[index];
+    console.log("Editando pagamento:", payment);
+    
+    // Certifica-se de preservar o status exato
+    setNewPayment({
+      method: payment.method,
+      value: payment.value,
+      date: payment.date,
+      installments: payment.installments || 1,
+      status: payment.status
+    });
+    
+    console.log("NewPayment definido para edição:", {
+      method: payment.method,
+      value: payment.value,
+      date: payment.date,
+      installments: payment.installments || 1,
+      status: payment.status
+    });
+    
+    setCurrentPaymentIndex(index);
+  };
+
   const handleAddPayment = () => {
     if (!newPayment.value) {
       toast.error("Informe o valor do pagamento");
@@ -396,6 +493,11 @@ export default function NewService() {
 
     const formattedValue = currencyMask(newPayment.value);
     
+    console.log("Adicionando pagamento:", {
+      ...newPayment,
+      value: formattedValue
+    });
+    
     if (currentPaymentIndex === -1) {
       // Adicionar novo pagamento
       setValue("payments", [
@@ -405,6 +507,7 @@ export default function NewService() {
           value: formattedValue
         }
       ]);
+      console.log("Novo pagamento adicionado com status:", newPayment.status);
     } else {
       // Atualizar pagamento existente
       const updatedPayments = [...payments];
@@ -413,6 +516,7 @@ export default function NewService() {
         value: formattedValue
       };
       setValue("payments", updatedPayments);
+      console.log("Pagamento atualizado no índice", currentPaymentIndex, "com status:", newPayment.status);
       setCurrentPaymentIndex(-1);
     }
 
@@ -424,18 +528,6 @@ export default function NewService() {
       installments: 1 as number | undefined,
       status: "pendente"
     });
-  };
-
-  const handleEditPayment = (index: number) => {
-    const payment = payments[index];
-    setNewPayment({
-      method: payment.method,
-      value: payment.value,
-      date: payment.date,
-      installments: payment.installments || 1,
-      status: payment.status
-    });
-    setCurrentPaymentIndex(index);
   };
 
   const handleRemovePayment = (index: number) => {
@@ -498,6 +590,15 @@ export default function NewService() {
       <form 
         onSubmit={handleSubmit((data) => {
           console.log("Form submitted with data:", data);
+          console.log("Pagamentos no submit:", data.payments);
+          
+          // Verificação de segurança para garantir preservação de status
+          if (data.payments && data.payments.length > 0) {
+            data.payments.forEach((payment, index) => {
+              console.log(`Pagamento ${index} - Status: ${payment.status}, Valor: ${payment.value}`);
+            });
+          }
+          
           onSubmit(data);
         })} 
         className="space-y-4"
@@ -641,7 +742,15 @@ export default function NewService() {
             </div>
             <div className="flex justify-between items-center mb-2">
               <span>Total pago:</span>
-              <span className="font-semibold text-green-600">{currencyMask(totalPaid.toString())}</span>
+              <span className="font-semibold text-green-600">
+                {currencyMask(payments.filter(p => p.status === "pago").reduce((acc, p) => acc + Number(p.value.replace(/\D/g, '')), 0).toString())}
+              </span>
+            </div>
+            <div className="flex justify-between items-center mb-2">
+              <span>Total pendente:</span>
+              <span className="font-semibold text-orange-500">
+                {currencyMask(payments.filter(p => p.status === "pendente").reduce((acc, p) => acc + Number(p.value.replace(/\D/g, '')), 0).toString())}
+              </span>
             </div>
             <div className="flex justify-between items-center">
               <span>Restante a pagar:</span>
@@ -707,16 +816,19 @@ export default function NewService() {
                 <Label>Status</Label>
                 <RadioGroup
                   value={newPayment.status}
-                  onValueChange={(value) => setNewPayment({...newPayment, status: value as "pendente" | "pago"})}
+                  onValueChange={(value) => {
+                    console.log("Status alterado para:", value);
+                    setNewPayment({...newPayment, status: value as "pendente" | "pago"});
+                  }}
                   className="flex space-x-4 mt-2"
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="pendente" id="status-pendente" />
-                    <Label htmlFor="status-pendente">Pendente</Label>
+                    <Label htmlFor="status-pendente" className="text-orange-500 font-medium">Pendente</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="pago" id="status-pago" />
-                    <Label htmlFor="status-pago">Pago</Label>
+                    <Label htmlFor="status-pago" className="text-green-600 font-medium">Pago</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -746,7 +858,7 @@ export default function NewService() {
             ) : (
               <div className="space-y-2">
                 {payments.map((payment, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                  <div key={index} className={`flex items-center justify-between p-3 rounded-md ${payment.status === "pago" ? "bg-green-50 border-green-100 border" : "bg-orange-50 border-orange-100 border"}`}>
                     <div>
                       <div className="font-medium">
                         {payment.method === "dinheiro" 
@@ -757,8 +869,11 @@ export default function NewService() {
                           ? "Boleto"
                           : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {payment.date} - {payment.value} - {payment.status === "pago" ? "Pago" : "Pendente"}
+                      <div className="text-sm">
+                        {payment.date} - {payment.value} - 
+                        <span className={payment.status === "pago" ? "text-green-600 font-medium" : "text-orange-600 font-medium"}>
+                          {payment.status === "pago" ? " Pago" : " Pendente"}
+                        </span>
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -980,8 +1095,16 @@ export default function NewService() {
           <Button 
             type="submit" 
             disabled={isLoading}
+            className={isLoading ? "bg-gray-400" : ""}
           >
-            {isLoading ? "Salvando..." : "Salvar"}
+            {isLoading ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Salvando...
+              </div>
+            ) : (
+              "Salvar"
+            )}
           </Button>
           <Button 
             type="button" 
@@ -990,6 +1113,7 @@ export default function NewService() {
               router.back();
             }} 
             variant="outline"
+            disabled={isLoading}
           >
             Voltar
           </Button>
