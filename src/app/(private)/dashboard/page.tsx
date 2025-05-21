@@ -34,6 +34,7 @@ interface DashboardData {
   totalClients: number;
   totalServices: number;
   totalRevenue: number;
+  totalPending: number;
   recentServices: Array<{
     id: string;
     name: string;
@@ -57,6 +58,7 @@ export default function DashboardHome() {
     totalClients: 0,
     totalServices: 0,
     totalRevenue: 0,
+    totalPending: 0,
     recentServices: [],
   });
 
@@ -68,16 +70,46 @@ export default function DashboardHome() {
     const totalClients = clients.length;
     
     // Calcula o faturamento total apenas dos serviços (não orçamentos)
+    // Apenas considera valores com status "pago"
     const totalRevenue = services
       .filter(service => !service.budget)
       .reduce((acc, service) => {
-        let price = 0;
-        if (typeof service.price === 'number') {
-          price = service.price;
+        // Verifica se tem pagamentos
+        if (service.payments && service.payments.length > 0) {
+          // Soma apenas pagamentos com status "pago"
+          return acc + service.payments
+            .filter(payment => payment.status === 'pago')
+            .reduce((sum, payment) => {
+              const paymentValue = typeof payment.value === 'number' 
+                ? payment.value 
+                : Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", "."));
+              return sum + paymentValue;
+            }, 0);
         } else {
-          price = Number(service.price.replace(/[^\d,-]/g, "").replace(",", "."));
+          // Se não tiver pagamentos, não considera no total
+          return acc;
         }
-        return acc + price;
+      }, 0);
+      
+    // Calcula valores pendentes
+    const totalPending = services
+      .filter(service => !service.budget)
+      .reduce((acc, service) => {
+        // Verifica se tem pagamentos
+        if (service.payments && service.payments.length > 0) {
+          // Soma apenas pagamentos com status "pendente"
+          return acc + service.payments
+            .filter(payment => payment.status === 'pendente')
+            .reduce((sum, payment) => {
+              const paymentValue = typeof payment.value === 'number' 
+                ? payment.value 
+                : Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", "."));
+              return sum + paymentValue;
+            }, 0);
+        } else {
+          // Se não tiver pagamentos, não considera no total
+          return acc;
+        }
       }, 0);
 
     // Ordena serviços por data (mais recentes primeiro)
@@ -101,6 +133,7 @@ export default function DashboardHome() {
       totalClients,
       totalServices,
       totalRevenue,
+      totalPending,
       recentServices,
     });
   }, [services, clients]);
@@ -142,7 +175,7 @@ export default function DashboardHome() {
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <Card>
           <CardHeader>
             <CardTitle>Total de Clientes</CardTitle>
@@ -163,11 +196,22 @@ export default function DashboardHome() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Faturamento de Serviços</CardTitle>
+            <CardTitle>Valores Recebidos</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">
+            <p className="text-3xl font-bold text-green-600">
               {currencyMask(dashboardData.totalRevenue.toString())}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Valores a Receber</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-orange-500">
+              {currencyMask(dashboardData.totalPending.toString())}
             </p>
           </CardContent>
         </Card>
@@ -184,68 +228,125 @@ export default function DashboardHome() {
                 <tr className="border-b">
                   <th className="text-left py-2">Cliente</th>
                   <th className="text-left py-2">Data</th>
-                  <th className="text-left py-2">Valor</th>
+                  <th className="text-left py-2">Valor Pago</th>
+                  <th className="text-left py-2">Valor Pendente</th>
                   <th className="text-left py-2">Status</th>
                   <th className="text-left py-2">Pagamento</th>
                 </tr>
               </thead>
               <tbody>
-                {dashboardData.recentServices.map((service) => (
-                  <tr key={service.id} className="border-b">
-                    <td className="py-2">{service.name}</td>
-                    <td className="py-2">{service.date}</td>
-                    <td className="py-2">{typeof service.price === 'number' 
-                      ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(service.price / 100)
-                      : currencyMask(service.price)
-                    }</td>
-                    <td className="py-2">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          service.budget
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-green-100 text-green-800"
-                        }`}
-                      >
-                        {service.budget ? "Orçamento" : "Serviço"}
-                      </span>
-                    </td>
-                    <td className="py-2">
-                      {service.budget ? (
-                        "-"
-                      ) : service.payments && service.payments.length > 0 ? (
-                        <div className="space-y-1">
-                          {service.payments.length === 1 ? (
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs ${
-                                service.payments[0].method === "dinheiro"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : service.payments[0].method === "pix"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : service.payments[0].method === "boleto"
-                                  ? "bg-teal-100 text-teal-800"
-                                  : "bg-orange-100 text-orange-800"
-                              }`}
-                            >
-                              {service.payments[0].method === "dinheiro"
-                                ? "Dinheiro"
-                                : service.payments[0].method === "pix"
-                                ? "PIX"
-                                : service.payments[0].method === "boleto"
-                                ? "Boleto"
-                                : `Cartão ${service.payments[0].installments ? `${service.payments[0].installments}x` : ""}`}
-                            </span>
-                          ) : (
-                            <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
-                              Múltiplos ({service.payments.length})
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {dashboardData.recentServices.map((service) => {
+                  // Calcular valor pago e pendente
+                  const paidAmount = service.payments 
+                    ? service.payments
+                        .filter(p => p.status === 'pago')
+                        .reduce((sum, p) => {
+                          const value = typeof p.value === 'number' 
+                            ? p.value 
+                            : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
+                          return sum + value;
+                        }, 0)
+                    : 0;
+                    
+                  const pendingAmount = service.payments 
+                    ? service.payments
+                        .filter(p => p.status === 'pendente')
+                        .reduce((sum, p) => {
+                          const value = typeof p.value === 'number' 
+                            ? p.value 
+                            : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
+                          return sum + value;
+                        }, 0)
+                    : 0;
+                    
+                  return (
+                    <tr key={service.id} className="border-b">
+                      <td className="py-2">{service.name}</td>
+                      <td className="py-2">{service.date}</td>
+                      <td className="py-2 text-green-600">
+                        {paidAmount > 0 ? currencyMask(paidAmount.toString()) : "-"}
+                      </td>
+                      <td className="py-2 text-orange-500">
+                        {pendingAmount > 0 ? currencyMask(pendingAmount.toString()) : "-"}
+                      </td>
+                      <td className="py-2">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${
+                            service.budget
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-green-100 text-green-800"
+                          }`}
+                        >
+                          {service.budget ? "Orçamento" : "Serviço"}
+                        </span>
+                      </td>
+                      <td className="py-2">
+                        {service.budget ? (
+                          "-"
+                        ) : service.payments && service.payments.length > 0 ? (
+                          <div className="space-y-1">
+                            {service.payments.filter(p => p.status === 'pago').length > 0 && (
+                              <div>
+                                <span className="text-xs text-green-600 font-medium mr-1">Pago:</span>
+                                {service.payments.filter(p => p.status === 'pago').map((payment, idx) => (
+                                  <span
+                                    key={idx}
+                                    className={`ml-1 px-2 py-1 rounded-full text-xs ${
+                                      payment.method === "dinheiro"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : payment.method === "pix"
+                                        ? "bg-purple-100 text-purple-800"
+                                        : payment.method === "boleto"
+                                        ? "bg-teal-100 text-teal-800"
+                                        : "bg-orange-100 text-orange-800"
+                                    }`}
+                                  >
+                                    {payment.method === "dinheiro"
+                                      ? "Dinheiro"
+                                      : payment.method === "pix"
+                                      ? "PIX"
+                                      : payment.method === "boleto"
+                                      ? "Boleto"
+                                      : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {service.payments.filter(p => p.status === 'pendente').length > 0 && (
+                              <div>
+                                <span className="text-xs text-orange-500 font-medium mr-1">Pendente:</span>
+                                {service.payments.filter(p => p.status === 'pendente').map((payment, idx) => (
+                                  <span
+                                    key={idx}
+                                    className={`ml-1 px-2 py-1 rounded-full text-xs ${
+                                      payment.method === "dinheiro"
+                                        ? "bg-blue-50 text-blue-600"
+                                        : payment.method === "pix"
+                                        ? "bg-purple-50 text-purple-600"
+                                        : payment.method === "boleto"
+                                        ? "bg-teal-50 text-teal-600"
+                                        : "bg-orange-50 text-orange-600"
+                                    }`}
+                                  >
+                                    {payment.method === "dinheiro"
+                                      ? "Dinheiro"
+                                      : payment.method === "pix"
+                                      ? "PIX"
+                                      : payment.method === "boleto"
+                                      ? "Boleto"
+                                      : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

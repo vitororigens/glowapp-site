@@ -195,6 +195,125 @@ export default function NewService() {
     try {
       console.log("Iniciando processamento...");
       
+      // Verificar se o cliente já existe e criar se não existir
+      const clientName = data.name.trim();
+      const clientCpf = cpfUnMask(data.cpf);
+      const clientPhone = celularUnMask(data.phone);
+      
+      if (clientName && (clientCpf || clientPhone)) {
+        // Busca para verificar se o cliente já existe
+        const contactsRef = collection(database, "Contacts");
+        
+        // Primeiro tenta buscar por CPF
+        let clientExists = false;
+        
+        if (clientCpf) {
+          const cpfQuery = query(contactsRef, where("cpf", "==", clientCpf));
+          const cpfSnapshot = await getDocs(cpfQuery);
+          
+          if (!cpfSnapshot.empty) {
+            clientExists = true;
+            console.log("Cliente encontrado pelo CPF");
+          }
+        }
+        
+        // Se não encontrou por CPF, tenta por telefone
+        if (!clientExists && clientPhone) {
+          const phoneQuery = query(contactsRef, where("phone", "==", clientPhone));
+          const phoneSnapshot = await getDocs(phoneQuery);
+          
+          if (!phoneSnapshot.empty) {
+            clientExists = true;
+            console.log("Cliente encontrado pelo telefone");
+          }
+        }
+        
+        // Se não encontrou por telefone, tenta por nome exato
+        if (!clientExists && clientName) {
+          const nameQuery = query(contactsRef, where("name", "==", clientName));
+          const nameSnapshot = await getDocs(nameQuery);
+          
+          if (!nameSnapshot.empty) {
+            clientExists = true;
+            console.log("Cliente encontrado pelo nome");
+            
+            // Se encontrou pelo nome mas os dados estão diferentes, atualiza o registro
+            const existingClientDoc = nameSnapshot.docs[0];
+            const existingClientData = existingClientDoc.data();
+            let needsUpdate = false;
+            
+            // Verificar se precisa atualizar o CPF ou telefone
+            if (clientCpf && !existingClientData.cpf) {
+              needsUpdate = true;
+            }
+            
+            if (clientPhone && !existingClientData.phone) {
+              needsUpdate = true;
+            }
+            
+            if (data.email && !existingClientData.email) {
+              needsUpdate = true;
+            }
+            
+            // Se precisa atualizar, completa os dados do cliente
+            if (needsUpdate) {
+              try {
+                await updateDoc(existingClientDoc.ref, {
+                  cpf: clientCpf || existingClientData.cpf || "",
+                  phone: clientPhone || existingClientData.phone || "",
+                  email: data.email || existingClientData.email || "",
+                  updatedAt: new Date().toISOString()
+                });
+                console.log("Dados do cliente atualizados");
+                toast.info("Dados do cliente atualizados", {
+                  position: "top-center",
+                  autoClose: 2000,
+                });
+              } catch (error) {
+                console.error("Erro ao atualizar dados do cliente:", error);
+              }
+            }
+          }
+        }
+        
+        // Se não encontrou de nenhuma forma, cria um novo
+        if (!clientExists) {
+          console.log("Cliente não encontrado. Criando novo cliente...");
+          const newContactRef = doc(collection(database, "Contacts"));
+          
+          const newContactData = {
+            name: clientName,
+            cpf: clientCpf,
+            phone: clientPhone,
+            email: data.email || "",
+            uid,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          
+          try {
+            await setDoc(newContactRef, newContactData);
+            console.log("Novo cliente criado com ID:", newContactRef.id);
+            toast.info("Novo cliente adicionado ao sistema", {
+              position: "top-center",
+              autoClose: 3000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            });
+          } catch (error: any) {
+            console.error("Erro ao criar cliente:", error);
+            toast.error("Não foi possível adicionar o cliente automaticamente, mas o serviço será salvo", {
+              position: "top-center",
+              autoClose: 5000,
+            });
+          }
+        } else {
+          console.log("Cliente já existe, não é necessário criar.");
+        }
+      }
+      
       // Processar pagamentos de forma segura
       const processedPayments = data.payments ? data.payments.map(payment => {
         // Primeiro converter o valor para número
