@@ -244,11 +244,11 @@ export default function Services() {
                                     key={idx}
                                     className={`ml-1 px-2 py-1 rounded-full text-xs ${
                                       payment.method === "dinheiro"
-                                        ? "bg-blue-100 text-blue-800"
+                                        ? "bg-teal-100 text-teal-800"
                                         : payment.method === "pix"
                                         ? "bg-purple-100 text-purple-800"
                                         : payment.method === "boleto"
-                                        ? "bg-teal-100 text-teal-800"
+                                        ? "bg-blue-100 text-blue-800"
                                         : "bg-orange-100 text-orange-800"
                                     }`}
                                   >
@@ -271,11 +271,11 @@ export default function Services() {
                                     key={idx}
                                     className={`ml-1 px-2 py-1 rounded-full text-xs ${
                                       payment.method === "dinheiro"
-                                        ? "bg-blue-50 text-blue-600"
+                                        ? "bg-teal-50 text-teal-600"
                                         : payment.method === "pix"
                                         ? "bg-purple-50 text-purple-600"
                                         : payment.method === "boleto"
-                                        ? "bg-teal-50 text-teal-600"
+                                        ? "bg-blue-50 text-blue-600"
                                         : "bg-orange-50 text-orange-600"
                                     }`}
                                   >

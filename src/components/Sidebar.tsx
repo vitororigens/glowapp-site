@@ -15,23 +15,24 @@ import {
 
 const menuItems = [
   { path: "/dashboard", icon: IconHome, label: "Home" },
-  { path: "/agenda", icon: IconCalendar, label: "Agenda" },
-  { path: "/clientes", icon: IconUsers, label: "Clientes" },
-  { path: "/servicos", icon: IconTools, label: "Serviços" },
-  { path: "/servicos/novo", icon: IconPlus, label: "Novo Serviço" },
-  { path: "/procedimentos", icon: IconNotes, label: "Procedimentos" },
+  { path: "/dashboard/agenda", icon: IconCalendar, label: "Agenda" },
+  { path: "/dashboard/clientes", icon: IconUsers, label: "Clientes" },
+  { path: "/dashboard/historicoclientes", icon: IconUsers, label: "Histórico de Clientes" },
+  { path: "/dashboard/servicos", icon: IconTools, label: "Serviços" },
+  { path: "/dashboard/servicos/novo", icon: IconPlus, label: "Novo Serviço" },
+  { path: "/dashboard/procedimentos", icon: IconNotes, label: "Procedimentos" },
   {
-    path: "/procedimentos/novo",
+    path: "/dashboard/procedimentos/novo",
     icon: IconPlus,
     label: "Add Procedimento",
   },
-  { path: "/profissionais", icon: IconUsers, label: "Profissionais" },
+  { path: "/dashboard/profissionais", icon: IconUsers, label: "Profissionais" },
   {
-    path: "/profissionais/novo",
+    path: "/dashboard/profissionais/novo",
     icon: IconUserPlus,
     label: "Add Profissional",
   },
-  { path: "/financeiro", icon: IconWallet, label: "Financeiro" },
+  { path: "/dashboard/financeiro", icon: IconWallet, label: "Financeiro" },
 ];
 
 export default function Sidebar() {
@@ -48,9 +49,9 @@ export default function Sidebar() {
           return (
             <Link
               key={item.path}
-              href={`/private${item.path}`}
+              href={item.path}
               className={`flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 ${
-                pathname === `/private${item.path}`
+                pathname === item.path || pathname.startsWith(`${item.path}/`)
                   ? "bg-primary text-white hover:bg-primary/90"
                   : ""
               }`}

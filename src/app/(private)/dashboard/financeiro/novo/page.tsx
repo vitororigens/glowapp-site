@@ -48,6 +48,13 @@ export default function NewLaunch() {
     }
   }, [itemType]);
 
+  // Função para traduzir o tipo para português na exibição
+  const getTypeInPortuguese = (type: string) => {
+    if (type === "revenue") return "Receita";
+    if (type === "expense") return "Despesa";
+    return "";
+  };
+
   // Carrega os dados para edição (similar ao useEffect no NewLaunch.tsx do React Native)
   useEffect(() => {
     if (itemId && itemType) {
@@ -92,16 +99,19 @@ export default function NewLaunch() {
   const docId = itemId || crypto.randomUUID(); // só cria novo se não for edição
   const docRef = doc(database, collectionName, docId);
 
- const numericValue = Number(currencyUnMask(data.value));
+  const numericValue = Number(currencyUnMask(data.value));
   if (isNaN(numericValue)) {
     alert("Valor inválido.");
     return;
   }
 
+  // Define o tipo em português para salvar no documento
+  const typePt = resolvedType === "revenue" ? "Receita" : "Despesa";
+
   const baseData = {
     ...data,
     uid,
-    type: resolvedType,
+    type: typePt, // Aqui salva o tipo em português
     value: numericValue,
     updatedAt: new Date().toISOString(),
     ...(itemId ? {} : { createdAt: new Date().toISOString() }),
@@ -124,7 +134,7 @@ export default function NewLaunch() {
   return (
     <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
       <h2 className="text-xl font-bold mb-4">
-        {itemId ? "Editar" : "Novo"} {selectedType === "expense" ? "Despesa" : "Receita"}
+        {itemId ? "Editar" : "Novo"} {getTypeInPortuguese(selectedType)}
       </h2>
 
       {!selectedType && !itemId ? (

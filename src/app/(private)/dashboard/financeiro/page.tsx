@@ -61,13 +61,14 @@ export default function Financeiro() {
     }
   };
 
-  function handleEdit(item: { id: string, type: string }) {
+  function handleEdit(item: { id: string, type: string, collection?: "Revenue" | "Expense" }) {
     if (item.type === "Serviço") {
       // Quando for serviço, redireciona para a página de edição de serviços
       router.push(`/dashboard/servicos/novo?id=${item.id}`);
     } else {
       // Para outros registros (receitas e despesas)
-      router.push(`/dashboard/financeiro/novo?id=${item.id}&type=${item.type}`);
+      const typeMapped = item.collection === "Revenue" ? "revenue" : "expense";
+      router.push(`/dashboard/financeiro/novo?id=${item.id}&type=${typeMapped}`);
     }
   }
 
@@ -90,8 +91,8 @@ export default function Financeiro() {
 
   // Combina receitas e despesas em uma única lista
   const allTransactions = [
-    ...(revenues || []).map(rev => ({ ...rev, collection: "Revenue" as const })),
-    ...(expenses || []).map(exp => ({ ...exp, collection: "Expense" as const })),
+    ...(revenues || []).map(rev => ({ ...rev, collection: "Revenue" as const, type: "Receita" })),
+    ...(expenses || []).map(exp => ({ ...exp, collection: "Expense" as const, type: "Despesa" })),
     // Adiciona serviços não-orçamentos como receitas
     ...(services || [])
       .filter(service => !service.budget)
@@ -243,11 +244,11 @@ export default function Financeiro() {
                               <span
                                 className={`px-2 py-1 rounded-full text-xs ${
                                   payment.method === "dinheiro"
-                                    ? "bg-blue-100 text-blue-800"
+                                    ? "bg-teal-100 text-teal-800"
                                     : payment.method === "pix"
                                     ? "bg-purple-100 text-purple-800"
                                     : payment.method === "boleto"
-                                    ? "bg-teal-100 text-teal-800"
+                                    ? "bg-blue-100 text-blue-800"
                                     : "bg-orange-100 text-orange-800"
                                 }`}
                               >

@@ -31,6 +31,7 @@ export default function DashboardLayout({
     { href: "/dashboard", label: "Home" },
     { href: "/dashboard/agenda", label: "Agenda" },
     { href: "/dashboard/clientes", label: "Clientes" },
+    { href: "/dashboard/historicoclientes", label: "Histórico de Clientes" },
     { href: "/dashboard/servicos", label: "Serviços" },
     { href: "/dashboard/servicos/novo", label: "Novo Serviço" },
     { href: "/dashboard/procedimentos", label: "Procedimentos" },
