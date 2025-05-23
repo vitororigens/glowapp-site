@@ -267,8 +267,19 @@ export default function Financeiro() {
                       "-"
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(transaction)}>Editar</Button>
+                  <TableCell className="text-right ">
+                    <div className="flex justify-end gap-2">
+                   <Button variant="outline" size="sm" onClick={() => handleEdit(transaction)}>Editar</Button>
+                    {transaction.type !== "Serviço" && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(transaction.id, transaction.collection)}
+                      >
+                        Excluir
+                      </Button>
+                    )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -300,8 +311,10 @@ export default function Financeiro() {
                   <TableCell>{transaction.date}</TableCell>
                   <TableCell className="text-red-600">{formatPrice(transaction.value, true)}</TableCell>
                   <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleEdit(transaction)}>Editar</Button>
                     <Button variant="destructive" size="sm" onClick={() => handleDelete(transaction.id, transaction.collection)}>Excluir</Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
