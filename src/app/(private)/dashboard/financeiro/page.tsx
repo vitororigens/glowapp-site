@@ -148,6 +148,18 @@ export default function Financeiro() {
 
   const balance = totalRevenue - totalExpense;
 
+  // Função para resetar valores no dia 1 de cada mês
+  const resetMonthlyValues = () => {
+    const today = new Date();
+    if (today.getDate() === 1) {
+      // Lógica para resetar valores
+      // Isso pode envolver limpar ou arquivar dados antigos
+    }
+  };
+
+  // Chamar a função de reset ao carregar o componente
+  resetMonthlyValues();
+
   return (
     <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
       <div className="flex items-center justify-between mb-6">
@@ -178,17 +190,18 @@ export default function Financeiro() {
         </Card>
       </div>
 
-      {allTransactions.length === 0 ? (
-        <div className="text-center py-4">Nenhum registro encontrado.</div>
-      ) : (
-        <div className="overflow-x-auto">
+      {/* Box de Receitas */}
+      <div className="bg-gray-100 p-4 rounded-lg mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Receitas</h2>
+          <Button onClick={() => router.push("/dashboard/financeiro/historico?tipo=receita")}>Ver Histórico Completo</Button>
+        </div>
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Data</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Categoria</TableHead>
                 <TableHead>Valor Pago</TableHead>
                 <TableHead>Valor Pendente</TableHead>
                 <TableHead>Pagamento</TableHead>
@@ -196,32 +209,18 @@ export default function Financeiro() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {allTransactions.map((transaction) => (
+              {allTransactions.filter(t => t.collection === "Revenue").slice(0, 10).map((transaction) => (
                 <TableRow key={`${transaction.collection}-${transaction.id}`}>
                   <TableCell>{transaction.name}</TableCell>
                   <TableCell>{transaction.date}</TableCell>
-                  <TableCell>{transaction.type}</TableCell>
-                  <TableCell>{transaction.category}</TableCell>
-                  <TableCell className={transaction.collection === "Expense" ? "text-red-600" : "text-green-600"}>
-                    {transaction.type === "Serviço" ? 
-                      formatPrice(
-                        (transaction as any).payments 
-                          ? (transaction as any).payments
-                              .filter((p: any) => p.status === 'pago')
-                              .reduce((sum: number, p: any) => sum + Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
-                          : 0, 
-                        transaction.collection === "Expense"
-                      ) 
-                      : formatPrice(transaction.value, transaction.collection === "Expense")
-                    }
-                  </TableCell>
+                  <TableCell className="text-green-600">{formatPrice(transaction.value)}</TableCell>
                   <TableCell className="text-orange-500">
                     {transaction.type === "Serviço" ? 
                       formatPrice(
                         (transaction as any).payments 
                           ? (transaction as any).payments
                               .filter((p: any) => p.status === 'pendente')
-                              .reduce((sum: number, p: any) => sum + Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
+                              .reduce((sum: number, p: any) => sum + Number(String(p.value).replace(/[^-\d]/g, "").replace(",", ".")), 0)
                           : 0
                       ) 
                       : "-"
@@ -252,7 +251,7 @@ export default function Financeiro() {
                                   : payment.method === "boleto"
                                   ? "Boleto"
                                   : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
-                                  &nbsp;({currencyMask(String(payment.value))})
+                                &nbsp;({currencyMask(String(payment.value))})
                               </span>
                             </div>
                           ))}
@@ -269,40 +268,47 @@ export default function Financeiro() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {transaction.type !== "Serviço" ? (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mr-2"
-                          onClick={() => handleEdit(transaction)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDelete(transaction.id, transaction.collection)}
-                        >
-                          Excluir
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(transaction)}
-                      >
-                        Editar
-                      </Button>
-                    )}
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(transaction)}>Editar</Button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
-      )}
+      </div>
+
+      {/* Box de Despesas */}
+      <div className="bg-gray-100 p-4 rounded-lg">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Despesas</h2>
+          <Button onClick={() => router.push("/dashboard/financeiro/historico?tipo=despesa")}>Ver Histórico Completo</Button>
+        </div>
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Valor Pago</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allTransactions.filter(t => t.collection === "Expense").slice(0, 10).map((transaction) => (
+                <TableRow key={`${transaction.collection}-${transaction.id}`}>
+                  <TableCell>{transaction.name}</TableCell>
+                  <TableCell>{transaction.date}</TableCell>
+                  <TableCell className="text-red-600">{formatPrice(transaction.value, true)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(transaction)}>Editar</Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(transaction.id, transaction.collection)}>Excluir</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   );
 }
