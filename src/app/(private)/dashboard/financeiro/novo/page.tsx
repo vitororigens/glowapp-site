@@ -14,11 +14,9 @@ import { database } from "@/services/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export default function NewLaunch() {
-  // Estados do componente
   const [selectedType, setSelectedType] = useState<"revenue" | "expense" | "">("");
   const [isLoading, setIsLoading] = useState(false);
   
-  // Hook Form
   const { register, handleSubmit, setValue, formState: { errors }, reset } = useForm<FormSchemaType>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -31,31 +29,26 @@ export default function NewLaunch() {
     }
   });
   
-  // Contextos e navegação
   const { user } = useAuthContext();
   const uid = user?.uid;
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Parâmetros da URL (similar ao useRoute no React Native)
   const itemId = searchParams.get('id');
   const itemType = searchParams.get('type') as "revenue" | "expense" | null;
 
-  // Configura o tipo selecionado baseado na URL
   useEffect(() => {
     if (itemType) {
       setSelectedType(itemType);
     }
   }, [itemType]);
 
-  // Função para traduzir o tipo para português na exibição
   const getTypeInPortuguese = (type: string) => {
     if (type === "revenue") return "Receita";
     if (type === "expense") return "Despesa";
     return "";
   };
 
-  // Carrega os dados para edição (similar ao useEffect no NewLaunch.tsx do React Native)
   useEffect(() => {
     if (itemId && itemType) {
       const collectionName = itemType === "revenue" ? "Revenue" : "Expense";
@@ -65,7 +58,6 @@ export default function NewLaunch() {
         .then((docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            // Reseta o formulário com os dados do documento
             reset({
               name: data.name || "",
               category: data.category || "",
@@ -86,7 +78,6 @@ export default function NewLaunch() {
     }
   }, [itemId, itemType, reset]);
 
-  // Função de submit (similar ao onSubmit no NewLaunch.tsx do React Native)
   const onSubmit = async (data: FormSchemaType) => {
   const resolvedType = itemType || selectedType;
 
@@ -96,7 +87,7 @@ export default function NewLaunch() {
   }
 
   const collectionName = resolvedType === "revenue" ? "Revenue" : "Expense";
-  const docId = itemId || crypto.randomUUID(); // só cria novo se não for edição
+  const docId = itemId || crypto.randomUUID();
   const docRef = doc(database, collectionName, docId);
 
   const numericValue = Number(currencyUnMask(data.value));
@@ -105,13 +96,12 @@ export default function NewLaunch() {
     return;
   }
 
-  // Define o tipo em português para salvar no documento
   const typePt = resolvedType === "revenue" ? "Receita" : "Despesa";
 
   const baseData = {
     ...data,
     uid,
-    type: typePt, // Aqui salva o tipo em português
+    type: typePt,
     value: numericValue,
     updatedAt: new Date().toISOString(),
     ...(itemId ? {} : { createdAt: new Date().toISOString() }),

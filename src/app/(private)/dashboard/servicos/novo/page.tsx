@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
-import { currencyMask, currencyUnMask, cpfMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
+import { currencyMask, cpfMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
 import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
 import { doc, getDoc, setDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
@@ -194,17 +194,14 @@ export default function NewService() {
     
     try {
       console.log("Iniciando processamento...");
-      
-      // Verificar se o cliente já existe e criar se não existir
+    
       const clientName = data.name.trim();
       const clientCpf = cpfUnMask(data.cpf);
       const clientPhone = celularUnMask(data.phone);
       
       if (clientName && (clientCpf || clientPhone)) {
-        // Busca para verificar se o cliente já existe
         const contactsRef = collection(database, "Contacts");
         
-        // Primeiro tenta buscar por CPF
         let clientExists = false;
         
         if (clientCpf) {
@@ -217,7 +214,6 @@ export default function NewService() {
           }
         }
         
-        // Se não encontrou por CPF, tenta por telefone
         if (!clientExists && clientPhone) {
           const phoneQuery = query(contactsRef, where("phone", "==", clientPhone));
           const phoneSnapshot = await getDocs(phoneQuery);
@@ -228,7 +224,6 @@ export default function NewService() {
           }
         }
         
-        // Se não encontrou por telefone, tenta por nome exato
         if (!clientExists && clientName) {
           const nameQuery = query(contactsRef, where("name", "==", clientName));
           const nameSnapshot = await getDocs(nameQuery);
@@ -237,12 +232,10 @@ export default function NewService() {
             clientExists = true;
             console.log("Cliente encontrado pelo nome");
             
-            // Se encontrou pelo nome mas os dados estão diferentes, atualiza o registro
             const existingClientDoc = nameSnapshot.docs[0];
             const existingClientData = existingClientDoc.data();
             let needsUpdate = false;
             
-            // Verificar se precisa atualizar o CPF ou telefone
             if (clientCpf && !existingClientData.cpf) {
               needsUpdate = true;
             }
@@ -255,7 +248,6 @@ export default function NewService() {
               needsUpdate = true;
             }
             
-            // Se precisa atualizar, completa os dados do cliente
             if (needsUpdate) {
               try {
                 await updateDoc(existingClientDoc.ref, {
@@ -276,7 +268,6 @@ export default function NewService() {
           }
         }
         
-        // Se não encontrou de nenhuma forma, cria um novo
         if (!clientExists) {
           console.log("Cliente não encontrado. Criando novo cliente...");
           const newContactRef = doc(collection(database, "Contacts"));
@@ -314,41 +305,35 @@ export default function NewService() {
         }
       }
       
-      // Processar pagamentos de forma segura
       const processedPayments = data.payments ? data.payments.map(payment => {
         // Primeiro converter o valor para número
         const numericValue = typeof payment.value === 'string' 
           ? Number(payment.value.replace(/\D/g, ''))
           : Number(payment.value);
         
-        // Retornar o objeto de pagamento processado
         return {
           method: payment.method,
           value: numericValue,
           date: payment.date,
           installments: payment.installments || null,
-          status: payment.status // Preservar o status exatamente como está
+          status: payment.status 
         };
       }) : [];
 
       console.log("Pagamentos processados:", processedPayments);
       
-      // Calcular o valor total pago (apenas pagamentos com status "pago")
       const paidAmount = processedPayments
         .filter(payment => payment.status === 'pago')
         .reduce((sum, payment) => sum + payment.value, 0);
       
-      // Converte o preço
       const price = Number(data.price.replace(/\D/g, ''));
       
       if (serviceId) {
         console.log("Editando serviço existente:", serviceId);
         console.log("Payments antes do processamento:", data.payments);
         
-        // Referência ao documento
         const serviceRef = doc(database, "Services", serviceId);
         
-        // Extrair dados completos para atualização
         const updateData = {
           name: data.name,
           cpf: cpfUnMask(data.cpf),
@@ -357,15 +342,15 @@ export default function NewService() {
           date: data.date,
           time: data.time,
           price: price,
-          paidAmount: paidAmount, // Valor pago
-          pendingAmount: price - paidAmount, // Valor pendente
+          paidAmount: paidAmount, 
+          pendingAmount: price - paidAmount, 
           priority: data.priority || "",
           duration: data.duration || "",
           observations: data.observations || "",
           services: data.services || [],
           professionals: data.professionals || [],
           budget: data.budget || false,
-          payments: processedPayments, // Importante: todos os pagamentos processados
+          payments: processedPayments, 
           documents: data.documents || [],
           beforePhotos: data.beforePhotos || [],
           afterPhotos: data.afterPhotos || [],
@@ -376,11 +361,8 @@ export default function NewService() {
         console.log("Pagamentos processados para atualização:", processedPayments);
         
         try {
-          // Tenta atualizar
           await updateDoc(serviceRef, updateData);
           console.log("Atualização concluída com sucesso");
-          
-          // Mostrar todas as notificações na tela claramente, com atraso entre elas
           toast.success("Serviço atualizado com sucesso!", {
             position: "top-center",
             autoClose: 3000,
@@ -390,14 +372,11 @@ export default function NewService() {
             draggable: true,
           });
           
-          // Recarregar os dados do serviço para confirmar que as alterações foram aplicadas
           const updatedDoc = await getDoc(serviceRef);
           if (updatedDoc.exists()) {
             console.log("Dados atualizados confirmados:", updatedDoc.data());
             console.log("Pagamentos após atualização:", updatedDoc.data().payments);
           }
-          
-          // Redirecionar após um tempo
           setTimeout(() => {
             console.log("Redirecionando...");
             router.back();
@@ -416,8 +395,7 @@ export default function NewService() {
         }
       } else {
         console.log("Criando novo serviço");
-        
-        // Dados completos para novos documentos
+
         const newServiceData = {
           name: data.name,
           cpf: cpfUnMask(data.cpf),
@@ -426,8 +404,8 @@ export default function NewService() {
           date: data.date,
           time: data.time,
           price: price,
-          paidAmount: paidAmount, // Adicionando o valor pago
-          pendingAmount: price - paidAmount, // Adicionando o valor pendente
+          paidAmount: paidAmount, 
+          pendingAmount: price - paidAmount, 
           priority: data.priority || "",
           duration: data.duration || "",
           observations: data.observations || "",
@@ -443,7 +421,6 @@ export default function NewService() {
           updatedAt: new Date().toISOString()
         };
         
-        // Cria novo doc
         const newServiceRef = doc(collection(database, "Services"));
         await setDoc(newServiceRef, newServiceData);
         
@@ -462,7 +439,6 @@ export default function NewService() {
     const updatedServices = services.filter(item => item.id !== id);
     setValue("services", updatedServices);
     
-    // Recalcular o valor total após remover o serviço
     const total = updatedServices.reduce((sum, service) => {
       const servicePrice = typeof service.price === 'string' 
         ? Number(service.price.replace(/\D/g, ''))
@@ -470,15 +446,12 @@ export default function NewService() {
       return sum + servicePrice;
     }, 0);
     
-    // Atualizar o valor total do serviço
     setValue("price", currencyMask(total.toString()));
     
-    // Verificar se os pagamentos existentes excedem o novo valor total
     const currentTotalPaid = payments.reduce((acc, payment) => {
       return acc + Number(payment.value.replace(/\D/g, ''));
     }, 0);
-    
-    // Se o valor dos pagamentos exceder o novo valor total, ajustar os pagamentos
+
     if (currentTotalPaid > total && payments.length > 0) {
       toast.warning('O valor total foi reduzido. Verifique as formas de pagamento.');
     }
@@ -562,7 +535,6 @@ export default function NewService() {
     const payment = payments[index];
     console.log("Editando pagamento:", payment);
     
-    // Certifica-se de preservar o status exato
     setNewPayment({
       method: payment.method,
       value: payment.value,
@@ -595,16 +567,13 @@ export default function NewService() {
       return;
     }
 
-    // Calcular o total pago, excluindo o valor do pagamento que está sendo editado
     let adjustedTotalPaid = totalPaid;
     
     if (currentPaymentIndex !== -1) {
-      // Se estiver editando, remove o valor anterior deste pagamento do total
       const oldPaymentValue = Number(payments[currentPaymentIndex].value.replace(/\D/g, ''));
       adjustedTotalPaid = adjustedTotalPaid - oldPaymentValue;
     }
     
-    // Agora verifica se o novo valor total excederia o preço do serviço
     if (adjustedTotalPaid + value > totalPrice) {
       toast.error(`O valor total dos pagamentos (${currencyMask((adjustedTotalPaid + value).toString())}) não pode exceder o valor do serviço (${currencyMask(totalPrice.toString())})`);
       return;
@@ -618,7 +587,6 @@ export default function NewService() {
     });
     
     if (currentPaymentIndex === -1) {
-      // Adicionar novo pagamento
       setValue("payments", [
         ...payments, 
         {
@@ -628,7 +596,6 @@ export default function NewService() {
       ]);
       console.log("Novo pagamento adicionado com status:", newPayment.status);
     } else {
-      // Atualizar pagamento existente
       const updatedPayments = [...payments];
       updatedPayments[currentPaymentIndex] = {
         ...newPayment,
@@ -639,7 +606,6 @@ export default function NewService() {
       setCurrentPaymentIndex(-1);
     }
 
-    // Resetar o novo pagamento
     setNewPayment({
       method: "dinheiro",
       value: "",
@@ -655,22 +621,18 @@ export default function NewService() {
     setValue("payments", updatedPayments);
   };
 
-  // Monitorar mudanças no preço total para validar pagamentos
   useEffect(() => {
     if (totalPrice > 0 && totalPaid > totalPrice) {
       toast.warning('O valor dos pagamentos excede o valor total do serviço. Por favor, ajuste os valores.');
       
-      // Se o usuário já tinha pagamentos registrados, mostrar um alerta mais detalhado
       if (payments.length > 1) {
         toast.info(`Valor total do serviço: ${currencyMask(totalPrice.toString())}, Total já registrado em pagamentos: ${currencyMask(totalPaid.toString())}`);
       }
     }
   }, [totalPrice, totalPaid, payments.length]);
 
-  // Função para verificar e limpar pagamentos inválidos
   const validatePayments = () => {
     if (totalPaid > totalPrice && payments.length > 0) {
-      // Opção 1: Limpar todos os pagamentos
       if (window.confirm('Os pagamentos registrados excedem o valor total do serviço. Deseja limpar todos os pagamentos?')) {
         setValue('payments', []);
         toast.success('Pagamentos limpos. Você pode registrar novos pagamentos agora.');
@@ -678,7 +640,6 @@ export default function NewService() {
     }
   };
 
-  // Adicionar botão para validar/limpar pagamentos
   const renderPaymentWarning = () => {
     if (totalPaid > totalPrice && payments.length > 0) {
       return (
@@ -711,7 +672,6 @@ export default function NewService() {
           console.log("Form submitted with data:", data);
           console.log("Pagamentos no submit:", data.payments);
           
-          // Verificação de segurança para garantir preservação de status
           if (data.payments && data.payments.length > 0) {
             data.payments.forEach((payment, index) => {
               console.log(`Pagamento ${index} - Status: ${payment.status}, Valor: ${payment.value}`);

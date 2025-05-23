@@ -13,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { currencyMask } from "@/utils/maks/masks";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 
 interface Service {
@@ -54,7 +53,6 @@ export default function Services() {
   const { data: services, loading } = useFirestoreCollection<Service>("Services");
   const router = useRouter();
 
-  // Calcula os totais
   const calculateTotals = () => {
     if (!services || services.length === 0) {
       return { 
@@ -65,16 +63,13 @@ export default function Services() {
       };
     }
 
-    // Total de serviços e orçamentos
     const totalServices = services.filter(s => !s.budget).length;
     const totalBudgets = services.filter(s => s.budget).length;
 
-    // Valores pagos e pendentes
     const { totalPaid, totalPending } = services.reduce((acc, service) => {
       if (service.budget) return acc;
 
       if (service.payments && service.payments.length > 0) {
-        // Soma pagamentos com status "pago"
         const paidAmount = service.payments
           .filter(p => p.status === 'pago')
           .reduce((sum, p) => {
@@ -84,7 +79,6 @@ export default function Services() {
             return sum + value;
           }, 0);
 
-        // Soma pagamentos com status "pendente"
         const pendingAmount = service.payments
           .filter(p => p.status === 'pendente')
           .reduce((sum, p) => {
@@ -109,7 +103,6 @@ export default function Services() {
   const { totalPaid, totalPending, totalServices: servicesCount, totalBudgets } = calculateTotals();
 
   const formatPrice = (price: number | string) => {
-    // Se for string, converte para número
     if (typeof price === 'string') {
       price = Number(price.replace(/\D/g, ''));
     }
@@ -186,7 +179,6 @@ export default function Services() {
               </TableHeader>
               <TableBody>
                 {services.map((service: Service) => {
-                  // Calcular valor pago e pendente
                   const paidAmount = service.payments 
                     ? service.payments
                         .filter(p => p.status === 'pago')

@@ -12,7 +12,6 @@ import { currencyMask, celularMask, cpfMask } from "@/utils/maks/masks";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, Edit, Trash2 } from "lucide-react";
 
-// Interface para os serviços
 interface Service {
   id: string;
   name: string;
@@ -40,7 +39,6 @@ interface Service {
   clientId?: string;
 }
 
-// Interface para o cliente
 interface Client {
   id: string;
   name: string;
@@ -52,14 +50,12 @@ interface Client {
 }
 
 export default function ClientHistory() {
-  // Estados
   const [searchTerm, setSearchTerm] = useState("");
   const [clientData, setClientData] = useState<Client | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [isLoadingClient, setIsLoadingClient] = useState(true);
   const [isLoadingServices, setIsLoadingServices] = useState(true);
   
-  // Hooks e contextos
   const { user } = useAuthContext();
   const uid = user?.uid;
   const router = useRouter();
@@ -68,7 +64,6 @@ export default function ClientHistory() {
   const clientId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
   const clientName = searchParams.get('name') ? decodeURIComponent(searchParams.get('name') || "") : "";
   
-  // Busca dados do cliente
   useEffect(() => {
     const fetchClientData = async () => {
       if (!clientId) return;
@@ -96,7 +91,6 @@ export default function ClientHistory() {
     fetchClientData();
   }, [clientId]);
   
-  // Busca serviços do cliente
   useEffect(() => {
     if (uid && clientId) {
       fetchClientServices();
@@ -108,13 +102,12 @@ export default function ClientHistory() {
       setIsLoadingServices(true);
       console.log("Buscando serviços para o cliente ID:", clientId);
       
-      // Primeiro tentamos uma consulta que corresponde exatamente ao React Native
       try {
         const servicesRefExact = collection(database, "Services");
         const qExact = query(
           servicesRefExact,
           where("uid", "==", uid),
-          where("contactUid", "==", clientId) // Este é o campo usado no React Native
+          where("contactUid", "==", clientId)
         );
         
         const querySnapshotExact = await getDocs(qExact);
@@ -126,7 +119,6 @@ export default function ClientHistory() {
             ...doc.data()
           })) as Service[];
           
-          // Ordena por data, mais recente primeiro
           setServices(exactServicesData.sort((a, b) => 
             new Date(b.date).getTime() - new Date(a.date).getTime()
           ));
@@ -137,10 +129,8 @@ export default function ClientHistory() {
         console.error("Erro na consulta exata:", exactError);
       }
       
-      // Se a consulta exata não funcionou, continuamos com a abordagem ampla
       const servicesRef = collection(database, "Services");
       
-      // Buscamos todos os serviços do usuário primeiro
       const q = query(
         servicesRef, 
         where("uid", "==", uid)
@@ -149,7 +139,6 @@ export default function ClientHistory() {
       const querySnapshot = await getDocs(q);
       console.log("Total de serviços do usuário:", querySnapshot.docs.length);
       
-      // Log detalhado para diagnosticar a estrutura dos dados
       if (querySnapshot.docs.length > 0) {
         const sampleDoc = querySnapshot.docs[0].data();
         console.log("Estrutura de exemplo:", Object.keys(sampleDoc));
@@ -157,7 +146,6 @@ export default function ClientHistory() {
         console.log("Nome do cliente:", clientName);
       }
       
-      // Filtramos manualmente usando múltiplos critérios
       const servicesData = querySnapshot.docs
         .map(doc => ({
           id: doc.id,
@@ -166,13 +154,11 @@ export default function ClientHistory() {
         .filter(service => {
           const docData = service as any;
           
-          // Primeira abordagem: match por ID (em qualquer campo)
           const matchesById = 
             docData.contactId === clientId || 
             docData.contactUid === clientId ||
             docData.clientId === clientId;
           
-          // Segunda abordagem: match por nome do cliente (caso os IDs não estejam funcionando)
           const matchesByName = 
             clientName && 
             docData.name && 
@@ -183,16 +169,13 @@ export default function ClientHistory() {
       
       console.log("Serviços encontrados para este cliente:", servicesData.length);
       
-      // Se não encontramos serviços, tentamos uma terceira abordagem: verificar todos os campos
       if (servicesData.length === 0 && querySnapshot.docs.length > 0) {
         console.log("Tentando abordagem alternativa de busca...");
         
         const alternativeServices = querySnapshot.docs
           .map(doc => {
             const data = doc.data();
-            // Stringificamos o documento para busca em profundidade
             const stringData = JSON.stringify(data).toLowerCase();
-            // Verificamos se o cliente ID ou nome está em qualquer parte do documento
             const matches = 
               stringData.includes(clientId.toLowerCase()) || 
               (clientName && stringData.includes(clientName.toLowerCase()));
@@ -215,7 +198,6 @@ export default function ClientHistory() {
         }
       }
       
-      // Ordena por data, mais recente primeiro
       setServices(servicesData.sort((a, b) => 
         new Date(b.date).getTime() - new Date(a.date).getTime()
       ));
@@ -227,23 +209,19 @@ export default function ClientHistory() {
     }
   };
 
-  // Filtra serviços pelo termo de busca
   const filteredServices = services.filter(service => 
     service.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     service.services?.some(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Manipula adição de novo serviço
   const handleNewService = () => {
     router.push(`/dashboard/servicos/novo?contactId=${clientId}`);
   };
 
-  // Manipula edição de serviço
   const handleEditService = (serviceId: string) => {
     router.push(`/dashboard/servicos/novo?id=${serviceId}`);
   };
 
-  // Manipula exclusão de serviço
   const handleDeleteService = async (serviceId: string) => {
     if (!confirm("Tem certeza que deseja excluir este serviço?")) return;
 
@@ -257,7 +235,6 @@ export default function ClientHistory() {
     }
   };
   
-  // Estado de carregamento
   const isLoading = isLoadingClient || isLoadingServices;
   const hasNoServices = !isLoading && services.length === 0;
   
@@ -274,7 +251,6 @@ export default function ClientHistory() {
 
   return (
     <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
-      {/* Cabeçalho */}
       <div className="flex items-center mb-6">
         <Button 
           variant="outline" 
@@ -287,7 +263,6 @@ export default function ClientHistory() {
         <h1 className="text-2xl font-bold">Histórico: {clientName}</h1>
       </div>
       
-      {/* Informações do Cliente */}
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-3">Informações do Cliente</h2>
         <div className="bg-gray-50 p-4 rounded-lg">
@@ -316,7 +291,6 @@ export default function ClientHistory() {
         </div>
       </div>
       
-      {/* Seção de Serviços */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-semibold">Serviços</h2>
@@ -325,7 +299,6 @@ export default function ClientHistory() {
           </Button>
         </div>
         
-        {/* Campo de busca */}
         <div className="mb-4">
           <Input
             placeholder="Buscar serviço..."
@@ -334,7 +307,6 @@ export default function ClientHistory() {
           />
         </div>
         
-        {/* Lista de serviços */}
         {hasNoServices ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <p className="text-gray-500 mb-2">Você ainda não possui nenhum serviço para este cliente.</p>

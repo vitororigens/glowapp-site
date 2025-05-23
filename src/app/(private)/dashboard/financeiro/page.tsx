@@ -63,10 +63,8 @@ export default function Financeiro() {
 
   function handleEdit(item: { id: string, type: string, collection?: "Revenue" | "Expense" }) {
     if (item.type === "Serviço") {
-      // Quando for serviço, redireciona para a página de edição de serviços
       router.push(`/dashboard/servicos/novo?id=${item.id}`);
     } else {
-      // Para outros registros (receitas e despesas)
       const typeMapped = item.collection === "Revenue" ? "revenue" : "expense";
       router.push(`/dashboard/financeiro/novo?id=${item.id}&type=${typeMapped}`);
     }
@@ -89,15 +87,12 @@ export default function Financeiro() {
     );
   }
 
-  // Combina receitas e despesas em uma única lista
   const allTransactions = [
     ...(revenues || []).map(rev => ({ ...rev, collection: "Revenue" as const, type: "Receita" })),
     ...(expenses || []).map(exp => ({ ...exp, collection: "Expense" as const, type: "Despesa" })),
-    // Adiciona serviços não-orçamentos como receitas
     ...(services || [])
       .filter(service => !service.budget)
       .map(service => {
-        // Calcula o valor pago
         const paidValue = service.payments 
           ? service.payments
               .filter(p => p.status === 'pago')
@@ -108,18 +103,17 @@ export default function Financeiro() {
           id: service.id,
           name: service.name,
           date: service.date,
-          value: paidValue, // Agora value é apenas o valor pago
+          value: paidValue, 
           type: "Serviço",
           category: "Serviços",
           description: "Serviço realizado",
           collection: "Revenue" as const,
           payments: service.payments,
-          originalPrice: service.price // Mantemos o preço original para referência
+          originalPrice: service.price 
         };
       })
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Calcula totais
   const totalRevenue = [
     ...(revenues || []),
     ...(services || [])
@@ -136,7 +130,6 @@ export default function Financeiro() {
     return acc + value;
   }, 0);
 
-  // Calcula total pendente
   const totalPending = (services || [])
     .filter(service => !service.budget)
     .reduce((acc, service) => {

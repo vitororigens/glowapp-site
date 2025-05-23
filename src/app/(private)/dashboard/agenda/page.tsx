@@ -9,7 +9,7 @@ import { database } from "@/services/firebase";
 import { collection, getDocs, query, where, deleteDoc, doc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { Calendar } from "@/components/ui/calendar";
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -45,15 +45,12 @@ interface Transaction {
   type: 'entrada' | 'saida';
 }
 
-// Função auxiliar para normalizar datas
 const normalizeDateStr = (dateStr: string) => {
   try {
-    // Se a data estiver no formato dd/MM/yyyy
     if (dateStr.includes('/')) {
       const [day, month, year] = dateStr.split('/');
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
-    // Se a data já estiver no formato yyyy-MM-dd
     return dateStr;
   } catch (error) {
     console.error('Erro ao normalizar data:', error);

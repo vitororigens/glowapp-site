@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { database } from "@/services/firebase";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { useAuthContext } from "@/context/AuthContext";
 import { currencyMask } from "@/utils/maks/masks";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 
@@ -65,18 +62,13 @@ export default function DashboardHome() {
   useEffect(() => {
     if (!services || !clients) return;
 
-    // Calcula totais
     const totalServices = services.filter(service => !service.budget).length;
     const totalClients = clients.length;
     
-    // Calcula o faturamento total apenas dos serviços (não orçamentos)
-    // Apenas considera valores com status "pago"
     const totalRevenue = services
       .filter(service => !service.budget)
       .reduce((acc, service) => {
-        // Verifica se tem pagamentos
         if (service.payments && service.payments.length > 0) {
-          // Soma apenas pagamentos com status "pago"
           return acc + service.payments
             .filter(payment => payment.status === 'pago')
             .reduce((sum, payment) => {
@@ -86,18 +78,14 @@ export default function DashboardHome() {
               return sum + paymentValue;
             }, 0);
         } else {
-          // Se não tiver pagamentos, não considera no total
           return acc;
         }
       }, 0);
       
-    // Calcula valores pendentes
     const totalPending = services
       .filter(service => !service.budget)
       .reduce((acc, service) => {
-        // Verifica se tem pagamentos
         if (service.payments && service.payments.length > 0) {
-          // Soma apenas pagamentos com status "pendente"
           return acc + service.payments
             .filter(payment => payment.status === 'pendente')
             .reduce((sum, payment) => {
@@ -107,12 +95,10 @@ export default function DashboardHome() {
               return sum + paymentValue;
             }, 0);
         } else {
-          // Se não tiver pagamentos, não considera no total
           return acc;
         }
       }, 0);
 
-    // Ordena serviços por data (mais recentes primeiro)
     const recentServices = [...services]
       .sort((a, b) => {
         const dateA = new Date(a.date.split("/").reverse().join("-"));
@@ -236,7 +222,6 @@ export default function DashboardHome() {
               </thead>
               <tbody>
                 {dashboardData.recentServices.map((service) => {
-                  // Calcular valor pago e pendente
                   const paidAmount = service.payments 
                     ? service.payments
                         .filter(p => p.status === 'pago')
