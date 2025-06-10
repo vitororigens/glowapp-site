@@ -951,7 +951,7 @@ export default function NewService() {
 
         <Card className="p-4">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium">Serviços Selecionados</h3>
+            <h3 className="text-lg font-medium">Procedimentos Selecionados</h3>
             <Button
               type="button"
               variant="outline"
@@ -1217,7 +1217,7 @@ export default function NewService() {
           fetchSelectedServices();
           setShowServicesModal(false);
         }}
-        title="Selecione os serviços"
+        title="Selecione os procedimentos"
       />
 
       <CustomModalProfessionals

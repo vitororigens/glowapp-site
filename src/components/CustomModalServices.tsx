@@ -11,6 +11,7 @@ import { toast } from "react-toastify";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { currencyMask } from "@/utils/maks/masks";
+import { useRouter } from "next/navigation";
 
 interface Service {
   id: string;
@@ -39,6 +40,7 @@ export function CustomModalServices({
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuthContext();
   const uid = user?.uid;
+  const router = useRouter();
 
   useEffect(() => {
     if (visible && uid) {
@@ -90,10 +92,10 @@ export function CustomModalServices({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-hidden">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">{title}</h2>
-          <Button variant="ghost" onClick={onClose}>
-            Fechar
+          <Button variant="outline" onClick={() => router.push('/dashboard/procedimentos/novo')}>
+            Adicionar Procedimento
           </Button>
         </div>
 

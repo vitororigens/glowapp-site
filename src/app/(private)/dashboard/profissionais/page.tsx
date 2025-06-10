@@ -116,6 +116,12 @@ export default function Profissionais() {
                 <td className="py-2 px-4 border">{professional.email}</td>
                 <td className="py-2 px-4 border">
                   <div className="flex gap-2 justify-center">
+                  <Button size="sm" onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectProfessional(professional);
+                    }}>
+                      Ver Detalhes
+                    </Button>
                     <Button size="sm" variant="outline" onClick={(e) => {
                       e.stopPropagation();
                       router.push(`/dashboard/profissionais/novo?id=${professional.id}`);
@@ -127,12 +133,6 @@ export default function Profissionais() {
                       handleDeleteProfessional(professional.id);
                     }}>
                       Excluir
-                    </Button>
-                    <Button size="sm" onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectProfessional(professional);
-                    }}>
-                      Ver Detalhes
                     </Button>
                   </div>
                 </td>
