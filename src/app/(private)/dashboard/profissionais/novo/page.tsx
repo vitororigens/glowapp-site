@@ -13,7 +13,7 @@ import { toast } from "react-toastify";
 import { applyPhoneMask, celularMask, celularUnMask, cnpjMask, cnpjUnMask, cpfMask, phoneUnMask } from "@/utils/maks/masks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthContext } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 
 const formSchema = z.object({
@@ -48,6 +48,7 @@ export default function NewProfessional() {
   const uid = user?.uid;
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const {
     control,
@@ -69,6 +70,13 @@ export default function NewProfessional() {
       image: undefined,
     },
   });
+
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (id) {
+      setSelectedItemId(id);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (selectedItemId) {

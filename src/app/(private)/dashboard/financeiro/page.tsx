@@ -34,12 +34,12 @@ interface Service {
   date: string;
   price: string;
   budget: boolean;
+  sendToFinance: boolean;
   payments?: Array<{
     method: 'dinheiro' | 'pix' | 'cartao' | 'boleto';
     value: string | number;
     date: string;
     installments?: number;
-    status: 'pendente' | 'pago';
   }>;
 }
 
@@ -91,11 +91,10 @@ export default function Financeiro() {
     ...(revenues || []).map(rev => ({ ...rev, collection: "Revenue" as const, type: "Receita" })),
     ...(expenses || []).map(exp => ({ ...exp, collection: "Expense" as const, type: "Despesa" })),
     ...(services || [])
-      .filter(service => !service.budget)
+      .filter(service => !service.budget && service.sendToFinance)
       .map(service => {
         const paidValue = service.payments 
           ? service.payments
-              .filter(p => p.status === 'pago')
               .reduce((sum, p) => sum + Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
           : 0;
         
@@ -117,11 +116,10 @@ export default function Financeiro() {
   const totalRevenue = [
     ...(revenues || []),
     ...(services || [])
-      .filter(service => !service.budget)
+      .filter(service => !service.budget && service.sendToFinance)
       .map(service => ({ 
         value: service.payments 
           ? service.payments
-              .filter(payment => payment.status === 'pago')
               .reduce((sum, payment) => sum + Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
           : 0 
       }))
@@ -130,16 +128,7 @@ export default function Financeiro() {
     return acc + value;
   }, 0);
 
-  const totalPending = (services || [])
-    .filter(service => !service.budget)
-    .reduce((acc, service) => {
-      const pendingAmount = service.payments 
-        ? service.payments
-            .filter(payment => payment.status === 'pendente')
-            .reduce((sum, payment) => sum + Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
-        : 0;
-      return acc + pendingAmount;
-    }, 0);
+  const totalPending = 0;
 
   const totalExpense = (expenses || []).reduce((acc, curr) => {
     const value = parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
@@ -169,25 +158,21 @@ export default function Financeiro() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-500">Receitas (valores pagos)</h3>
-          <p className="text-2xl font-bold text-green-600">{currencyMask(totalRevenue.toString())}</p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-500">Valores Pendentes</h3>
-          <p className="text-2xl font-bold text-orange-500">{currencyMask(totalPending.toString())}</p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-500">Despesas</h3>
-          <p className="text-2xl font-bold text-red-600">{currencyMask(totalExpense.toString())}</p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-500">Saldo</h3>
-          <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {currencyMask(balance.toString())}
-          </p>
-        </Card>
+      <div className="w-full flex flex-col items-center">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10 w-full max-w-5xl">
+          <Card className="p-4">
+            <h3 className="text-sm font-bold text-gray-500">Receitas</h3>
+            <p className="text-2xl font-bold text-green-600">{currencyMask(totalRevenue.toString())}</p>
+          </Card>
+          <Card className="p-4">
+            <h3 className="text-sm font-bold text-gray-500">Despesas</h3>
+            <p className="text-2xl font-bold text-red-600">{currencyMask(totalExpense.toString())}</p>
+          </Card>
+          <Card className="p-4">
+            <h3 className="text-sm font-bold text-gray-500">Saldo</h3>
+            <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{currencyMask(balance.toString())}</p>
+          </Card>
+        </div>
       </div>
 
       {/* Box de Receitas */}
@@ -202,9 +187,9 @@ export default function Financeiro() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Data</TableHead>
+                <TableHead>Valor Total</TableHead>
                 <TableHead>Valor Pago</TableHead>
-                <TableHead>Valor Pendente</TableHead>
-                <TableHead>Pagamento</TableHead>
+                <TableHead>Formas de Pagamento</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -213,73 +198,63 @@ export default function Financeiro() {
                 <TableRow key={`${transaction.collection}-${transaction.id}`}>
                   <TableCell>{transaction.name}</TableCell>
                   <TableCell>{transaction.date}</TableCell>
-                  <TableCell className="text-green-600">{formatPrice(transaction.value)}</TableCell>
-                  <TableCell className="text-orange-500">
+                  <TableCell>
                     {transaction.type === "Serviço" ? 
-                      formatPrice(
-                        (transaction as any).payments 
-                          ? (transaction as any).payments
-                              .filter((p: any) => p.status === 'pendente')
-                              .reduce((sum: number, p: any) => sum + Number(String(p.value).replace(/[^-\d]/g, "").replace(",", ".")), 0)
-                          : 0
-                      ) 
-                      : "-"
-                    }
+                      formatPrice((transaction as any).originalPrice) 
+                      : formatPrice(transaction.value)}
                   </TableCell>
+                  <TableCell className="text-green-600">{formatPrice(transaction.value)}</TableCell>
                   <TableCell>
                     {transaction.type === "Serviço" && (transaction as any).payments && (transaction as any).payments.length > 0 ? (
-                      <div className="space-y-1">
-                        {(transaction as any).payments
-                          .filter((p: any) => p.status === 'pago')
-                          .map((payment: any, idx: number) => (
-                            <div key={idx} className="mb-1">
-                              <span
-                                className={`px-2 py-1 rounded-full text-xs ${
-                                  payment.method === "dinheiro"
-                                    ? "bg-teal-100 text-teal-800"
-                                    : payment.method === "pix"
-                                    ? "bg-purple-100 text-purple-800"
-                                    : payment.method === "boleto"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-orange-100 text-orange-800"
-                                }`}
-                              >
-                                {payment.method === "dinheiro"
-                                  ? "Dinheiro"
+                      <div className="flex flex-wrap gap-2">
+                        {(transaction as any).payments.map((payment: any, idx: number) => {
+                          const pagamentos = (transaction as any).payments;
+                          const valorTotal = Number(String((transaction as any).originalPrice).replace(/[^\d,-]/g, "").replace(",", "."));
+                          const mostrarValor = pagamentos.length > 1 || Number(payment.value) !== valorTotal;
+                          return (
+                            <span
+                              key={idx}
+                              className={`px-2 py-1 rounded-full text-xs ${
+                                payment.method === "dinheiro"
+                                  ? "bg-teal-100 text-teal-800"
                                   : payment.method === "pix"
-                                  ? "PIX"
+                                  ? "bg-purple-100 text-purple-800"
                                   : payment.method === "boleto"
-                                  ? "Boleto"
-                                  : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
-                                &nbsp;({currencyMask(String(payment.value))})
-                              </span>
-                            </div>
-                          ))}
-                        {(transaction as any).payments.filter((p: any) => p.status === 'pendente').length > 0 && (
-                          <div className="mt-1">
-                            <span className="text-xs text-orange-500 font-medium">
-                              Pendente: {(transaction as any).payments.filter((p: any) => p.status === 'pendente').length} pagamento(s)
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-orange-100 text-orange-800"
+                              }`}
+                            >
+                              {payment.method === "dinheiro"
+                                ? "Dinheiro"
+                                : payment.method === "pix"
+                                ? "PIX"
+                                : payment.method === "boleto"
+                                ? "Boleto"
+                                : `Cartão${payment.installments ? ` ${payment.installments}x` : ""}`}
+                              {mostrarValor ? ` ${formatPrice(payment.value)}` : ""}
                             </span>
-                          </div>
-                        )}
+                          );
+                        })}
                       </div>
                     ) : (
-                      "-"
+                      <span className="text-gray-500">-</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right ">
-                    <div className="flex justify-end gap-2">
-                   <Button variant="outline" size="sm" onClick={() => handleEdit(transaction)}>Editar</Button>
+                  <TableCell className="text-right">
+                    <button
+                      className="border border-gray-300 bg-white text-gray-800 rounded px-3 py-1 hover:bg-gray-100 transition mr-2"
+                      onClick={() => handleEdit(transaction)}
+                    >
+                      Editar
+                    </button>
                     {transaction.type !== "Serviço" && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
+                      <button
+                        className="border border-gray-300 bg-white text-red-600 rounded px-3 py-1 hover:bg-red-100 transition"
                         onClick={() => handleDelete(transaction.id, transaction.collection)}
                       >
                         Excluir
-                      </Button>
+                      </button>
                     )}
-                    </div>
                   </TableCell>
                 </TableRow>
               ))}

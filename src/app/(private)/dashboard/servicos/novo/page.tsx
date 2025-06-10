@@ -52,12 +52,12 @@ const formSchema = z.object({
     specialty: z.string(),
   })).optional(),
   budget: z.boolean().default(false),
+  sendToFinance: z.boolean().default(false),
   payments: z.array(z.object({
     method: z.enum(["dinheiro", "pix", "cartao", "boleto"]),
     value: z.string().min(1, "Valor é obrigatório"),
     date: z.string().min(1, "Data é obrigatória"),
     installments: z.number().optional(),
-    status: z.enum(["pendente", "pago"]).default("pendente"),
   })).default([]),
   documents: z.array(z.object({
     name: z.string(),
@@ -94,7 +94,6 @@ export default function NewService() {
     value: "",
     date: new Date().toISOString().split('T')[0],
     installments: 1 as number | undefined,
-    status: "pendente" as "pendente" | "pago"
   });
 
   const {
@@ -120,6 +119,7 @@ export default function NewService() {
       services: [],
       professionals: [],
       budget: false,
+      sendToFinance: false,
       payments: [],
       documents: [],
       beforePhotos: [],
@@ -165,12 +165,12 @@ export default function NewService() {
               services: data.services || [],
               professionals: data.professionals || [],
               budget: data.budget || false,
+              sendToFinance: data.sendToFinance || false,
               payments: data.payments ? data.payments.map((p: any) => ({
                 method: p.method,
                 value: currencyMask(String(p.value || 0)),
                 date: p.date,
-                installments: p.installments || undefined,
-                status: p.status || "pendente"
+                installments: p.installments || undefined
               })) : [],
               documents: data.documents || [],
               beforePhotos: data.beforePhotos || [],
@@ -306,7 +306,6 @@ export default function NewService() {
       }
       
       const processedPayments = data.payments ? data.payments.map(payment => {
-        // Primeiro converter o valor para número
         const numericValue = typeof payment.value === 'string' 
           ? Number(payment.value.replace(/\D/g, ''))
           : Number(payment.value);
@@ -316,21 +315,17 @@ export default function NewService() {
           value: numericValue,
           date: payment.date,
           installments: payment.installments || null,
-          status: payment.status 
         };
       }) : [];
 
       console.log("Pagamentos processados:", processedPayments);
       
-      const paidAmount = processedPayments
-        .filter(payment => payment.status === 'pago')
-        .reduce((sum, payment) => sum + payment.value, 0);
+      const paidAmount = processedPayments.reduce((sum, payment) => sum + payment.value, 0);
       
       const price = Number(data.price.replace(/\D/g, ''));
       
       if (serviceId) {
         console.log("Editando serviço existente:", serviceId);
-        console.log("Payments antes do processamento:", data.payments);
         
         const serviceRef = doc(database, "Services", serviceId);
         
@@ -342,15 +337,15 @@ export default function NewService() {
           date: data.date,
           time: data.time,
           price: price,
-          paidAmount: paidAmount, 
-          pendingAmount: price - paidAmount, 
+          paidAmount: paidAmount,
           priority: data.priority || "",
           duration: data.duration || "",
           observations: data.observations || "",
           services: data.services || [],
           professionals: data.professionals || [],
           budget: data.budget || false,
-          payments: processedPayments, 
+          sendToFinance: data.sendToFinance || false,
+          payments: processedPayments,
           documents: data.documents || [],
           beforePhotos: data.beforePhotos || [],
           afterPhotos: data.afterPhotos || [],
@@ -358,7 +353,6 @@ export default function NewService() {
         };
         
         console.log("Dados completos para atualização:", updateData);
-        console.log("Pagamentos processados para atualização:", processedPayments);
         
         try {
           await updateDoc(serviceRef, updateData);
@@ -372,11 +366,6 @@ export default function NewService() {
             draggable: true,
           });
           
-          const updatedDoc = await getDoc(serviceRef);
-          if (updatedDoc.exists()) {
-            console.log("Dados atualizados confirmados:", updatedDoc.data());
-            console.log("Pagamentos após atualização:", updatedDoc.data().payments);
-          }
           setTimeout(() => {
             console.log("Redirecionando...");
             router.back();
@@ -404,14 +393,14 @@ export default function NewService() {
           date: data.date,
           time: data.time,
           price: price,
-          paidAmount: paidAmount, 
-          pendingAmount: price - paidAmount, 
+          paidAmount: paidAmount,
           priority: data.priority || "",
           duration: data.duration || "",
           observations: data.observations || "",
           services: data.services || [],
           professionals: data.professionals || [],
           budget: data.budget || false,
+          sendToFinance: data.sendToFinance || false,
           payments: processedPayments,
           documents: data.documents || [],
           beforePhotos: data.beforePhotos || [],
@@ -539,16 +528,14 @@ export default function NewService() {
       method: payment.method,
       value: payment.value,
       date: payment.date,
-      installments: payment.installments || 1,
-      status: payment.status
+      installments: payment.installments || 1
     });
     
     console.log("NewPayment definido para edição:", {
       method: payment.method,
       value: payment.value,
       date: payment.date,
-      installments: payment.installments || 1,
-      status: payment.status
+      installments: payment.installments || 1
     });
     
     setCurrentPaymentIndex(index);
@@ -594,7 +581,6 @@ export default function NewService() {
           value: formattedValue
         }
       ]);
-      console.log("Novo pagamento adicionado com status:", newPayment.status);
     } else {
       const updatedPayments = [...payments];
       updatedPayments[currentPaymentIndex] = {
@@ -602,7 +588,6 @@ export default function NewService() {
         value: formattedValue
       };
       setValue("payments", updatedPayments);
-      console.log("Pagamento atualizado no índice", currentPaymentIndex, "com status:", newPayment.status);
       setCurrentPaymentIndex(-1);
     }
 
@@ -610,8 +595,7 @@ export default function NewService() {
       method: "dinheiro",
       value: "",
       date: new Date().toISOString().split('T')[0],
-      installments: 1 as number | undefined,
-      status: "pendente"
+      installments: 1 as number | undefined
     });
   };
 
@@ -668,18 +652,7 @@ export default function NewService() {
       </h2>
 
       <form 
-        onSubmit={handleSubmit((data) => {
-          console.log("Form submitted with data:", data);
-          console.log("Pagamentos no submit:", data.payments);
-          
-          if (data.payments && data.payments.length > 0) {
-            data.payments.forEach((payment, index) => {
-              console.log(`Pagamento ${index} - Status: ${payment.status}, Valor: ${payment.value}`);
-            });
-          }
-          
-          onSubmit(data);
-        })} 
+        onSubmit={handleSubmit(onSubmit)} 
         className="space-y-4"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -811,6 +784,15 @@ export default function NewService() {
           <Label htmlFor="budget">Orçamento</Label>
         </div>
 
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="sendToFinance"
+            checked={watch("sendToFinance")}
+            onCheckedChange={(checked) => setValue("sendToFinance", checked)}
+          />
+          <Label htmlFor="sendToFinance">Enviar para o Financeiro</Label>
+        </div>
+
         <Card className="p-4">
           <h3 className="text-lg font-medium mb-2">Formas de Pagamento</h3>
           
@@ -819,27 +801,13 @@ export default function NewService() {
               <span>Valor total do serviço:</span>
               <span className="font-semibold">{currencyMask(totalPrice.toString())}</span>
             </div>
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center">
               <span>Total pago:</span>
               <span className="font-semibold text-green-600">
-                {currencyMask(payments.filter(p => p.status === "pago").reduce((acc, p) => acc + Number(p.value.replace(/\D/g, '')), 0).toString())}
-              </span>
-            </div>
-            <div className="flex justify-between items-center mb-2">
-              <span>Total pendente:</span>
-              <span className="font-semibold text-orange-500">
-                {currencyMask(payments.filter(p => p.status === "pendente").reduce((acc, p) => acc + Number(p.value.replace(/\D/g, '')), 0).toString())}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Restante a pagar:</span>
-              <span className={`font-semibold ${remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {currencyMask(remainingAmount.toString())}
+                {currencyMask(totalPaid.toString())}
               </span>
             </div>
           </div>
-
-          {renderPaymentWarning()}
 
           <div className="space-y-4 mb-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -882,34 +850,38 @@ export default function NewService() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
+                <Label>Tipo de Pagamento</Label>
+                <RadioGroup
+                  value={newPayment.value === totalPrice.toString() ? "full" : "partial"}
+                  onValueChange={(value) => {
+                    if (value === "full") {
+                      setNewPayment({...newPayment, value: totalPrice.toString()});
+                    } else {
+                      setNewPayment({...newPayment, value: ""});
+                    }
+                  }}
+                  className="flex space-x-4 mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="full" id="payment-full" />
+                    <Label htmlFor="payment-full">Valor Inteiro</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="partial" id="payment-partial" />
+                    <Label htmlFor="payment-partial">Valor Parcial</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div>
                 <Label>Valor</Label>
                 <Input
                   placeholder="Valor do pagamento"
                   value={newPayment.value}
                   onChange={(e) => setNewPayment({...newPayment, value: currencyMask(e.target.value)})}
                   className="mt-2"
+                  disabled={newPayment.value === totalPrice.toString()}
                 />
-              </div>
-
-              <div>
-                <Label>Status</Label>
-                <RadioGroup
-                  value={newPayment.status}
-                  onValueChange={(value) => {
-                    console.log("Status alterado para:", value);
-                    setNewPayment({...newPayment, status: value as "pendente" | "pago"});
-                  }}
-                  className="flex space-x-4 mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="pendente" id="status-pendente" />
-                    <Label htmlFor="status-pendente" className="text-orange-500 font-medium">Pendente</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="pago" id="status-pago" />
-                    <Label htmlFor="status-pago" className="text-green-600 font-medium">Pago</Label>
-                  </div>
-                </RadioGroup>
               </div>
             </div>
 
@@ -937,7 +909,7 @@ export default function NewService() {
             ) : (
               <div className="space-y-2">
                 {payments.map((payment, index) => (
-                  <div key={index} className={`flex items-center justify-between p-3 rounded-md ${payment.status === "pago" ? "bg-green-50 border-green-100 border" : "bg-orange-50 border-orange-100 border"}`}>
+                  <div key={index} className="flex items-center justify-between p-3 rounded-md bg-green-50 border-green-100 border">
                     <div>
                       <div className="font-medium">
                         {payment.method === "dinheiro" 
@@ -949,10 +921,7 @@ export default function NewService() {
                           : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
                       </div>
                       <div className="text-sm">
-                        {payment.date} - {payment.value} - 
-                        <span className={payment.status === "pago" ? "text-green-600 font-medium" : "text-orange-600 font-medium"}>
-                          {payment.status === "pago" ? " Pago" : " Pendente"}
-                        </span>
+                        {payment.date} - {payment.value}
                       </div>
                     </div>
                     <div className="flex space-x-2">
