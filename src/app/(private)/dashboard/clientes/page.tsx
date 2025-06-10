@@ -131,20 +131,20 @@ export default function Contacts() {
                   <TableCell>{celularMask(contact.phone)}</TableCell>
                   <TableCell>{contact.email}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
+                    <div className="flex justify-end gap-2">
                       <Button
-                        variant="ghost"
-                        size="icon"
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleEdit(contact.id)}
                       >
-                        <Pencil className="h-4 w-4" />
+                        Editar
                       </Button>
                       <Button
-                        variant="ghost"
-                        size="icon"
+                        variant="destructive"
+                        size="sm"
                         onClick={() => handleDelete(contact.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        Excluir
                       </Button>
                     </div>
                   </TableCell>

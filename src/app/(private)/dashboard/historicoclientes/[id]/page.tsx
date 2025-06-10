@@ -210,9 +210,9 @@ export default function ClientHistory() {
   };
 
   const filteredServices = services.filter(service =>
-    !service.budget && (service.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    service.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     service.services?.some(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  ));
+  );
 
   const handleNewService = () => {
     router.push(`/dashboard/servicos/novo?contactId=${clientId}`);

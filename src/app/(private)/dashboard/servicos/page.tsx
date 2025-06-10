@@ -239,12 +239,14 @@ export default function Services() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(service.id)}>
-                          Editar
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(service.id)}>
-                          Excluir
-                        </Button>
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(service.id)}>
+                            Editar
+                          </Button>
+                          <Button variant="destructive" size="sm" onClick={() => handleDelete(service.id)}>
+                            Excluir
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

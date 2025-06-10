@@ -241,20 +241,24 @@ export default function Financeiro() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <button
-                      className="border border-gray-300 bg-white text-gray-800 rounded px-3 py-1 hover:bg-gray-100 transition mr-2"
-                      onClick={() => handleEdit(transaction)}
-                    >
-                      Editar
-                    </button>
-                    {transaction.type !== "Serviço" && (
-                      <button
-                        className="border border-gray-300 bg-white text-red-600 rounded px-3 py-1 hover:bg-red-100 transition"
-                        onClick={() => handleDelete(transaction.id, transaction.collection)}
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(transaction)}
                       >
-                        Excluir
-                      </button>
-                    )}
+                        Editar
+                      </Button>
+                      {transaction.type !== "Serviço" && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(transaction.id, transaction.collection)}
+                        >
+                          Excluir
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
