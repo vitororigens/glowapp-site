@@ -57,30 +57,16 @@ export default function Services() {
     if (!services || services.length === 0) {
       return { 
         totalPaid: 0, 
-        totalPending: 0, 
         totalServices: 0, 
         totalBudgets: 0 
       };
     }
 
-    const totalServices = services.filter(s => !s.budget).length;
-    const totalBudgets = services.filter(s => s.budget).length;
-
-    const { totalPaid, totalPending } = services.reduce((acc, service) => {
+    const { totalPaid, totalServices: servicesCount, totalBudgets } = services.reduce((acc, service) => {
       if (service.budget) return acc;
 
       if (service.payments && service.payments.length > 0) {
         const paidAmount = service.payments
-          .filter(p => p.status === 'pago')
-          .reduce((sum, p) => {
-            const value = typeof p.value === 'number' 
-              ? p.value 
-              : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-            return sum + value;
-          }, 0);
-
-        const pendingAmount = service.payments
-          .filter(p => p.status === 'pendente')
           .reduce((sum, p) => {
             const value = typeof p.value === 'number' 
               ? p.value 
@@ -90,17 +76,18 @@ export default function Services() {
 
         return {
           totalPaid: acc.totalPaid + paidAmount,
-          totalPending: acc.totalPending + pendingAmount
+          totalServices: acc.totalServices + 1,
+          totalBudgets: acc.totalBudgets
         };
       }
 
       return acc;
-    }, { totalPaid: 0, totalPending: 0 });
+    }, { totalPaid: 0, totalServices: services.filter(s => !s.budget).length, totalBudgets: services.filter(s => s.budget).length });
 
-    return { totalPaid, totalPending, totalServices, totalBudgets };
+    return { totalPaid, totalServices: servicesCount, totalBudgets };
   };
 
-  const { totalPaid, totalPending, totalServices: servicesCount, totalBudgets } = calculateTotals();
+  const { totalPaid, totalServices: servicesCount, totalBudgets } = calculateTotals();
 
   const formatPrice = (price: number | string) => {
     if (typeof price === 'string') {
