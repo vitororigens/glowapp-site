@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { FaCamera } from "react-icons/fa";
 import { useRouter } from "next/navigation";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, deleteDoc, doc } from "firebase/firestore";
 import { database } from "@/services/firebase";
 import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,17 @@ export default function Profissionais() {
     router.push("/dashboard/profissionais/novo");
   }
 
+  const handleDeleteProfessional = async (id: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este profissional?")) {
+      try {
+        await deleteDoc(doc(database, "Profissionals", id));
+        setProfessionals((prev) => prev.filter((p) => p.id !== id));
+      } catch (error) {
+        alert("Erro ao excluir profissional!");
+      }
+    }
+  };
+
   return (
     <Container>
       <div className="flex items-center justify-between mb-6">
@@ -104,12 +115,26 @@ export default function Profissionais() {
                 <td className="py-2 px-4 border">{professional.phone}</td>
                 <td className="py-2 px-4 border">{professional.email}</td>
                 <td className="py-2 px-4 border">
+                  <div className="flex gap-2 justify-center">
                   <Button size="sm" onClick={(e) => {
-                    e.stopPropagation();
-                    handleSelectProfessional(professional);
-                  }}>
-                    Ver Detalhes
-                  </Button>
+                      e.stopPropagation();
+                      handleSelectProfessional(professional);
+                    }}>
+                      Ver Detalhes
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/dashboard/profissionais/novo?id=${professional.id}`);
+                    }}>
+                      Editar
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteProfessional(professional.id);
+                    }}>
+                      Excluir
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}

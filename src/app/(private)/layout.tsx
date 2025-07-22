@@ -45,7 +45,6 @@ export default function DashboardLayout({
         <AuthProvider>
           <StyledComponentsRegistry>
             <div className="min-h-screen bg-gray-100">
-              {/* Sidebar */}
               <aside
                 className={cn(
                   "fixed left-0 top-0 z-40 h-screen w-64 transform bg-white transition-transform duration-200 ease-in-out",
@@ -75,7 +74,6 @@ export default function DashboardLayout({
                 </nav>
               </aside>
 
-              {/* Main content */}
               <div
                 className={cn(
                   "transition-margin duration-200 ease-in-out",

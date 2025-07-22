@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
@@ -28,12 +27,10 @@ export default function HistoricoClientes() {
   const router = useRouter();
   const { data: contacts, loading } = useFirestoreCollection<Contact>("Contacts");
 
-  // Filtra contatos pelo termo de busca
   const filteredContacts = contacts?.filter(
     (contact) => contact.name?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
-  // Navega para os detalhes do cliente
   const handleClientClick = (clientId: string, clientName: string) => {
     router.push(`/dashboard/historicoclientes/${clientId}?name=${encodeURIComponent(clientName)}`);
   };

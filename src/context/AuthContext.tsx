@@ -37,6 +37,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
+  // Sempre que o usuário logado mudar, faz reload para garantir dados atualizados
+  useEffect(() => {
+    if (auth.currentUser) {
+      auth.currentUser.reload().then(() => setUser(auth.currentUser));
+    }
+  }, [auth.currentUser]);
+
   return (
     <AuthContext.Provider value={{ user }}>{children}</AuthContext.Provider>
   );

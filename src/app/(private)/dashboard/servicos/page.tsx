@@ -13,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { currencyMask } from "@/utils/maks/masks";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 
 interface Service {
@@ -54,39 +53,20 @@ export default function Services() {
   const { data: services, loading } = useFirestoreCollection<Service>("Services");
   const router = useRouter();
 
-  // Calcula os totais
   const calculateTotals = () => {
     if (!services || services.length === 0) {
       return { 
         totalPaid: 0, 
-        totalPending: 0, 
         totalServices: 0, 
         totalBudgets: 0 
       };
     }
 
-    // Total de serviços e orçamentos
-    const totalServices = services.filter(s => !s.budget).length;
-    const totalBudgets = services.filter(s => s.budget).length;
-
-    // Valores pagos e pendentes
-    const { totalPaid, totalPending } = services.reduce((acc, service) => {
+    const { totalPaid, totalServices: servicesCount, totalBudgets } = services.reduce((acc, service) => {
       if (service.budget) return acc;
 
       if (service.payments && service.payments.length > 0) {
-        // Soma pagamentos com status "pago"
         const paidAmount = service.payments
-          .filter(p => p.status === 'pago')
-          .reduce((sum, p) => {
-            const value = typeof p.value === 'number' 
-              ? p.value 
-              : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-            return sum + value;
-          }, 0);
-
-        // Soma pagamentos com status "pendente"
-        const pendingAmount = service.payments
-          .filter(p => p.status === 'pendente')
           .reduce((sum, p) => {
             const value = typeof p.value === 'number' 
               ? p.value 
@@ -96,20 +76,20 @@ export default function Services() {
 
         return {
           totalPaid: acc.totalPaid + paidAmount,
-          totalPending: acc.totalPending + pendingAmount
+          totalServices: acc.totalServices + 1,
+          totalBudgets: acc.totalBudgets
         };
       }
 
       return acc;
-    }, { totalPaid: 0, totalPending: 0 });
+    }, { totalPaid: 0, totalServices: services.filter(s => !s.budget).length, totalBudgets: services.filter(s => s.budget).length });
 
-    return { totalPaid, totalPending, totalServices, totalBudgets };
+    return { totalPaid, totalServices: servicesCount, totalBudgets };
   };
 
-  const { totalPaid, totalPending, totalServices: servicesCount, totalBudgets } = calculateTotals();
+  const { totalPaid, totalServices: servicesCount, totalBudgets } = calculateTotals();
 
   const formatPrice = (price: number | string) => {
-    // Se for string, converte para número
     if (typeof price === 'string') {
       price = Number(price.replace(/\D/g, ''));
     }
@@ -151,22 +131,20 @@ export default function Services() {
         <div className="text-center py-4">Nenhum serviço cadastrado.</div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-lg shadow border">
-              <div className="text-sm text-gray-500 mb-1">Total de Serviços</div>
-              <div className="text-2xl font-bold text-blue-600">{servicesCount}</div>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow border">
-              <div className="text-sm text-gray-500 mb-1">Total de Orçamentos</div>
-              <div className="text-2xl font-bold text-yellow-600">{totalBudgets}</div>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow border">
-              <div className="text-sm text-gray-500 mb-1">Valores Recebidos</div>
-              <div className="text-2xl font-bold text-green-600">{formatPrice(totalPaid)}</div>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow border">
-              <div className="text-sm text-gray-500 mb-1">Valores a Receber</div>
-              <div className="text-2xl font-bold text-orange-500">{formatPrice(totalPending)}</div>
+          <div className="w-full flex flex-col items-center">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10 w-full max-w-5xl">
+              <div className="bg-white p-4 rounded-lg shadow border">
+                <div className="text-sm text-gray-500 mb-1">Total de Serviços</div>
+                <div className="text-2xl font-bold text-blue-600">{servicesCount}</div>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow border">
+                <div className="text-sm text-gray-500 mb-1">Total de Orçamentos</div>
+                <div className="text-2xl font-bold text-yellow-600">{totalBudgets}</div>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow border">
+                <div className="text-sm text-gray-500 mb-1">Valores Recebidos</div>
+                <div className="text-2xl font-bold text-green-600">{formatPrice(totalPaid)}</div>
+              </div>
             </div>
           </div>
         
@@ -177,49 +155,31 @@ export default function Services() {
                   <TableHead>Cliente</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Hora</TableHead>
+                  <TableHead>Valor Total</TableHead>
                   <TableHead>Valor Pago</TableHead>
-                  <TableHead>Valor Pendente</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Pagamento</TableHead>
+                  <TableHead>Formas de Pagamento</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {services.map((service: Service) => {
-                  // Calcular valor pago e pendente
                   const paidAmount = service.payments 
-                    ? service.payments
-                        .filter(p => p.status === 'pago')
-                        .reduce((sum, p) => {
-                          const value = typeof p.value === 'number' 
-                            ? p.value 
-                            : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-                          return sum + value;
-                        }, 0)
+                    ? service.payments.reduce((sum, p) => {
+                        const value = typeof p.value === 'number' 
+                          ? p.value 
+                          : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
+                        return sum + value;
+                      }, 0)
                     : 0;
-                    
-                  const pendingAmount = service.payments 
-                    ? service.payments
-                        .filter(p => p.status === 'pendente')
-                        .reduce((sum, p) => {
-                          const value = typeof p.value === 'number' 
-                            ? p.value 
-                            : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-                          return sum + value;
-                        }, 0)
-                    : 0;
-                    
+                  const valorTotal = typeof service.price === 'number' ? service.price : Number(String(service.price).replace(/[^\d,-]/g, "").replace(",", "."));
                   return (
                     <TableRow key={service.id}>
                       <TableCell>{service.name}</TableCell>
                       <TableCell>{service.date}</TableCell>
                       <TableCell>{service.time}</TableCell>
-                      <TableCell className="text-green-600">
-                        {service.budget ? "-" : formatPrice(paidAmount)}
-                      </TableCell>
-                      <TableCell className="text-orange-500">
-                        {service.budget ? "-" : formatPrice(pendingAmount)}
-                      </TableCell>
+                      <TableCell>{formatPrice(valorTotal)}</TableCell>
+                      <TableCell className="text-green-600">{formatPrice(paidAmount)}</TableCell>
                       <TableCell>
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
@@ -232,85 +192,48 @@ export default function Services() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        {service.budget ? (
-                          "-"
-                        ) : service.payments && service.payments.length > 0 ? (
-                          <div className="space-y-1">
-                            {service.payments.filter(p => p.status === 'pago').length > 0 && (
-                              <div>
-                                <span className="text-xs text-green-600 font-medium mr-1">Pago:</span>
-                                {service.payments.filter(p => p.status === 'pago').map((payment, idx) => (
-                                  <span
-                                    key={idx}
-                                    className={`ml-1 px-2 py-1 rounded-full text-xs ${
-                                      payment.method === "dinheiro"
-                                        ? "bg-teal-100 text-teal-800"
-                                        : payment.method === "pix"
-                                        ? "bg-purple-100 text-purple-800"
-                                        : payment.method === "boleto"
-                                        ? "bg-blue-100 text-blue-800"
-                                        : "bg-orange-100 text-orange-800"
-                                    }`}
-                                  >
-                                    {payment.method === "dinheiro"
-                                      ? "Dinheiro"
+                        {service.payments && service.payments.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {service.payments.map((payment, idx) => {
+                              const mostrarValor = service.payments && (service.payments.length > 1 || Number(payment.value) !== valorTotal);
+                              return (
+                                <span
+                                  key={idx}
+                                  className={`px-2 py-1 rounded-full text-xs ${
+                                    payment.method === "dinheiro"
+                                      ? "bg-teal-100 text-teal-800"
                                       : payment.method === "pix"
-                                      ? "PIX"
+                                      ? "bg-purple-100 text-purple-800"
                                       : payment.method === "boleto"
-                                      ? "Boleto"
-                                      : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            {service.payments.filter(p => p.status === 'pendente').length > 0 && (
-                              <div>
-                                <span className="text-xs text-orange-500 font-medium mr-1">Pendente:</span>
-                                {service.payments.filter(p => p.status === 'pendente').map((payment, idx) => (
-                                  <span
-                                    key={idx}
-                                    className={`ml-1 px-2 py-1 rounded-full text-xs ${
-                                      payment.method === "dinheiro"
-                                        ? "bg-teal-50 text-teal-600"
-                                        : payment.method === "pix"
-                                        ? "bg-purple-50 text-purple-600"
-                                        : payment.method === "boleto"
-                                        ? "bg-blue-50 text-blue-600"
-                                        : "bg-orange-50 text-orange-600"
-                                    }`}
-                                  >
-                                    {payment.method === "dinheiro"
-                                      ? "Dinheiro"
-                                      : payment.method === "pix"
-                                      ? "PIX"
-                                      : payment.method === "boleto"
-                                      ? "Boleto"
-                                      : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-orange-100 text-orange-800"
+                                  }`}
+                                >
+                                  {payment.method === "dinheiro"
+                                    ? "Dinheiro"
+                                    : payment.method === "pix"
+                                    ? "PIX"
+                                    : payment.method === "boleto"
+                                    ? "Boleto"
+                                    : `Cartão${payment.installments ? ` ${payment.installments}x` : ""}`}
+                                  {mostrarValor ? ` ${formatPrice(payment.value)}` : ""}
+                                </span>
+                              );
+                            })}
                           </div>
                         ) : (
-                          "-"
+                          <span className="text-gray-500">Sem pagamentos</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mr-2"
-                          onClick={() => handleEdit(service.id)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDelete(service.id)}
-                        >
-                          Excluir
-                        </Button>
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(service.id)}>
+                            Editar
+                          </Button>
+                          <Button variant="destructive" size="sm" onClick={() => handleDelete(service.id)}>
+                            Excluir
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

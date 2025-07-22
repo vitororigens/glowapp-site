@@ -1,30 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/context/AuthContext";
 import { signOut } from "firebase/auth";
 import { auth } from "@/services/firebase";
-import useFirestoreCollection from "@/hooks/useFirestoreCollection";
-import { getInitialNameLetters } from "@/utils/formater/get-inital-name-letter";
-import { Home, LogOut, User } from "lucide-react";
-
-interface UserData {
-  id: string;
-  imageUrl?: string;
-  name?: string;
-  email?: string;
-}
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export default function ProfileDropdown() {
   const router = useRouter();
   const { user } = useAuthContext();
   const [showDropdown, setShowDropdown] = useState(false);
-  const { data: userDatas } = useFirestoreCollection<UserData>("Register");
-  
-  const utilsInfo = (userDatas || []).find(
-    (item) => item.id === user?.uid
-  );
+
+  // Atualiza o contexto do usuário ao receber o evento customizado
+  useEffect(() => {
+    const handler = () => {
+      if (auth.currentUser) {
+        auth.currentUser.reload();
+      }
+    };
+    window.addEventListener('authUserUpdated', handler);
+    return () => window.removeEventListener('authUserUpdated', handler);
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -45,21 +42,20 @@ export default function ProfileDropdown() {
           setShowDropdown(!showDropdown);
         }}
       >
-        {utilsInfo?.imageUrl ? (
-          <img
-            src={utilsInfo.imageUrl}
-            alt="Avatar"
-            className="w-full h-full object-cover"
-            width={48}
-            height={48}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-100">
-            <span className="text-gray-600 text-lg font-medium">
-              {getInitialNameLetters(utilsInfo?.name || user?.email || '')}
-            </span>
-          </div>
-        )}
+        <Avatar className="h-12 w-12">
+          <AvatarImage src={user?.photoURL || undefined} />
+          <AvatarFallback>
+            {user?.displayName
+              ? user.displayName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
+              : user?.email
+              ? user.email[0].toUpperCase()
+              : "?"}
+          </AvatarFallback>
+        </Avatar>
       </button>
 
       {showDropdown && (
@@ -72,7 +68,7 @@ export default function ProfileDropdown() {
               Dashboard
             </a>
             <a
-              href="/perfil"
+              href="/dashboard/perfil"
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
               Perfil

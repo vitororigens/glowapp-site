@@ -13,7 +13,7 @@ import { toast } from "react-toastify";
 import { applyPhoneMask, celularMask, celularUnMask, cnpjMask, cnpjUnMask, cpfMask, phoneUnMask } from "@/utils/maks/masks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthContext } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 
 const formSchema = z.object({
@@ -48,6 +48,7 @@ export default function NewProfessional() {
   const uid = user?.uid;
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const {
     control,
@@ -71,6 +72,13 @@ export default function NewProfessional() {
   });
 
   useEffect(() => {
+    const id = searchParams.get('id');
+    if (id) {
+      setSelectedItemId(id);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (selectedItemId) {
       const docRef = doc(database, "Profissionals", selectedItemId);
       getDoc(docRef).then((docSnap) => {
@@ -85,7 +93,13 @@ export default function NewProfessional() {
             setValue("adress", data.adress);
             setValue("registrationNumber", data.registrationNumber);
             setValue("specialty", data.specialty);
-            setImage(data.imageUrl);
+            if (data.imageUrl) {
+              setImage(data.imageUrl);
+              setValue("image", data.imageUrl);
+            } else {
+              setImage(null);
+              setValue("image", undefined);
+            }
           }
         }
       });
@@ -157,7 +171,7 @@ export default function NewProfessional() {
             className="relative w-32 h-32 rounded-full overflow-hidden cursor-pointer border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-gray-400"
           >
             {image ? (
-              <Image src={image} alt="Imagem do Profissional" width={128} height={128} className="object-cover" />
+              <Image src={image || "/default-image.png"} alt="Imagem do Profissional" width={128} height={128} className="object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "/default-image.png"; }} />
             ) : (
               <div className="text-gray-400">
                 <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">

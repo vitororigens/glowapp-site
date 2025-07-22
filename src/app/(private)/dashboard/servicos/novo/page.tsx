@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
-import { currencyMask, currencyUnMask, cpfMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
+import { currencyMask, cpfMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
 import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
 import { doc, getDoc, setDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
@@ -52,12 +52,12 @@ const formSchema = z.object({
     specialty: z.string(),
   })).optional(),
   budget: z.boolean().default(false),
+  sendToFinance: z.boolean().default(false),
   payments: z.array(z.object({
     method: z.enum(["dinheiro", "pix", "cartao", "boleto"]),
     value: z.string().min(1, "Valor é obrigatório"),
     date: z.string().min(1, "Data é obrigatória"),
     installments: z.number().optional(),
-    status: z.enum(["pendente", "pago"]).default("pendente"),
   })).default([]),
   documents: z.array(z.object({
     name: z.string(),
@@ -94,7 +94,6 @@ export default function NewService() {
     value: "",
     date: new Date().toISOString().split('T')[0],
     installments: 1 as number | undefined,
-    status: "pendente" as "pendente" | "pago"
   });
 
   const {
@@ -120,6 +119,7 @@ export default function NewService() {
       services: [],
       professionals: [],
       budget: false,
+      sendToFinance: false,
       payments: [],
       documents: [],
       beforePhotos: [],
@@ -165,12 +165,12 @@ export default function NewService() {
               services: data.services || [],
               professionals: data.professionals || [],
               budget: data.budget || false,
+              sendToFinance: data.sendToFinance || false,
               payments: data.payments ? data.payments.map((p: any) => ({
                 method: p.method,
                 value: currencyMask(String(p.value || 0)),
                 date: p.date,
-                installments: p.installments || undefined,
-                status: p.status || "pendente"
+                installments: p.installments || undefined
               })) : [],
               documents: data.documents || [],
               beforePhotos: data.beforePhotos || [],
@@ -194,17 +194,14 @@ export default function NewService() {
     
     try {
       console.log("Iniciando processamento...");
-      
-      // Verificar se o cliente já existe e criar se não existir
+    
       const clientName = data.name.trim();
       const clientCpf = cpfUnMask(data.cpf);
       const clientPhone = celularUnMask(data.phone);
       
       if (clientName && (clientCpf || clientPhone)) {
-        // Busca para verificar se o cliente já existe
         const contactsRef = collection(database, "Contacts");
         
-        // Primeiro tenta buscar por CPF
         let clientExists = false;
         
         if (clientCpf) {
@@ -217,7 +214,6 @@ export default function NewService() {
           }
         }
         
-        // Se não encontrou por CPF, tenta por telefone
         if (!clientExists && clientPhone) {
           const phoneQuery = query(contactsRef, where("phone", "==", clientPhone));
           const phoneSnapshot = await getDocs(phoneQuery);
@@ -228,7 +224,6 @@ export default function NewService() {
           }
         }
         
-        // Se não encontrou por telefone, tenta por nome exato
         if (!clientExists && clientName) {
           const nameQuery = query(contactsRef, where("name", "==", clientName));
           const nameSnapshot = await getDocs(nameQuery);
@@ -237,12 +232,10 @@ export default function NewService() {
             clientExists = true;
             console.log("Cliente encontrado pelo nome");
             
-            // Se encontrou pelo nome mas os dados estão diferentes, atualiza o registro
             const existingClientDoc = nameSnapshot.docs[0];
             const existingClientData = existingClientDoc.data();
             let needsUpdate = false;
             
-            // Verificar se precisa atualizar o CPF ou telefone
             if (clientCpf && !existingClientData.cpf) {
               needsUpdate = true;
             }
@@ -255,7 +248,6 @@ export default function NewService() {
               needsUpdate = true;
             }
             
-            // Se precisa atualizar, completa os dados do cliente
             if (needsUpdate) {
               try {
                 await updateDoc(existingClientDoc.ref, {
@@ -276,7 +268,6 @@ export default function NewService() {
           }
         }
         
-        // Se não encontrou de nenhuma forma, cria um novo
         if (!clientExists) {
           console.log("Cliente não encontrado. Criando novo cliente...");
           const newContactRef = doc(collection(database, "Contacts"));
@@ -314,41 +305,30 @@ export default function NewService() {
         }
       }
       
-      // Processar pagamentos de forma segura
       const processedPayments = data.payments ? data.payments.map(payment => {
-        // Primeiro converter o valor para número
         const numericValue = typeof payment.value === 'string' 
           ? Number(payment.value.replace(/\D/g, ''))
           : Number(payment.value);
         
-        // Retornar o objeto de pagamento processado
         return {
           method: payment.method,
           value: numericValue,
           date: payment.date,
           installments: payment.installments || null,
-          status: payment.status // Preservar o status exatamente como está
         };
       }) : [];
 
       console.log("Pagamentos processados:", processedPayments);
       
-      // Calcular o valor total pago (apenas pagamentos com status "pago")
-      const paidAmount = processedPayments
-        .filter(payment => payment.status === 'pago')
-        .reduce((sum, payment) => sum + payment.value, 0);
+      const paidAmount = processedPayments.reduce((sum, payment) => sum + payment.value, 0);
       
-      // Converte o preço
       const price = Number(data.price.replace(/\D/g, ''));
       
       if (serviceId) {
         console.log("Editando serviço existente:", serviceId);
-        console.log("Payments antes do processamento:", data.payments);
         
-        // Referência ao documento
         const serviceRef = doc(database, "Services", serviceId);
         
-        // Extrair dados completos para atualização
         const updateData = {
           name: data.name,
           cpf: cpfUnMask(data.cpf),
@@ -357,15 +337,15 @@ export default function NewService() {
           date: data.date,
           time: data.time,
           price: price,
-          paidAmount: paidAmount, // Valor pago
-          pendingAmount: price - paidAmount, // Valor pendente
+          paidAmount: paidAmount,
           priority: data.priority || "",
           duration: data.duration || "",
           observations: data.observations || "",
           services: data.services || [],
           professionals: data.professionals || [],
           budget: data.budget || false,
-          payments: processedPayments, // Importante: todos os pagamentos processados
+          sendToFinance: data.sendToFinance || false,
+          payments: processedPayments,
           documents: data.documents || [],
           beforePhotos: data.beforePhotos || [],
           afterPhotos: data.afterPhotos || [],
@@ -373,14 +353,10 @@ export default function NewService() {
         };
         
         console.log("Dados completos para atualização:", updateData);
-        console.log("Pagamentos processados para atualização:", processedPayments);
         
         try {
-          // Tenta atualizar
           await updateDoc(serviceRef, updateData);
           console.log("Atualização concluída com sucesso");
-          
-          // Mostrar todas as notificações na tela claramente, com atraso entre elas
           toast.success("Serviço atualizado com sucesso!", {
             position: "top-center",
             autoClose: 3000,
@@ -390,14 +366,6 @@ export default function NewService() {
             draggable: true,
           });
           
-          // Recarregar os dados do serviço para confirmar que as alterações foram aplicadas
-          const updatedDoc = await getDoc(serviceRef);
-          if (updatedDoc.exists()) {
-            console.log("Dados atualizados confirmados:", updatedDoc.data());
-            console.log("Pagamentos após atualização:", updatedDoc.data().payments);
-          }
-          
-          // Redirecionar após um tempo
           setTimeout(() => {
             console.log("Redirecionando...");
             router.back();
@@ -416,8 +384,7 @@ export default function NewService() {
         }
       } else {
         console.log("Criando novo serviço");
-        
-        // Dados completos para novos documentos
+
         const newServiceData = {
           name: data.name,
           cpf: cpfUnMask(data.cpf),
@@ -426,14 +393,14 @@ export default function NewService() {
           date: data.date,
           time: data.time,
           price: price,
-          paidAmount: paidAmount, // Adicionando o valor pago
-          pendingAmount: price - paidAmount, // Adicionando o valor pendente
+          paidAmount: paidAmount,
           priority: data.priority || "",
           duration: data.duration || "",
           observations: data.observations || "",
           services: data.services || [],
           professionals: data.professionals || [],
           budget: data.budget || false,
+          sendToFinance: data.sendToFinance || false,
           payments: processedPayments,
           documents: data.documents || [],
           beforePhotos: data.beforePhotos || [],
@@ -443,7 +410,6 @@ export default function NewService() {
           updatedAt: new Date().toISOString()
         };
         
-        // Cria novo doc
         const newServiceRef = doc(collection(database, "Services"));
         await setDoc(newServiceRef, newServiceData);
         
@@ -462,7 +428,6 @@ export default function NewService() {
     const updatedServices = services.filter(item => item.id !== id);
     setValue("services", updatedServices);
     
-    // Recalcular o valor total após remover o serviço
     const total = updatedServices.reduce((sum, service) => {
       const servicePrice = typeof service.price === 'string' 
         ? Number(service.price.replace(/\D/g, ''))
@@ -470,15 +435,12 @@ export default function NewService() {
       return sum + servicePrice;
     }, 0);
     
-    // Atualizar o valor total do serviço
     setValue("price", currencyMask(total.toString()));
     
-    // Verificar se os pagamentos existentes excedem o novo valor total
     const currentTotalPaid = payments.reduce((acc, payment) => {
       return acc + Number(payment.value.replace(/\D/g, ''));
     }, 0);
-    
-    // Se o valor dos pagamentos exceder o novo valor total, ajustar os pagamentos
+
     if (currentTotalPaid > total && payments.length > 0) {
       toast.warning('O valor total foi reduzido. Verifique as formas de pagamento.');
     }
@@ -562,21 +524,18 @@ export default function NewService() {
     const payment = payments[index];
     console.log("Editando pagamento:", payment);
     
-    // Certifica-se de preservar o status exato
     setNewPayment({
       method: payment.method,
       value: payment.value,
       date: payment.date,
-      installments: payment.installments || 1,
-      status: payment.status
+      installments: payment.installments || 1
     });
     
     console.log("NewPayment definido para edição:", {
       method: payment.method,
       value: payment.value,
       date: payment.date,
-      installments: payment.installments || 1,
-      status: payment.status
+      installments: payment.installments || 1
     });
     
     setCurrentPaymentIndex(index);
@@ -595,16 +554,13 @@ export default function NewService() {
       return;
     }
 
-    // Calcular o total pago, excluindo o valor do pagamento que está sendo editado
     let adjustedTotalPaid = totalPaid;
     
     if (currentPaymentIndex !== -1) {
-      // Se estiver editando, remove o valor anterior deste pagamento do total
       const oldPaymentValue = Number(payments[currentPaymentIndex].value.replace(/\D/g, ''));
       adjustedTotalPaid = adjustedTotalPaid - oldPaymentValue;
     }
     
-    // Agora verifica se o novo valor total excederia o preço do serviço
     if (adjustedTotalPaid + value > totalPrice) {
       toast.error(`O valor total dos pagamentos (${currencyMask((adjustedTotalPaid + value).toString())}) não pode exceder o valor do serviço (${currencyMask(totalPrice.toString())})`);
       return;
@@ -618,7 +574,6 @@ export default function NewService() {
     });
     
     if (currentPaymentIndex === -1) {
-      // Adicionar novo pagamento
       setValue("payments", [
         ...payments, 
         {
@@ -626,26 +581,21 @@ export default function NewService() {
           value: formattedValue
         }
       ]);
-      console.log("Novo pagamento adicionado com status:", newPayment.status);
     } else {
-      // Atualizar pagamento existente
       const updatedPayments = [...payments];
       updatedPayments[currentPaymentIndex] = {
         ...newPayment,
         value: formattedValue
       };
       setValue("payments", updatedPayments);
-      console.log("Pagamento atualizado no índice", currentPaymentIndex, "com status:", newPayment.status);
       setCurrentPaymentIndex(-1);
     }
 
-    // Resetar o novo pagamento
     setNewPayment({
       method: "dinheiro",
       value: "",
       date: new Date().toISOString().split('T')[0],
-      installments: 1 as number | undefined,
-      status: "pendente"
+      installments: 1 as number | undefined
     });
   };
 
@@ -655,22 +605,18 @@ export default function NewService() {
     setValue("payments", updatedPayments);
   };
 
-  // Monitorar mudanças no preço total para validar pagamentos
   useEffect(() => {
     if (totalPrice > 0 && totalPaid > totalPrice) {
       toast.warning('O valor dos pagamentos excede o valor total do serviço. Por favor, ajuste os valores.');
       
-      // Se o usuário já tinha pagamentos registrados, mostrar um alerta mais detalhado
       if (payments.length > 1) {
         toast.info(`Valor total do serviço: ${currencyMask(totalPrice.toString())}, Total já registrado em pagamentos: ${currencyMask(totalPaid.toString())}`);
       }
     }
   }, [totalPrice, totalPaid, payments.length]);
 
-  // Função para verificar e limpar pagamentos inválidos
   const validatePayments = () => {
     if (totalPaid > totalPrice && payments.length > 0) {
-      // Opção 1: Limpar todos os pagamentos
       if (window.confirm('Os pagamentos registrados excedem o valor total do serviço. Deseja limpar todos os pagamentos?')) {
         setValue('payments', []);
         toast.success('Pagamentos limpos. Você pode registrar novos pagamentos agora.');
@@ -678,7 +624,6 @@ export default function NewService() {
     }
   };
 
-  // Adicionar botão para validar/limpar pagamentos
   const renderPaymentWarning = () => {
     if (totalPaid > totalPrice && payments.length > 0) {
       return (
@@ -707,19 +652,7 @@ export default function NewService() {
       </h2>
 
       <form 
-        onSubmit={handleSubmit((data) => {
-          console.log("Form submitted with data:", data);
-          console.log("Pagamentos no submit:", data.payments);
-          
-          // Verificação de segurança para garantir preservação de status
-          if (data.payments && data.payments.length > 0) {
-            data.payments.forEach((payment, index) => {
-              console.log(`Pagamento ${index} - Status: ${payment.status}, Valor: ${payment.value}`);
-            });
-          }
-          
-          onSubmit(data);
-        })} 
+        onSubmit={handleSubmit(onSubmit)} 
         className="space-y-4"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -851,6 +784,15 @@ export default function NewService() {
           <Label htmlFor="budget">Orçamento</Label>
         </div>
 
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="sendToFinance"
+            checked={watch("sendToFinance")}
+            onCheckedChange={(checked) => setValue("sendToFinance", checked)}
+          />
+          <Label htmlFor="sendToFinance">Enviar para o Financeiro</Label>
+        </div>
+
         <Card className="p-4">
           <h3 className="text-lg font-medium mb-2">Formas de Pagamento</h3>
           
@@ -859,27 +801,13 @@ export default function NewService() {
               <span>Valor total do serviço:</span>
               <span className="font-semibold">{currencyMask(totalPrice.toString())}</span>
             </div>
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center">
               <span>Total pago:</span>
               <span className="font-semibold text-green-600">
-                {currencyMask(payments.filter(p => p.status === "pago").reduce((acc, p) => acc + Number(p.value.replace(/\D/g, '')), 0).toString())}
-              </span>
-            </div>
-            <div className="flex justify-between items-center mb-2">
-              <span>Total pendente:</span>
-              <span className="font-semibold text-orange-500">
-                {currencyMask(payments.filter(p => p.status === "pendente").reduce((acc, p) => acc + Number(p.value.replace(/\D/g, '')), 0).toString())}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Restante a pagar:</span>
-              <span className={`font-semibold ${remainingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {currencyMask(remainingAmount.toString())}
+                {currencyMask(totalPaid.toString())}
               </span>
             </div>
           </div>
-
-          {renderPaymentWarning()}
 
           <div className="space-y-4 mb-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -922,34 +850,38 @@ export default function NewService() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
+                <Label>Tipo de Pagamento</Label>
+                <RadioGroup
+                  value={newPayment.value === totalPrice.toString() ? "full" : "partial"}
+                  onValueChange={(value) => {
+                    if (value === "full") {
+                      setNewPayment({...newPayment, value: totalPrice.toString()});
+                    } else {
+                      setNewPayment({...newPayment, value: ""});
+                    }
+                  }}
+                  className="flex space-x-4 mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="full" id="payment-full" />
+                    <Label htmlFor="payment-full">Valor Inteiro</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="partial" id="payment-partial" />
+                    <Label htmlFor="payment-partial">Valor Parcial</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div>
                 <Label>Valor</Label>
                 <Input
                   placeholder="Valor do pagamento"
                   value={newPayment.value}
                   onChange={(e) => setNewPayment({...newPayment, value: currencyMask(e.target.value)})}
                   className="mt-2"
+                  disabled={newPayment.value === totalPrice.toString()}
                 />
-              </div>
-
-              <div>
-                <Label>Status</Label>
-                <RadioGroup
-                  value={newPayment.status}
-                  onValueChange={(value) => {
-                    console.log("Status alterado para:", value);
-                    setNewPayment({...newPayment, status: value as "pendente" | "pago"});
-                  }}
-                  className="flex space-x-4 mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="pendente" id="status-pendente" />
-                    <Label htmlFor="status-pendente" className="text-orange-500 font-medium">Pendente</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="pago" id="status-pago" />
-                    <Label htmlFor="status-pago" className="text-green-600 font-medium">Pago</Label>
-                  </div>
-                </RadioGroup>
               </div>
             </div>
 
@@ -977,7 +909,7 @@ export default function NewService() {
             ) : (
               <div className="space-y-2">
                 {payments.map((payment, index) => (
-                  <div key={index} className={`flex items-center justify-between p-3 rounded-md ${payment.status === "pago" ? "bg-green-50 border-green-100 border" : "bg-orange-50 border-orange-100 border"}`}>
+                  <div key={index} className="flex items-center justify-between p-3 rounded-md bg-green-50 border-green-100 border">
                     <div>
                       <div className="font-medium">
                         {payment.method === "dinheiro" 
@@ -989,10 +921,7 @@ export default function NewService() {
                           : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
                       </div>
                       <div className="text-sm">
-                        {payment.date} - {payment.value} - 
-                        <span className={payment.status === "pago" ? "text-green-600 font-medium" : "text-orange-600 font-medium"}>
-                          {payment.status === "pago" ? " Pago" : " Pendente"}
-                        </span>
+                        {payment.date} - {payment.value}
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -1022,7 +951,7 @@ export default function NewService() {
 
         <Card className="p-4">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium">Serviços Selecionados</h3>
+            <h3 className="text-lg font-medium">Procedimentos Selecionados</h3>
             <Button
               type="button"
               variant="outline"
@@ -1288,7 +1217,7 @@ export default function NewService() {
           fetchSelectedServices();
           setShowServicesModal(false);
         }}
-        title="Selecione os serviços"
+        title="Selecione os procedimentos"
       />
 
       <CustomModalProfessionals

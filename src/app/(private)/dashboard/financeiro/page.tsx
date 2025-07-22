@@ -34,12 +34,12 @@ interface Service {
   date: string;
   price: string;
   budget: boolean;
+  sendToFinance: boolean;
   payments?: Array<{
     method: 'dinheiro' | 'pix' | 'cartao' | 'boleto';
     value: string | number;
     date: string;
     installments?: number;
-    status: 'pendente' | 'pago';
   }>;
 }
 
@@ -63,10 +63,8 @@ export default function Financeiro() {
 
   function handleEdit(item: { id: string, type: string, collection?: "Revenue" | "Expense" }) {
     if (item.type === "Serviço") {
-      // Quando for serviço, redireciona para a página de edição de serviços
       router.push(`/dashboard/servicos/novo?id=${item.id}`);
     } else {
-      // Para outros registros (receitas e despesas)
       const typeMapped = item.collection === "Revenue" ? "revenue" : "expense";
       router.push(`/dashboard/financeiro/novo?id=${item.id}&type=${typeMapped}`);
     }
@@ -89,18 +87,14 @@ export default function Financeiro() {
     );
   }
 
-  // Combina receitas e despesas em uma única lista
   const allTransactions = [
     ...(revenues || []).map(rev => ({ ...rev, collection: "Revenue" as const, type: "Receita" })),
     ...(expenses || []).map(exp => ({ ...exp, collection: "Expense" as const, type: "Despesa" })),
-    // Adiciona serviços não-orçamentos como receitas
     ...(services || [])
-      .filter(service => !service.budget)
+      .filter(service => !service.budget && service.sendToFinance)
       .map(service => {
-        // Calcula o valor pago
         const paidValue = service.payments 
           ? service.payments
-              .filter(p => p.status === 'pago')
               .reduce((sum, p) => sum + Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
           : 0;
         
@@ -108,26 +102,24 @@ export default function Financeiro() {
           id: service.id,
           name: service.name,
           date: service.date,
-          value: paidValue, // Agora value é apenas o valor pago
+          value: paidValue, 
           type: "Serviço",
           category: "Serviços",
           description: "Serviço realizado",
           collection: "Revenue" as const,
           payments: service.payments,
-          originalPrice: service.price // Mantemos o preço original para referência
+          originalPrice: service.price 
         };
       })
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Calcula totais
   const totalRevenue = [
     ...(revenues || []),
     ...(services || [])
-      .filter(service => !service.budget)
+      .filter(service => !service.budget && service.sendToFinance)
       .map(service => ({ 
         value: service.payments 
           ? service.payments
-              .filter(payment => payment.status === 'pago')
               .reduce((sum, payment) => sum + Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
           : 0 
       }))
@@ -136,17 +128,7 @@ export default function Financeiro() {
     return acc + value;
   }, 0);
 
-  // Calcula total pendente
-  const totalPending = (services || [])
-    .filter(service => !service.budget)
-    .reduce((acc, service) => {
-      const pendingAmount = service.payments 
-        ? service.payments
-            .filter(payment => payment.status === 'pendente')
-            .reduce((sum, payment) => sum + Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
-        : 0;
-      return acc + pendingAmount;
-    }, 0);
+  const totalPending = 0;
 
   const totalExpense = (expenses || []).reduce((acc, curr) => {
     const value = parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
@@ -154,6 +136,18 @@ export default function Financeiro() {
   }, 0);
 
   const balance = totalRevenue - totalExpense;
+
+  // Função para resetar valores no dia 1 de cada mês
+  const resetMonthlyValues = () => {
+    const today = new Date();
+    if (today.getDate() === 1) {
+      // Lógica para resetar valores
+      // Isso pode envolver limpar ou arquivar dados antigos
+    }
+  };
+
+  // Chamar a função de reset ao carregar o componente
+  resetMonthlyValues();
 
   return (
     <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
@@ -164,137 +158,90 @@ export default function Financeiro() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-500">Receitas (valores pagos)</h3>
-          <p className="text-2xl font-bold text-green-600">{currencyMask(totalRevenue.toString())}</p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-500">Valores Pendentes</h3>
-          <p className="text-2xl font-bold text-orange-500">{currencyMask(totalPending.toString())}</p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-500">Despesas</h3>
-          <p className="text-2xl font-bold text-red-600">{currencyMask(totalExpense.toString())}</p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-500">Saldo</h3>
-          <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {currencyMask(balance.toString())}
-          </p>
-        </Card>
+      <div className="w-full flex flex-col items-center">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10 w-full max-w-5xl">
+          <Card className="p-4">
+            <h3 className="text-sm font-bold text-gray-500">Receitas</h3>
+            <p className="text-2xl font-bold text-green-600">{currencyMask(totalRevenue.toString())}</p>
+          </Card>
+          <Card className="p-4">
+            <h3 className="text-sm font-bold text-gray-500">Despesas</h3>
+            <p className="text-2xl font-bold text-red-600">{currencyMask(totalExpense.toString())}</p>
+          </Card>
+          <Card className="p-4">
+            <h3 className="text-sm font-bold text-gray-500">Saldo</h3>
+            <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{currencyMask(balance.toString())}</p>
+          </Card>
+        </div>
       </div>
 
-      {allTransactions.length === 0 ? (
-        <div className="text-center py-4">Nenhum registro encontrado.</div>
-      ) : (
-        <div className="overflow-x-auto">
+      {/* Box de Receitas */}
+      <div className="bg-gray-100 p-4 rounded-lg mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Receitas</h2>
+          <Button onClick={() => router.push("/dashboard/financeiro/historico?tipo=receita")}>Ver Histórico Completo</Button>
+        </div>
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Data</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Categoria</TableHead>
+                <TableHead>Valor Total</TableHead>
                 <TableHead>Valor Pago</TableHead>
-                <TableHead>Valor Pendente</TableHead>
-                <TableHead>Pagamento</TableHead>
+                <TableHead>Formas de Pagamento</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {allTransactions.map((transaction) => (
+              {allTransactions.filter(t => t.collection === "Revenue").slice(0, 10).map((transaction) => (
                 <TableRow key={`${transaction.collection}-${transaction.id}`}>
                   <TableCell>{transaction.name}</TableCell>
                   <TableCell>{transaction.date}</TableCell>
-                  <TableCell>{transaction.type}</TableCell>
-                  <TableCell>{transaction.category}</TableCell>
-                  <TableCell className={transaction.collection === "Expense" ? "text-red-600" : "text-green-600"}>
+                  <TableCell>
                     {transaction.type === "Serviço" ? 
-                      formatPrice(
-                        (transaction as any).payments 
-                          ? (transaction as any).payments
-                              .filter((p: any) => p.status === 'pago')
-                              .reduce((sum: number, p: any) => sum + Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
-                          : 0, 
-                        transaction.collection === "Expense"
-                      ) 
-                      : formatPrice(transaction.value, transaction.collection === "Expense")
-                    }
+                      formatPrice((transaction as any).originalPrice) 
+                      : formatPrice(transaction.value)}
                   </TableCell>
-                  <TableCell className="text-orange-500">
-                    {transaction.type === "Serviço" ? 
-                      formatPrice(
-                        (transaction as any).payments 
-                          ? (transaction as any).payments
-                              .filter((p: any) => p.status === 'pendente')
-                              .reduce((sum: number, p: any) => sum + Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
-                          : 0
-                      ) 
-                      : "-"
-                    }
-                  </TableCell>
+                  <TableCell className="text-green-600">{formatPrice(transaction.value)}</TableCell>
                   <TableCell>
                     {transaction.type === "Serviço" && (transaction as any).payments && (transaction as any).payments.length > 0 ? (
-                      <div className="space-y-1">
-                        {(transaction as any).payments
-                          .filter((p: any) => p.status === 'pago')
-                          .map((payment: any, idx: number) => (
-                            <div key={idx} className="mb-1">
-                              <span
-                                className={`px-2 py-1 rounded-full text-xs ${
-                                  payment.method === "dinheiro"
-                                    ? "bg-teal-100 text-teal-800"
-                                    : payment.method === "pix"
-                                    ? "bg-purple-100 text-purple-800"
-                                    : payment.method === "boleto"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-orange-100 text-orange-800"
-                                }`}
-                              >
-                                {payment.method === "dinheiro"
-                                  ? "Dinheiro"
+                      <div className="flex flex-wrap gap-2">
+                        {(transaction as any).payments.map((payment: any, idx: number) => {
+                          const pagamentos = (transaction as any).payments;
+                          const valorTotal = Number(String((transaction as any).originalPrice).replace(/[^\d,-]/g, "").replace(",", "."));
+                          const mostrarValor = pagamentos.length > 1 || Number(payment.value) !== valorTotal;
+                          return (
+                            <span
+                              key={idx}
+                              className={`px-2 py-1 rounded-full text-xs ${
+                                payment.method === "dinheiro"
+                                  ? "bg-teal-100 text-teal-800"
                                   : payment.method === "pix"
-                                  ? "PIX"
+                                  ? "bg-purple-100 text-purple-800"
                                   : payment.method === "boleto"
-                                  ? "Boleto"
-                                  : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
-                                  &nbsp;({currencyMask(String(payment.value))})
-                              </span>
-                            </div>
-                          ))}
-                        {(transaction as any).payments.filter((p: any) => p.status === 'pendente').length > 0 && (
-                          <div className="mt-1">
-                            <span className="text-xs text-orange-500 font-medium">
-                              Pendente: {(transaction as any).payments.filter((p: any) => p.status === 'pendente').length} pagamento(s)
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-orange-100 text-orange-800"
+                              }`}
+                            >
+                              {payment.method === "dinheiro"
+                                ? "Dinheiro"
+                                : payment.method === "pix"
+                                ? "PIX"
+                                : payment.method === "boleto"
+                                ? "Boleto"
+                                : `Cartão${payment.installments ? ` ${payment.installments}x` : ""}`}
+                              {mostrarValor ? ` ${formatPrice(payment.value)}` : ""}
                             </span>
-                          </div>
-                        )}
+                          );
+                        })}
                       </div>
                     ) : (
-                      "-"
+                      <span className="text-gray-500">-</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {transaction.type !== "Serviço" ? (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mr-2"
-                          onClick={() => handleEdit(transaction)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDelete(transaction.id, transaction.collection)}
-                        >
-                          Excluir
-                        </Button>
-                      </>
-                    ) : (
+                    <div className="flex gap-2 justify-end">
                       <Button
                         variant="outline"
                         size="sm"
@@ -302,14 +249,58 @@ export default function Financeiro() {
                       >
                         Editar
                       </Button>
-                    )}
+                      {transaction.type !== "Serviço" && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(transaction.id, transaction.collection)}
+                        >
+                          Excluir
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
-      )}
+      </div>
+
+      {/* Box de Despesas */}
+      <div className="bg-gray-100 p-4 rounded-lg">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Despesas</h2>
+          <Button onClick={() => router.push("/dashboard/financeiro/historico?tipo=despesa")}>Ver Histórico Completo</Button>
+        </div>
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Valor Pago</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allTransactions.filter(t => t.collection === "Expense").slice(0, 10).map((transaction) => (
+                <TableRow key={`${transaction.collection}-${transaction.id}`}>
+                  <TableCell>{transaction.name}</TableCell>
+                  <TableCell>{transaction.date}</TableCell>
+                  <TableCell className="text-red-600">{formatPrice(transaction.value, true)}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(transaction)}>Editar</Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(transaction.id, transaction.collection)}>Excluir</Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   );
 }
