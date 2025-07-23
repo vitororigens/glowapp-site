@@ -21,6 +21,18 @@ export default function TermsAndConditions() {
         <p className="text-gray-600">
           Ao acessar, baixar ou utilizar o GlowApp, você indica que concorda integralmente com estes TdS. Caso não concorde, deve interromper o uso do serviço imediatamente.
         </p>
+        <p className="text-gray-600 mt-2">
+          Para usuários que baixaram o aplicativo pela Apple App Store, os{" "}
+          <a
+            href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:underline"
+          >
+            Termos de Uso (EULA) da Apple
+          </a>{" "}
+          também se aplicam.
+        </p>
       </section>
 
       <section className="mt-6">
