@@ -20,26 +20,26 @@ function Calendar({
     <DayPicker
       locale={ptBR}
       showOutsideDays={showOutsideDays}
-      className={cn('p-3', className)}
+      className={cn('p-2 sm:p-3', className)}
       classNames={{
         months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
         month: 'space-y-4',
-        caption: 'flex justify-between items-center px-4',
-        caption_label: 'text-lg font-semibold',
-        nav: 'flex space-x-2',
+        caption: 'flex justify-between items-center px-2 sm:px-4',
+        caption_label: 'text-base sm:text-lg font-semibold',
+        nav: 'flex space-x-1 sm:space-x-2',
         nav_button: cn(
           buttonVariants({ variant: 'outline' }),
-          'h-8 w-8 p-0 bg-transparent opacity-80 hover:opacity-100'
+          'h-7 w-7 sm:h-8 sm:w-8 p-0 bg-transparent opacity-80 hover:opacity-100'
         ),
         table: 'w-full border-collapse',
-        head_row: 'flex justify-between px-2',
+        head_row: 'flex justify-between px-1 sm:px-2',
         head_cell:
-          'text-muted-foreground text-sm font-medium w-9 text-center',
+          'text-muted-foreground text-xs sm:text-sm font-medium w-8 sm:w-9 text-center',
         row: 'flex justify-between',
-        cell: 'h-9 w-9 text-center text-sm p-0 relative',
+        cell: 'h-8 w-8 sm:h-9 sm:w-9 text-center text-xs sm:text-sm p-0 relative',
         day: cn(
           buttonVariants({ variant: 'ghost' }),
-          'h-9 w-9 p-0 font-normal aria-selected:opacity-100'
+          'h-8 w-8 sm:h-9 sm:w-9 p-0 font-normal aria-selected:opacity-100'
         ),
         day_selected:
           'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground',
@@ -51,8 +51,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: () => <ChevronLeft className="h-5 w-5" />,
-        IconRight: () => <ChevronRight className="h-5 w-5" />,
+        IconLeft: () => <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />,
+        IconRight: () => <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />,
       } as any}
       {...props}
     />

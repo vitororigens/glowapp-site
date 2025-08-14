@@ -88,7 +88,7 @@ export default function DashboardLayout({
                     >
                       <MenuIcon className="h-6 w-6" />
                     </button>
-                    <div className={sidebarOpen ? "mr-80" : "mr-4"}>
+                    <div className={cn(sidebarOpen ? "lg:mr-80" : "", "mr-4")}> 
                       <ProfileDropdown />
                     </div>
                   </div>

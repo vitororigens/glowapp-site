@@ -91,7 +91,7 @@ export function CustomModalServices({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-hidden">
+      <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-hidden">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">{title}</h2>
           <Button variant="outline" onClick={() => router.push('/dashboard/procedimentos/novo')}>
@@ -108,7 +108,7 @@ export function CustomModalServices({
           />
         </div>
 
-        <ScrollArea className="h-[400px]">
+        <ScrollArea className="h-[60vh] sm:h-[400px]">
           {isLoading ? (
             <div className="text-center py-4">Carregando...</div>
           ) : filteredServices.length === 0 ? (

@@ -768,7 +768,7 @@ export default function NewService() {
           <Textarea 
             {...register("observations")} 
             placeholder="Observações sobre o serviço"
-            className="min-h-[100px]"
+            className="min-h-[80px] sm:min-h-[100px]"
           />
           {errors.observations && (
             <p className="text-red-500 text-sm">{errors.observations.message}</p>
@@ -960,7 +960,7 @@ export default function NewService() {
               Adicionar Serviço
             </Button>
           </div>
-          <ScrollArea className="h-[200px]">
+          <ScrollArea className="h-[150px] sm:h-[200px]">
             {services.map((service) => (
               <ItemService
                 key={service.id}
@@ -985,7 +985,7 @@ export default function NewService() {
               Adicionar Profissional
             </Button>
           </div>
-          <ScrollArea className="h-[200px]">
+          <ScrollArea className="h-[150px] sm:h-[200px]">
             {professionals.map((professional) => (
               <ItemProfessional
                 key={professional.id}

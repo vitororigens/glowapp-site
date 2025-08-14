@@ -169,7 +169,7 @@ export default function NewEvent() {
           <Textarea 
             {...register("observation")} 
             placeholder="Observações sobre o evento"
-            className="min-h-[100px]"
+            className="min-h-[80px] sm:min-h-[100px]"
           />
           {errors.observation && (
             <p className="text-red-500 text-sm">{errors.observation.message}</p>

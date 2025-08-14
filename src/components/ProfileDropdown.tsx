@@ -36,7 +36,7 @@ export default function ProfileDropdown() {
     <div className="relative profile-dropdown">
       <button
         type="button"
-        className="flex rounded-full overflow-hidden bg-gray-100 shadow-sm h-[48px] w-[48px]"
+        className="flex rounded-full overflow-hidden bg-gray-100 shadow-sm h-10 w-10 sm:h-12 sm:w-12"
         onClick={(e) => {
           e.stopPropagation();
           setShowDropdown(!showDropdown);

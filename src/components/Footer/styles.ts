@@ -16,6 +16,16 @@ export const FooterContainer = styled.div`
   flex-direction: column;
   gap: 50px;
   margin: 0px auto;
+
+  @media (max-width: 768px) {
+    width: 90%;
+    gap: 30px;
+  }
+
+  @media (max-width: 480px) {
+    width: 95%;
+    gap: 20px;
+  }
 `;
 // 
 export const FooterWrapper = styled.div`
@@ -28,6 +38,16 @@ export const FooterWrapper = styled.div`
     display: flex;
     flex-direction: column;
     gap: 50px;
+  }
+
+  @media (max-width: 768px) {
+    margin-top: 40px;
+    gap: 40px;
+  }
+
+  @media (max-width: 480px) {
+    margin-top: 30px;
+    gap: 30px;
   }
 `;
 // 

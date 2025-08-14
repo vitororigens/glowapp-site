@@ -25,6 +25,18 @@
 	max-width:1830px;
 }
 
+@media (max-width: 768px) {
+	.header-top .auto-container {
+		padding: 0px 10px;
+	}
+}
+
+@media (max-width: 480px) {
+	.header-top .auto-container {
+		padding: 0px 8px;
+	}
+}
+
 .header_socials{
 	position:relative;
 	z-index:1;
@@ -78,7 +90,17 @@
 	max-width:1820px;
 }
 
+@media (max-width: 768px) {
+	.main-header .auto-container {
+		padding: 0px 10px;
+	}
+}
 
+@media (max-width: 480px) {
+	.main-header .auto-container {
+		padding: 0px 8px;
+	}
+}
 
 
 /* Top List */

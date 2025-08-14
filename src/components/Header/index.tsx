@@ -143,7 +143,7 @@ const ProfileDropdown = () => {
         <div className="relative inline-block text-left">
           <button
             type="button"
-            className="flex rounded-full overflow-hidden bg-white shadow-sm h-[48px] w-[48px]"
+            className="flex rounded-full overflow-hidden bg-white shadow-sm h-10 w-10 sm:h-12 sm:w-12"
             onClick={() => {
               setShowDropdown((prev) => !prev);
             }}

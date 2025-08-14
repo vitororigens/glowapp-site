@@ -235,7 +235,7 @@ export default function NewContact() {
           <Textarea 
             {...register("observations")} 
             placeholder="Observações sobre o cliente"
-            className="min-h-[100px]"
+            className="min-h-[80px] sm:min-h-[100px]"
           />
           {errors.observations && (
             <p className="text-red-500 text-sm">{errors.observations.message}</p>

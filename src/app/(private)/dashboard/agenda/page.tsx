@@ -250,7 +250,7 @@ export default function Agenda() {
               Agenda do dia {format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
             </h2>
             
-            <ScrollArea className="h-[500px] pr-4">
+            <ScrollArea className="h-[400px] sm:h-[500px] pr-4">
               {isLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 3 }).map((_, i) => (
