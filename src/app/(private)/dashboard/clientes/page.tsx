@@ -17,7 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { usePlanLimitations } from "@/hooks/usePlanLimitations";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Contact {
   id: string;
@@ -36,6 +38,7 @@ export default function Contacts() {
   const { user } = useAuthContext();
   const uid = user?.uid;
   const router = useRouter();
+  const { planLimits, canAddClient, getRemainingClients } = usePlanLimitations();
 
   useEffect(() => {
     if (uid) {
@@ -88,9 +91,37 @@ export default function Contacts() {
 
   return (
     <div className="p-4">
+      {/* Alerta de Limitação */}
+      {!canAddClient(contacts.length) && (
+        <Alert className="mb-4 border-yellow-200 bg-yellow-50">
+          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
+            Você atingiu o limite de {planLimits.clients} clientes do seu plano {planLimits.planName}. 
+            <Button 
+              variant="link" 
+              className="p-0 h-auto font-semibold text-yellow-800"
+              onClick={() => router.push('/planos')}
+            >
+              Faça upgrade para adicionar mais clientes.
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Clientes</h1>
-        <Button onClick={() => router.push("/dashboard/clientes/novo")}>
+        <div>
+          <h1 className="text-2xl font-bold">Clientes</h1>
+          <p className="text-sm text-gray-600">
+            {contacts.length} de {planLimits.clients} clientes utilizados
+            {getRemainingClients(contacts.length) > 0 && (
+              <span className="text-green-600"> • {getRemainingClients(contacts.length)} restantes</span>
+            )}
+          </p>
+        </div>
+        <Button 
+          onClick={() => router.push("/dashboard/clientes/novo")}
+          disabled={!canAddClient(contacts.length)}
+        >
           Novo Cliente
         </Button>
       </div>

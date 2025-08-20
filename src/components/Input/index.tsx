@@ -43,7 +43,7 @@ export const Input: React.FC<InputProps> = ({
   };
 
   return (
-    <Container type={type}>
+    <Container $type={type}>
       {showIcon && <FaSearch style={{ fontSize: 16, color: "gray" }} />}
       <InputContainer
         placeholder={placeholder}

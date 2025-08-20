@@ -25,8 +25,10 @@ import { ItemProfessional } from "@/components/ItemProfessional";
 import { FileIcon } from "@/components/icons/FileIcon";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/services/firebase";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { usePlanLimitations } from "@/hooks/usePlanLimitations";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -85,7 +87,8 @@ export default function NewService() {
   const uid = user?.uid;
   const router = useRouter();
   const searchParams = useSearchParams();
-  const serviceId = searchParams.get('id');
+  const serviceId = searchParams?.get('id') || null;
+  const contactId = searchParams?.get('contactId') || null;
   const [showServicesModal, setShowServicesModal] = useState(false);
   const [showProfessionalsModal, setShowProfessionalsModal] = useState(false);
   const [uploadType, setUploadType] = useState<'document' | 'before' | 'after' | null>(null);
@@ -95,6 +98,8 @@ export default function NewService() {
     date: new Date().toISOString().split('T')[0],
     installments: 1 as number | undefined,
   });
+  const { planLimits, canAddImageToClient, getRemainingImagesForClient, loading: planLoading } = usePlanLimitations();
+  const [clientImageCount, setClientImageCount] = useState(0);
 
   const {
     register,
@@ -182,6 +187,41 @@ export default function NewService() {
       });
     }
   }, [serviceId, reset]);
+
+  useEffect(() => {
+    if (contactId && uid) {
+      fetchClientImageCount();
+    }
+  }, [contactId, uid]);
+
+  const fetchClientImageCount = async () => {
+    if (!contactId || !uid) return;
+
+    try {
+      // Buscar todos os serviços do cliente
+      const servicesRef = collection(database, "Services");
+      const q = query(
+        servicesRef,
+        where("uid", "==", uid),
+        where("contactUid", "==", contactId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      let totalImages = 0;
+      
+      querySnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const beforeCount = data.beforePhotos?.length || 0;
+        const afterCount = data.afterPhotos?.length || 0;
+        totalImages += beforeCount + afterCount;
+      });
+      
+      setClientImageCount(totalImages);
+    } catch (error) {
+      console.error('Erro ao buscar contagem de imagens do cliente:', error);
+      setClientImageCount(0);
+    }
+  };
 
   const onSubmit = async (data: FormSchemaType) => {
     console.log("onSubmit function called", data);
@@ -349,6 +389,7 @@ export default function NewService() {
           documents: data.documents || [],
           beforePhotos: data.beforePhotos || [],
           afterPhotos: data.afterPhotos || [],
+          contactUid: contactId, // Adicionar o ID do cliente
           updatedAt: new Date().toISOString()
         };
         
@@ -406,6 +447,7 @@ export default function NewService() {
           beforePhotos: data.beforePhotos || [],
           afterPhotos: data.afterPhotos || [],
           uid,
+          contactUid: contactId, // Adicionar o ID do cliente
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
@@ -453,6 +495,21 @@ export default function NewService() {
 
   const handleFileUpload = async (files: FileList | null, type: 'document' | 'before' | 'after') => {
     if (!files || !uid) return;
+
+    // Verificar limitação de imagens por cliente (bloqueio silencioso)
+    if ((type === 'before' || type === 'after') && contactId && planLimits) {
+      const currentBeforePhotos = watch("beforePhotos") || [];
+      const currentAfterPhotos = watch("afterPhotos") || [];
+      const currentServiceImages = currentBeforePhotos.length + currentAfterPhotos.length;
+      const totalClientImages = clientImageCount - currentServiceImages; // Remove imagens do serviço atual
+      const newImagesCount = files.length;
+      
+      if (!canAddImageToClient(totalClientImages + currentServiceImages + newImagesCount)) {
+        const remaining = getRemainingImagesForClient(totalClientImages + currentServiceImages);
+        toast.error(`Limite de ${planLimits.images} imagens por cliente atingido! Você pode adicionar mais ${remaining} imagens.`);
+        return;
+      }
+    }
 
     setIsUploading(true);
     try {
@@ -644,6 +701,20 @@ export default function NewService() {
     }
     return null;
   };
+
+  // Aguardar carregamento do plano antes de renderizar
+  if (planLoading) {
+    return (
+      <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
+        <div className="flex items-center justify-center min-h-[300px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p>Carregando...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
@@ -1045,6 +1116,9 @@ export default function NewService() {
 
         <Card className="p-4 mt-4">
           <h3 className="text-lg font-medium mb-4">Fotos Antes</h3>
+          
+
+          
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <Button

@@ -51,10 +51,13 @@ const Header = () => {
         <>
           <S.Navbar>
             <a href="/">Home</a>
+            <a href="/planos">Planos</a>
             <a href="/contact-us">Contato</a>
             <a href="/">Sobre</a>
           </S.Navbar>
-          <ProfileDropdown />
+          <S.ActionsWrapper>
+            <ProfileDropdown />
+          </S.ActionsWrapper>
         </>
       )}
 
@@ -105,6 +108,7 @@ const MenuMobile = () => {
         <div className="menu-outer">
           <S.Navbar>
             <a href="/">Home</a>
+            <a href="/planos">Planos</a>
             <a href="/contact-us">Contato</a>
             <a href="/">Sobre</a>
             {user ? (
@@ -138,7 +142,7 @@ const ProfileDropdown = () => {
   };
 
   return (
-    <S.ActionsWrapper>
+    <>
       {user ? (
         <div className="relative inline-block text-left">
           <button
@@ -175,6 +179,12 @@ const ProfileDropdown = () => {
                   Dashboard
                 </a>
                 <a
+                  href="/dashboard/assinatura"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Minha Assinatura
+                </a>
+                <a
                   href="/perfil"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
@@ -193,7 +203,7 @@ const ProfileDropdown = () => {
       ) : (
         <Button onClick={() => router.push("/auth/login")}>Login</Button>
       )}
-    </S.ActionsWrapper>
+    </>
   );
 };
 

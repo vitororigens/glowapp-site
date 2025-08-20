@@ -23,7 +23,7 @@ const Banner = () => {
   return (
     <S.Banner>
       <S.BannerContainer>
-        <S.BannerImage image={BackgroundImage.src} />
+        <S.BannerImage $image={BackgroundImage.src} />
         <S.BannerSocials>
           <div className="socials">
             <a target="_blank" rel="noopener noreferrer" href="https://wa.me/5566996315835">

@@ -7,9 +7,9 @@ export const HeaderContainer = styled.header`
   top: 0px;
   right: 0px;
 
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
   gap: 20px;
 
   background-color: white;
@@ -27,10 +27,12 @@ export const Logo = styled(Link)`
 export const Navbar = styled.nav`
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 20px;
   background-color: rgba(var(--black-color-rgb), 0.09);
   padding: 10px 30px;
   border-radius: 100px;
+  justify-self: center;
 
   a{
     font-weight: 500;
@@ -67,7 +69,10 @@ export const Navbar = styled.nav`
 export const ActionsWrapper = styled.div`
   display: flex;
   align-items: center;
-  gap: 20px;  
+  justify-content: flex-end;
+  gap: 20px;
+  min-width: 120px;
+  justify-self: end;
 `;
 export const ActionsBtn = styled(Link)`
   position: relative;

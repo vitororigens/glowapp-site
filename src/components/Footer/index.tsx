@@ -41,15 +41,9 @@ const Footer = () => {
             <h5 className="title">Informações de Contato</h5>
             <div className="wrapper">
               <div className="icon">
-                <IconPhone />
+                <IconMapPin />
               </div>
-              <a target="_blank" rel="noopener noreferrer" href="tel:+55-61-996315835">996315835</a>
-            </div>
-            <div className="wrapper">
-              <div className="icon">
-                <IconMail />
-              </div>
-              <a target="_blank" rel="noopener noreferrer" href="mailto:contato@glowapp.com.br">contato@glowapp.com.br</a>
+              <span>Brasil</span>
             </div>
           </S.ContactInformation>
         </S.FooterWrapper>

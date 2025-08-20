@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GlowApp Site - Sistema de Gerenciamento de Planos
 
-## Getting Started
+Este é um projeto Next.js que implementa um sistema completo de gerenciamento de planos de assinatura integrado com Stripe, incluindo limitações automáticas baseadas no plano ativo do usuário.
 
-First, run the development server:
+## 🚀 Configuração Inicial
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### Variáveis de Ambiente
+
+Crie um arquivo `.env.local` na raiz do projeto com as seguintes variáveis:
+
+```env
+
+
+# Firebase (já configurado)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Produtos Stripe Necessários
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Certifique-se de ter os seguintes produtos criados no Stripe:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Glow Start** (produto gratuito): `glow-start`
+- **Glow Pro** (produto pago): `glow-pro`
 
-## Learn More
+## 📋 Funcionalidades Implementadas
 
-To learn more about Next.js, take a look at the following resources:
+### 1. Página de Planos (`/planos`)
+- Exibe os planos disponíveis (Glow Start e Glow Pro)
+- Integração com Stripe para checkout
+- Badge dinâmico "PLANO ATUAL" baseado na assinatura real do usuário
+- Botões de ação baseados no plano atual do usuário
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 2. Página de Gerenciamento de Assinatura (`/dashboard/assinatura`)
+- Visualização do plano atual (pago ou gratuito)
+- Informações sobre limites e próximas cobranças
+- Opção de cancelamento de assinatura
+- Exibição de planos gratuitos e pagos
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. Sistema de Limitações por Plano
+- **Hook `usePlanLimitations`**: Gerencia automaticamente as limitações baseadas no plano ativo
+- **Limitações de Clientes**: 
+  - Glow Start: 10 clientes/mês
+  - Glow Pro: 50 clientes/mês
+- **Limitações de Imagens por Cliente**:
+  - Glow Start: 4 imagens por cliente (2 antes + 2 depois)
+  - Glow Pro: 8 imagens por cliente (4 antes + 4 depois)
+- **Controle de Vencimento**: Mostra quando o plano vence e status de uso
+- **Alertas Visuais**: Mostra quando o usuário atinge os limites
+- **Botões Desabilitados**: Impede ações quando limites são atingidos
+- **Links para Upgrade**: Direciona para página de planos quando necessário
 
-## Deploy on Vercel
+### 4. Modal de Checkout
+- Integração com Stripe Elements para pagamento
+- Validação de cartão de crédito
+- Processamento seguro de pagamentos
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 5. Navegação
+- Link "Planos" adicionado ao header público
+- Link "Minha Assinatura" movido para o dropdown do perfil no dashboard
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛠️ Como Usar
+
+### Instalação
+
+```bash
+npm install
+npm run dev
+```
+
+### Estrutura de Arquivos
+
+```
+src/
+├── app/
+│   ├── (public)/planos/page.tsx          # Página de planos
+│   └── (private)/dashboard/
+│       ├── assinatura/page.tsx           # Gerenciamento de assinatura
+│       └── clientes/page.tsx             # Lista de clientes (com limitações)
+├── components/
+│   ├── CheckoutModal.tsx                 # Modal de pagamento
+│   └── PlanLimitationAlert.tsx           # Componente de alerta de limitação
+├── hooks/
+│   └── usePlanLimitations.ts             # Hook para gerenciar limitações
+└── services/
+    └── stripeService.ts                  # Serviços do Stripe
+```
+
+### Implementando Limitações em Novas Páginas
+
+Para adicionar limitações em uma nova página:
+
+```typescript
+import { usePlanLimitations } from '@/hooks/usePlanLimitations';
+
+export default function MinhaPagina() {
+  const { planLimits, canAddClient, canAddImage } = usePlanLimitations();
+  
+  // Verificar se pode adicionar cliente
+  if (!canAddClient(currentClientCount)) {
+    // Mostrar alerta ou desabilitar botão
+  }
+  
+  // Verificar se pode adicionar imagem
+  if (!canAddImage(currentImageCount)) {
+    // Mostrar alerta ou desabilitar botão
+  }
+}
+```
+
+## 🔧 Tecnologias Utilizadas
+
+- **Next.js 14** - Framework React
+- **Stripe** - Processamento de pagamentos
+- **Firebase** - Autenticação e banco de dados
+- **Tailwind CSS** - Estilização
+- **Shadcn UI** - Componentes de interface
+- **TypeScript** - Tipagem estática
+
+## 📝 Notas Importantes
+
+- O sistema automaticamente detecta o plano ativo do usuário
+- Planos gratuitos não criam assinaturas no Stripe, mas são reconhecidos pelo sistema
+- As limitações são aplicadas em tempo real
+- Usuários são direcionados para upgrade quando atingem os limites

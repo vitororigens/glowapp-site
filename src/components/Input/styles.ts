@@ -3,7 +3,7 @@ import styled from "styled-components";
 type InputTypeProps = "PRIMARY" | "SECONDARY" | "TERTIARY";
 
 type Props = {
-  type: InputTypeProps;
+  $type: InputTypeProps;
 };
 
 export const Container = styled.div<Props>`
@@ -14,7 +14,7 @@ export const Container = styled.div<Props>`
   max-height: 100px;
   gap: 0px;
   background-color: white;
-  border-radius: ${({ type }) => (type === "PRIMARY" ? "8px" : "4px")};
+  border-radius: ${({ $type }) => ($type === "PRIMARY" ? "8px" : "4px")};
   & > button {
     margin-left: 10px;
   }

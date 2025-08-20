@@ -17,7 +17,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { UserCircle, PlusCircle } from "lucide-react";
+import { UserCircle, PlusCircle, AlertTriangle } from "lucide-react";
+import { usePlanLimitations } from "@/hooks/usePlanLimitations";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -39,6 +41,7 @@ export default function NewContact() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const contactId = searchParams.get('id');
+  const { planLimits, canAddClient } = usePlanLimitations();
 
   const {
     register,
@@ -103,6 +106,12 @@ export default function NewContact() {
   const onSubmit = async (data: FormSchemaType) => {
     if (!uid) return;
     
+    // Verificar se é uma nova criação (não edição) e se pode adicionar cliente
+    if (!contactId && !canAddClient(0)) {
+      toast.error(`Você atingiu o limite de ${planLimits.clients} clientes do seu plano ${planLimits.planName}. Faça upgrade para adicionar mais clientes.`);
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const docRef = contactId
@@ -131,6 +140,23 @@ export default function NewContact() {
 
   return (
     <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
+      {/* Alerta de Limitação */}
+      {!contactId && !canAddClient(0) && (
+        <Alert className="mb-4 border-yellow-200 bg-yellow-50">
+          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
+            Você atingiu o limite de {planLimits.clients} clientes do seu plano {planLimits.planName}. 
+            <Button 
+              variant="link" 
+              className="p-0 h-auto font-semibold text-yellow-800"
+              onClick={() => router.push('/planos')}
+            >
+              Faça upgrade para adicionar mais clientes.
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <h2 className="text-xl font-bold mb-4">
         {contactId ? "Editar" : "Novo"} Cliente
       </h2>

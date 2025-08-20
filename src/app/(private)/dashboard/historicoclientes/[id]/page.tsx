@@ -10,7 +10,9 @@ import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "fireb
 import { toast } from "react-toastify";
 import { currencyMask, celularMask, cpfMask } from "@/utils/maks/masks";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, AlertTriangle, Image } from "lucide-react";
+import { usePlanLimitations } from "@/hooks/usePlanLimitations";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Service {
   id: string;
@@ -55,8 +57,10 @@ export default function ClientHistory() {
   const [services, setServices] = useState<Service[]>([]);
   const [isLoadingClient, setIsLoadingClient] = useState(true);
   const [isLoadingServices, setIsLoadingServices] = useState(true);
+  const [clientImageCount, setClientImageCount] = useState(0);
   
   const { user } = useAuthContext();
+  const { planLimits, canAddImageToClient, getRemainingImagesForClient } = usePlanLimitations();
   const uid = user?.uid;
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -94,8 +98,39 @@ export default function ClientHistory() {
   useEffect(() => {
     if (uid && clientId) {
       fetchClientServices();
+      fetchClientImageCount();
     }
   }, [uid, clientId, clientName]);
+
+  // Atualizar quando a página recebe foco (quando volta do serviço)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (uid && clientId) {
+        fetchClientImageCount();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden && uid && clientId) {
+        fetchClientImageCount();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [uid, clientId]);
+
+  // Atualizar contagem de imagens quando os serviços mudam
+  useEffect(() => {
+    if (services.length > 0 && uid && clientId) {
+      fetchClientImageCount();
+    }
+  }, [services.length, uid, clientId]);
 
   const fetchClientServices = async () => {
     try {
@@ -209,14 +244,80 @@ export default function ClientHistory() {
     }
   };
 
+  const fetchClientImageCount = async () => {
+    if (!clientId || !uid) return;
+
+    try {
+      console.log(`Buscando imagens para cliente: ${clientId}`);
+      
+      // Buscar todos os serviços do usuário
+      const servicesRef = collection(database, "Services");
+      const q = query(
+        servicesRef,
+        where("uid", "==", uid)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      let totalImages = 0;
+      let servicesFound = 0;
+      
+      console.log(`Total de serviços encontrados: ${querySnapshot.docs.length}`);
+      
+      querySnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        console.log(`Serviço ${doc.id}:`, {
+          contactUid: data.contactUid,
+          name: data.name,
+          beforePhotos: data.beforePhotos?.length || 0,
+          afterPhotos: data.afterPhotos?.length || 0
+        });
+        
+        // Verificar se é do cliente correto
+        if (data.contactUid === clientId || data.name === clientName) {
+          servicesFound++;
+          const beforeCount = data.beforePhotos?.length || 0;
+          const afterCount = data.afterPhotos?.length || 0;
+          totalImages += beforeCount + afterCount;
+          console.log(`Serviço do cliente encontrado: ${beforeCount} antes + ${afterCount} depois = ${beforeCount + afterCount} total`);
+        }
+      });
+      
+      console.log(`Serviços do cliente encontrados: ${servicesFound}`);
+      console.log(`Total de imagens do cliente ${clientId}: ${totalImages}`);
+      
+      setClientImageCount(totalImages);
+    } catch (error) {
+      console.error('Erro ao buscar contagem de imagens do cliente:', error);
+      setClientImageCount(0);
+    }
+  };
+
+  // Função para atualizar manualmente
+  const refreshImageCount = () => {
+    fetchClientImageCount();
+  };
+
   const filteredServices = services.filter(service =>
     service.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     service.services?.some(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleNewService = () => {
+    // Atualizar contagem antes de ir para o serviço
+    fetchClientImageCount();
     router.push(`/dashboard/servicos/novo?contactId=${clientId}`);
   };
+
+  // Atualizar periodicamente para pegar mudanças
+  useEffect(() => {
+    if (uid && clientId) {
+      const interval = setInterval(() => {
+        fetchClientImageCount();
+      }, 2000); // Atualiza a cada 2 segundos
+
+      return () => clearInterval(interval);
+    }
+  }, [uid, clientId]);
 
   const handleEditService = (serviceId: string) => {
     router.push(`/dashboard/servicos/novo?id=${serviceId}`);
@@ -288,6 +389,76 @@ export default function ClientHistory() {
             <p className="text-sm text-gray-500">Serviços realizados</p>
             <p className="font-medium">{services.length}</p>
           </div>
+          
+          {/* Controle de Imagens do Cliente */}
+          {planLimits && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Image className="h-4 w-4 text-blue-500" />
+                  <span className="font-semibold text-blue-800">Controle de Imagens</span>
+                </div>
+
+              </div>
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="text-blue-700">Total de imagens do cliente:</span>
+                <span className="font-medium">{clientImageCount} de {planLimits.images}</span>
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+                <div 
+                  className={`h-2 rounded-full ${
+                    clientImageCount / planLimits.images > 0.9 ? 'bg-red-500' :
+                    clientImageCount / planLimits.images > 0.8 ? 'bg-orange-500' : 'bg-green-500'
+                  }`}
+                  style={{ width: `${Math.min((clientImageCount / planLimits.images) * 100, 100)}%` }}
+                ></div>
+              </div>
+              <div className="text-xs text-blue-600">
+                {clientImageCount >= planLimits.images ? (
+                  <span className="text-red-600 font-medium">
+                    Limite atingido! Não é possível adicionar mais imagens.
+                  </span>
+                ) : (
+                  <span>
+                    Restam {getRemainingImagesForClient(clientImageCount)} imagens disponíveis para este cliente.
+                  </span>
+                )}
+              </div>
+              
+              {/* Alerta quando limite está próximo ou atingido */}
+              {clientImageCount >= planLimits.images && (
+                <Alert className="mt-2 border-red-200 bg-red-50">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    Limite de {planLimits.images} imagens por cliente atingido! 
+                    <Button 
+                      variant="link" 
+                      className="p-0 h-auto font-semibold text-red-800"
+                      onClick={() => router.push('/planos')}
+                    >
+                      Faça upgrade para adicionar mais imagens.
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {clientImageCount >= planLimits.images * 0.8 && clientImageCount < planLimits.images && (
+                <Alert className="mt-2 border-orange-200 bg-orange-50">
+                  <AlertTriangle className="h-4 w-4 text-orange-600" />
+                  <AlertDescription className="text-orange-800">
+                    Limite próximo! {Math.round((clientImageCount / planLimits.images) * 100)}% das imagens utilizadas.
+                    <Button 
+                      variant="link" 
+                      className="p-0 h-auto font-semibold text-orange-800"
+                      onClick={() => router.push('/planos')}
+                    >
+                      Considere fazer upgrade.
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
         </div>
       </div>
       
