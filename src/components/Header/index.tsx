@@ -102,7 +102,7 @@ const MenuMobile = () => {
 
       <div className="menu-box">
         <div className="nav-logo">
-          <img src="/img/logos/main-logo-2.png" alt="Logo" />
+          <img src="/img/logos/main-logo.png" alt="Logo" />
         </div>
 
         <div className="menu-outer">

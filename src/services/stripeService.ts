@@ -23,9 +23,11 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
 /**
  * Cria um Payment Intent no Stripe
  * @param planId - ID do plano selecionado
+ * @param customerEmail - Email do cliente
+ * @param customerName - Nome do cliente
  * @returns Promise com o client secret do Payment Intent
  */
-export const createPaymentIntent = async (planId: string): Promise<string> => {
+export const createPaymentIntent = async (planId: string, customerEmail: string, customerName: string): Promise<string> => {
   try {
     const response = await fetch('/api/create-payment-intent', {
       method: 'POST',
@@ -34,6 +36,8 @@ export const createPaymentIntent = async (planId: string): Promise<string> => {
       },
       body: JSON.stringify({
         planId: planId,
+        customerEmail: customerEmail,
+        customerName: customerName,
       }),
     });
 

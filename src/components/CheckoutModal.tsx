@@ -9,6 +9,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { createPaymentIntent } from '@/services/stripeService';
 import { toast } from 'react-toastify';
+import { useAuthContext } from '@/context/AuthContext';
 
 // Função para sanitizar erros do Stripe e não expor informações sensíveis
 const sanitizeStripeError = (error: any): string => {
@@ -76,6 +77,7 @@ function CheckoutForm({ plan, onSuccess, onClose }: {
 }) {
   const stripe = useStripe();
   const elements = useElements();
+  const { user } = useAuthContext();
   const [loading, setLoading] = useState(false);
   const [clientSecret, setClientSecret] = useState('');
 
@@ -83,7 +85,12 @@ function CheckoutForm({ plan, onSuccess, onClose }: {
     // Criar o Payment Intent quando o componente montar
     const createIntent = async () => {
       try {
-        const secret = await createPaymentIntent(plan.id);
+        if (!user?.email) {
+          toast.error('Usuário não autenticado');
+          return;
+        }
+        
+        const secret = await createPaymentIntent(plan.id, user.email, user.displayName || '');
         setClientSecret(secret);
       } catch (error) {
         console.error('Erro ao criar Payment Intent:', error);
@@ -91,10 +98,10 @@ function CheckoutForm({ plan, onSuccess, onClose }: {
       }
     };
 
-    if (plan.id) {
+    if (plan.id && user?.email) {
       createIntent();
     }
-  }, [plan.id]);
+  }, [plan.id, user?.email]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
