@@ -47,7 +47,10 @@ export default function Perfil() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setProfile(data);
-        if (data?.imageUrl) setImage(data.imageUrl);
+        if (data?.imageUrl) {
+          console.log('Imagem carregada:', data.imageUrl);
+          setImage(data.imageUrl);
+        }
       } else {
         // Se o documento não existir, cria um novo com os dados básicos do usuário
         const userData = {
@@ -142,6 +145,7 @@ export default function Perfil() {
       } else {
         await updateDoc(docRef, { imageUrl: url });
       }
+      console.log('Nova URL da imagem:', url);
       setImage(url);
       setProfile((prev: Record<string, unknown>) => ({ ...prev, imageUrl: url }));
       if (auth.currentUser) {
@@ -198,13 +202,41 @@ export default function Perfil() {
         <h1 className="text-2xl font-bold mb-6">Perfil</h1>
         
         <div className="flex flex-col items-center mb-8">
-          <div className="relative group">
+          {isUploading && (
+            <div className="mb-4 text-sm text-gray-600">
+              Enviando imagem...
+            </div>
+          )}
+          <div className="relative group" style={{ minHeight: '160px', minWidth: '160px' }}>
             {image ? (
               <div className="relative">
-                <Avatar className="h-32 w-32">
-                  <AvatarImage src={image || "/avatar.png"} />
-                  <AvatarFallback>{user?.displayName?.[0]}</AvatarFallback>
-                </Avatar>
+                <div className="h-40 w-40 rounded-full overflow-hidden border-4 border-gray-200 bg-gray-100 flex items-center justify-center">
+                  <img 
+                    src={image || "/avatar.png"} 
+                    alt="Foto de perfil"
+                    className="w-full h-full object-cover"
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'cover',
+                      display: 'block'
+                    }}
+                    onLoad={() => {
+                      console.log('Imagem carregada com sucesso:', image);
+                    }}
+                    onError={(e) => {
+                      console.log('Erro ao carregar imagem:', e);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                  {!image && (
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                      <span className="text-4xl font-bold">
+                        {user?.displayName?.[0] || user?.email?.[0] || '?'}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
                   <label className="cursor-pointer">
                     <input
@@ -242,7 +274,7 @@ export default function Perfil() {
                   disabled={isUploading}
                 />
                 <div className="relative">
-                  <UserCircle className="h-32 w-32 text-gray-400" />
+                  <UserCircle className="h-40 w-40 text-gray-400" />
                   <PlusCircle className="absolute bottom-0 right-0 h-8 w-8 text-primary" />
                 </div>
               </label>

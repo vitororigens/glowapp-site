@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/context/AuthContext";
 import { signOut } from "firebase/auth";
 import { auth } from "@/services/firebase";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+
+import { useUserData } from "@/hooks/useUserData";
 
 export default function ProfileDropdown() {
   const router = useRouter();
   const { user } = useAuthContext();
   const [showDropdown, setShowDropdown] = useState(false);
+  const { userData: utilsInfo } = useUserData();
 
   // Atualiza o contexto do usuário ao receber o evento customizado
   useEffect(() => {
@@ -42,20 +44,43 @@ export default function ProfileDropdown() {
           setShowDropdown(!showDropdown);
         }}
       >
-        <Avatar className="h-12 w-12">
-          <AvatarImage src={user?.photoURL || undefined} />
-          <AvatarFallback>
-            {user?.displayName
-              ? user.displayName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-              : user?.email
-              ? user.email[0].toUpperCase()
-              : "?"}
-          </AvatarFallback>
-        </Avatar>
+        {utilsInfo?.imageUrl ? (
+          <img
+            src={utilsInfo.imageUrl}
+            alt="Avatar"
+            className="w-full h-full object-cover"
+            style={{ 
+              objectFit: 'cover',
+              objectPosition: 'center',
+              width: '100%',
+              height: '100%'
+            }}
+            onError={(e) => {
+              console.log('Erro ao carregar imagem no ProfileDropdown:', e);
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-full">
+            <span className="text-gray-600 text-sm font-medium">
+              {utilsInfo?.name
+                ? utilsInfo.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                : user?.displayName
+                ? user.displayName
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                : user?.email
+                ? user.email[0].toUpperCase()
+                : "?"}
+            </span>
+          </div>
+        )}
       </button>
 
       {showDropdown && (

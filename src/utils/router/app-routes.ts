@@ -6,7 +6,7 @@ const PRIVATE_ROUTES: string[] = [
 ];
 
 export const checkIsPrivateRoute = (asPath: string): boolean => {
-  return PRIVATE_ROUTES.includes(asPath);
+  return PRIVATE_ROUTES.includes(asPath) || asPath.startsWith('/dashboard');
 };
 
 export const getRouteType = (asPath: string): RouteType => {

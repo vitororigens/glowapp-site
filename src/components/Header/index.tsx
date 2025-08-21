@@ -10,6 +10,7 @@ import { useIsMobile } from "@/hooks/useMobileDevice";
 import { signOut } from "firebase/auth";
 import { auth } from "@/services/firebase";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
+import { useUserData } from "@/hooks/useUserData";
 
 import $ from "jquery";
 
@@ -90,10 +91,7 @@ const MenuMobile = () => {
   const { user } = useAuthContext();
   const router = useRouter();
 
-  const { data: userDatas } = useFirestoreCollection<UserData>("Register");
-  const utilsInfo = (userDatas || []).find(
-    (item) => item.id === user?.uid
-  );
+  const { userData: utilsInfo } = useUserData();
 
   const handleCloseMenu = () => {
     $(".mobile-menu").removeClass("active");
@@ -157,10 +155,7 @@ const ProfileDropdown = () => {
   const { user } = useAuthContext();
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const { data: userDatas } = useFirestoreCollection<UserData>("Register");
-  const utilsInfo = (userDatas || []).find(
-    (item) => item.id === user?.uid
-  );
+  const { userData: utilsInfo } = useUserData();
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -183,13 +178,21 @@ const ProfileDropdown = () => {
                 src={utilsInfo.imageUrl}
                 alt="Avatar"
                 className="w-full h-full object-cover"
-                width={50}
-                height={50}
+                style={{ 
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                  width: '100%',
+                  height: '100%'
+                }}
+                onError={(e) => {
+                  console.log('Erro ao carregar imagem no header:', e);
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                <span className="text-gray-600 text-lg font-medium">
-                  {getInitialNameLetters(utilsInfo?.name || user.email || '')}
+              <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-full">
+                <span className="text-gray-600 text-sm font-medium">
+                  {getInitialNameLetters(utilsInfo?.name || user?.displayName || user?.email || '')}
                 </span>
               </div>
             )}
@@ -206,10 +209,16 @@ const ProfileDropdown = () => {
                 </a>
 
                 <a
-                  href="/perfil"
+                  href="/dashboard/perfil"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
                   Perfil
+                </a>
+                <a
+                  href="/dashboard/planos"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Planos
                 </a>
                 <button
                   onClick={handleSignOut}
