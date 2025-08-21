@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_API_KEY!, {
-  apiVersion: '2024-12-18.acacia',
-});
+const STRIPE_SECRET_API_KEY = process.env.STRIPE_SECRET_API_KEY;
+const STRIPE_API_URL = 'https://api.stripe.com/v1';
 
 export async function POST(request: NextRequest) {
   try {
     const { planId, customerEmail, customerName } = await request.json();
+
+    console.log('🔄 Criando Payment Intent para o plano:', planId);
 
     // Mapeamento de planos para preços (em centavos)
     const planPrices: { [key: string]: number } = {
@@ -34,48 +34,66 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Buscar ou criar cliente no Stripe
-    let customer;
-    const existingCustomers = await stripe.customers.list({
-      email: customerEmail,
-      limit: 1,
-    });
-
-    if (existingCustomers.data.length > 0) {
-      customer = existingCustomers.data[0];
-    } else {
-      customer = await stripe.customers.create({
-        email: customerEmail,
-        name: customerName,
-      });
+    // Validar o valor mínimo para BRL (R$ 0,50)
+    if (!amount || amount < 50) {
+      return NextResponse.json(
+        { error: 'O valor do plano deve ser maior que R$ 0,50' },
+        { status: 400 }
+      );
     }
 
-    // Criar Payment Intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount,
-      currency: 'brl',
-      customer: customer.id,
-      metadata: {
-        planId: planId,
-        customerEmail: customerEmail,
+    console.log('💰 Criando Payment Intent com:', {
+      amount,
+      planId,
+    });
+
+    // Criar o Payment Intent com o valor do plano
+    const paymentIntentResponse = await fetch(`${STRIPE_API_URL}/payment_intents`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${STRIPE_SECRET_API_KEY}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      body: new URLSearchParams({
+        amount: amount.toString(),
+        currency: 'brl',
+        'automatic_payment_methods[enabled]': 'true',
+        'metadata[planId]': planId,
+        'metadata[customerEmail]': customerEmail || '',
+        setup_future_usage: 'off_session',
+      }).toString(),
+    });
+
+    if (!paymentIntentResponse.ok) {
+      const errorData = await paymentIntentResponse.json();
+      console.error('❌ Erro ao criar Payment Intent:', errorData);
+      return NextResponse.json(
+        { error: `Erro ao criar Payment Intent: ${errorData.error?.message || 'Erro desconhecido'}` },
+        { status: 500 }
+      );
+    }
+
+    const data = await paymentIntentResponse.json();
+    console.log('✅ Payment Intent criado com sucesso:', {
+      id: data.id,
+      amount: data.amount,
+      status: data.status,
+      clientSecret: data.client_secret,
     });
 
     return NextResponse.json({
       success: true,
-      clientSecret: paymentIntent.client_secret,
+      clientSecret: data.client_secret,
       amount: amount,
-      customerId: customer.id,
+      customerId: data.customer,
     });
 
   } catch (error) {
-    console.error('Erro ao criar Payment Intent:', error);
+    console.error('❌ Erro ao criar Payment Intent:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
     );
   }
 }
+

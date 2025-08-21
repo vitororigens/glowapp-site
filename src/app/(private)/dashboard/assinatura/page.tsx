@@ -234,7 +234,7 @@ export default function AssinaturaPage() {
               <Button 
                 variant="link" 
                 className="p-0 h-auto font-semibold"
-                onClick={() => window.location.href = '/planos'}
+                onClick={() => window.location.href = '/dashboard/planos'}
               >
                 Clique aqui para escolher um plano.
               </Button>
@@ -303,7 +303,7 @@ export default function AssinaturaPage() {
                       <Button 
                         variant="link" 
                         className="p-0 h-auto font-semibold text-red-800"
-                        onClick={() => window.location.href = '/planos'}
+                        onClick={() => window.location.href = '/dashboard/planos'}
                       >
                         Faça upgrade para continuar.
                       </Button>
@@ -319,7 +319,7 @@ export default function AssinaturaPage() {
                       <Button 
                         variant="link" 
                         className="p-0 h-auto font-semibold text-orange-800"
-                        onClick={() => window.location.href = '/planos'}
+                        onClick={() => window.location.href = '/dashboard/planos'}
                       >
                         Considere fazer upgrade.
                       </Button>
@@ -405,7 +405,7 @@ export default function AssinaturaPage() {
                       <Button 
                         variant="outline" 
                         className="flex-1"
-                        onClick={() => window.location.href = '/planos'}
+                        onClick={() => window.location.href = '/dashboard/planos'}
                       >
                         Alterar Plano
                       </Button>
@@ -488,7 +488,7 @@ export default function AssinaturaPage() {
                     <Button 
                       variant="outline" 
                       className="flex-1"
-                      onClick={() => window.location.href = '/planos'}
+                      onClick={() => window.location.href = '/dashboard/planos'}
                     >
                       Fazer Upgrade
                     </Button>

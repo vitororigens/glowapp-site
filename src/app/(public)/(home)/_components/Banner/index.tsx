@@ -26,7 +26,7 @@ const Banner = () => {
         <S.BannerImage $image={BackgroundImage.src} />
         <S.BannerSocials>
           <div className="socials">
-            <a target="_blank" rel="noopener noreferrer" href="https://wa.me/5566996315835">
+            <a href="#" onClick={(e) => e.preventDefault()}>
               <IconBrandWhatsapp />
             </a>
             <a

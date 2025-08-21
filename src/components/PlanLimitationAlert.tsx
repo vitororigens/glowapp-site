@@ -45,7 +45,7 @@ export function PlanLimitationAlert({
         <Button 
           variant="link" 
           className="p-0 h-auto font-semibold text-yellow-800"
-          onClick={() => router.push('/planos')}
+                          onClick={() => router.push('/dashboard/planos')}
         >
           {message.action}
         </Button>
@@ -53,5 +53,6 @@ export function PlanLimitationAlert({
     </Alert>
   );
 }
+
 
 

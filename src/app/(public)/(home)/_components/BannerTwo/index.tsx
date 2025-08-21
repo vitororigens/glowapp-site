@@ -36,10 +36,15 @@ const BannerTwo = () => {
 
               <div className="story-two_button d-flex align-items-center flex-wrap">
                 <a
-                  href="https://wa.me/5566996315835"
+                  href="#contact"
                   className="theme-btn btn-style-one"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const contactSection = document.getElementById('contact');
+                    if (contactSection) {
+                      contactSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }}
                 >
                   <span className="btn-wrap">
                     <span className="text-one">Fale Conosco</span>

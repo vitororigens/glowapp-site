@@ -100,7 +100,7 @@ export default function Contacts() {
             <Button 
               variant="link" 
               className="p-0 h-auto font-semibold text-yellow-800"
-              onClick={() => router.push('/planos')}
+                              onClick={() => router.push('/dashboard/planos')}
             >
               Faça upgrade para adicionar mais clientes.
             </Button>

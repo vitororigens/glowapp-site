@@ -30,7 +30,13 @@ const Footer = () => {
           <S.NavigationWrapper>
             <h5 className="title">Navegue</h5>
             <Link href="/">Home</Link>
-            <Link href="/contato">Contato</Link>
+            <a href="#contact" onClick={(e) => {
+              e.preventDefault();
+              const contactSection = document.getElementById('contact');
+              if (contactSection) {
+                contactSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}>Contato</a>
             {user && <Link href="/perfil">Perfil</Link>}
             {user && <Link href="/favoritos">Favoritos</Link>}
             {!user && <Link href="/auth/login">Login</Link>}
@@ -55,7 +61,7 @@ const Footer = () => {
           </div>
 
           <div className="socials">
-            <a target="_blank" rel="noopener noreferrer" href="https://wa.me/5566996315835">
+            <a href="#" onClick={(e) => e.preventDefault()}>
               <IconBrandWhatsapp />
             </a>
           </div>

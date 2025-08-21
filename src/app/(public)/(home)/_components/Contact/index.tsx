@@ -4,7 +4,7 @@ import { IconBrandWhatsapp } from "@tabler/icons-react";
 
 export default function Contact() {
   return (
-    <div className="container mx-auto py-12">
+    <div id="contact" className="container mx-auto py-12">
     
       <div className="container mx-auto py-12">
         <h2 className="text-3xl font-bold text-center mb-8">Entre em Contato</h2>
@@ -18,9 +18,8 @@ export default function Contact() {
                 <li>Tem interesse em um plano personalizado ou saber mais entre em contato</li>
                 <li>
                   <a 
-                    href="https://wa.me/5566992170388" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
+                    href="#" 
+                    onClick={(e) => e.preventDefault()}
                     className="flex items-center gap-2 text-green-600 hover:text-green-700 transition-colors"
                   >
                     <IconBrandWhatsapp size={24} />

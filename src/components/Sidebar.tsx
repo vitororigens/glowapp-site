@@ -11,6 +11,7 @@ import {
   IconNotes,
   IconUserPlus,
   IconWallet,
+  IconCreditCard,
 } from "@tabler/icons-react";
 
 const menuItems = [
@@ -33,6 +34,7 @@ const menuItems = [
     label: "Add Profissional",
   },
   { path: "/dashboard/financeiro", icon: IconWallet, label: "Financeiro" },
+  { path: "/dashboard/assinatura", icon: IconCreditCard, label: "Minha Assinatura" },
 ];
 
 export default function Sidebar() {

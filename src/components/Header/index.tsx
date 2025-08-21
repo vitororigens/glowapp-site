@@ -51,8 +51,20 @@ const Header = () => {
         <>
           <S.Navbar>
             <a href="/">Home</a>
-            <a href="/planos">Planos</a>
-            <a href="/contact-us">Contato</a>
+            <a href="#plans" onClick={(e) => {
+              e.preventDefault();
+              const plansSection = document.getElementById('plans');
+              if (plansSection) {
+                plansSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}>Planos</a>
+            <a href="#contact" onClick={(e) => {
+              e.preventDefault();
+              const contactSection = document.getElementById('contact');
+              if (contactSection) {
+                contactSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}>Contato</a>
             <a href="/">Sobre</a>
           </S.Navbar>
           <S.ActionsWrapper>
@@ -108,8 +120,22 @@ const MenuMobile = () => {
         <div className="menu-outer">
           <S.Navbar>
             <a href="/">Home</a>
-            <a href="/planos">Planos</a>
-            <a href="/contact-us">Contato</a>
+            <a href="#plans" onClick={(e) => {
+              e.preventDefault();
+              const plansSection = document.getElementById('plans');
+              if (plansSection) {
+                plansSection.scrollIntoView({ behavior: 'smooth' });
+              }
+              handleCloseMenu();
+            }}>Planos</a>
+            <a href="#contact" onClick={(e) => {
+              e.preventDefault();
+              const contactSection = document.getElementById('contact');
+              if (contactSection) {
+                contactSection.scrollIntoView({ behavior: 'smooth' });
+              }
+              handleCloseMenu();
+            }}>Contato</a>
             <a href="/">Sobre</a>
             {user ? (
               <>
@@ -178,12 +204,7 @@ const ProfileDropdown = () => {
                 >
                   Dashboard
                 </a>
-                <a
-                  href="/dashboard/assinatura"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Minha Assinatura
-                </a>
+
                 <a
                   href="/perfil"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

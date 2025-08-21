@@ -37,6 +37,7 @@ export default function DashboardLayout({
     { href: "/dashboard/procedimentos", label: "Procedimentos" },
     { href: "/dashboard/profissionais", label: "Profissionais" },
     { href: "/dashboard/financeiro", label: "Financeiro" },
+    { href: "/dashboard/assinatura", label: "Minha Assinatura" },
   ];
 
   return (

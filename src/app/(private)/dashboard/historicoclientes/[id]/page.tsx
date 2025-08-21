@@ -434,7 +434,7 @@ export default function ClientHistory() {
                     <Button 
                       variant="link" 
                       className="p-0 h-auto font-semibold text-red-800"
-                      onClick={() => router.push('/planos')}
+                      onClick={() => router.push('/dashboard/planos')}
                     >
                       Faça upgrade para adicionar mais imagens.
                     </Button>
@@ -450,7 +450,7 @@ export default function ClientHistory() {
                     <Button 
                       variant="link" 
                       className="p-0 h-auto font-semibold text-orange-800"
-                      onClick={() => router.push('/planos')}
+                      onClick={() => router.push('/dashboard/planos')}
                     >
                       Considere fazer upgrade.
                     </Button>

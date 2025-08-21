@@ -1,7 +1,30 @@
+"use client";
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
 const ContactUs = () => {
+    const router = useRouter();
+
+    useEffect(() => {
+        // Redireciona para a home e depois faz scroll para a seção de contato
+        router.push('/');
+        
+        // Aguarda um pouco para garantir que a página carregou
+        setTimeout(() => {
+            const contactSection = document.getElementById('contact');
+            if (contactSection) {
+                contactSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        }, 500);
+    }, [router]);
+
     return (
         <section className="p-6 bg-gray-100 dark:bg-gray-800 rounded-lg shadow-md mt-10 p-20">
-            <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Contate-nos</h1>
+            <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Redirecionando...</h1>
+            <p className="text-center text-gray-600 dark:text-gray-400 mt-4">
+                Você será redirecionado para a página inicial e levado até a seção de contato.
+            </p>
             
             <div className="mt-10 flex flex-col md:flex-row justify-center gap-8">
                 <div className="md:w-2/4 p-20 flex justify-center items-center flex-col gap-10">

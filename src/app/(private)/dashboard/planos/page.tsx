@@ -77,6 +77,8 @@ export default function PlanosPage() {
   const { user } = useUserAuth();
   const { getCurrentPlan, isPaidPlan } = useUserPlan();
 
+
+
   // O hook useUserPlan já gerencia o plano do usuário automaticamente
 
   const handleChoosePlan = async (plan: Plan) => {

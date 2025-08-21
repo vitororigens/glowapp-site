@@ -1,111 +1,107 @@
 # Configuração do Stripe - GlowApp
 
-Este documento explica como configurar o sistema de pagamentos do Stripe no site do GlowApp.
+## Visão Geral
+
+O sistema de pagamento do GlowApp foi implementado usando o Stripe.js no frontend para garantir a segurança dos dados do cartão de crédito, seguindo as melhores práticas do Stripe.
+
+## Arquitetura de Segurança
+
+### ❌ Implementação Anterior (Insegura)
+- Dados do cartão eram enviados diretamente para o servidor
+- Violava as políticas de segurança do Stripe
+- Gerava erro: "Sending credit card numbers directly to the Stripe API is generally unsafe"
+
+### ✅ Implementação Atual (Segura)
+- Dados do cartão são processados diretamente no frontend usando Stripe.js
+- Servidor nunca recebe dados sensíveis do cartão
+- Usa Stripe Elements para coleta segura dos dados
+
+## Componentes Principais
+
+### 1. CheckoutModal (`src/components/CheckoutModal.tsx`)
+- Usa `@stripe/react-stripe-js` e `@stripe/stripe-js`
+- Implementa Stripe Elements para coleta segura dos dados do cartão
+- Processa pagamentos diretamente no frontend
+
+### 2. API de Payment Intent (`src/app/api/create-payment-intent/route.ts`)
+- Cria Payment Intents no servidor
+- Não recebe dados do cartão
+- Retorna client secret para confirmação no frontend
+
+## Fluxo de Pagamento
+
+1. **Criação do Payment Intent**
+   - Frontend chama `/api/create-payment-intent`
+   - Servidor cria Payment Intent no Stripe
+   - Retorna client secret
+
+2. **Coleta dos Dados do Cartão**
+   - Stripe Elements coleta dados do cartão no frontend
+   - Dados nunca passam pelo servidor
+
+3. **Confirmação do Pagamento**
+   - Frontend usa `stripe.confirmCardPayment()` com client secret
+   - Stripe processa o pagamento diretamente
 
 ## Variáveis de Ambiente
 
-Crie um arquivo `.env.local` na raiz do projeto com as seguintes variáveis:
-
 ```env
+# Chave pública do Stripe (frontend)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 
+# Chave secreta do Stripe (servidor)
+STRIPE_SECRET_API_KEY=sk_live_...
 ```
 
-## Produtos no Stripe
+## Dependências Instaladas
 
-Certifique-se de que os seguintes produtos estão configurados no seu painel do Stripe:
-
-### 1. Glow Start (Produto Gratuito)
-- **ID do Produto**: `glow-start`
-- **Preço**: R$ 0,00
-- **Recorrência**: Não aplicável
-
-### 2. Glow Pro
-- **ID do Produto**: `glow-pro`
-- **Preço**: R$ 29,90/mês
-- **Recorrência**: Mensal
-
-## Funcionalidades Implementadas
-
-### 1. Página de Planos (`/planos`)
-- Exibe os planos disponíveis
-- Design responsivo similar ao app mobile
-- Integração com Stripe Elements para pagamentos
-- Botão "Restaurar Compras" para iOS/Android
-
-### 2. Checkout Modal
-- Modal de pagamento com Stripe Elements
-- Validação de cartão de crédito
-- Processamento seguro de pagamentos
-- Feedback visual durante o processo
-
-### 3. Gerenciamento de Assinaturas (`/dashboard/assinatura`)
-- Visualização do plano atual
-- Informações sobre limites e próximas cobranças
-- Cancelamento de assinatura
-- Alteração de plano
-
-### 4. Serviços do Stripe
-- `fetchStripeProducts()`: Busca produtos do Stripe
-- `createPaymentIntent()`: Cria Payment Intent para pagamento
-- `createStripeCustomer()`: Cria cliente no Stripe
-- `findStripeCustomerByEmail()`: Busca cliente por email
-- `getCustomerSubscriptions()`: Busca assinaturas do cliente
-- `cancelSubscription()`: Cancela assinatura
-- `cancelAllCustomerSubscriptions()`: Cancela todas as assinaturas
-
-## Estrutura de Arquivos
-
-```
-src/
-├── services/
-│   └── stripeService.ts          # Serviços do Stripe
-├── components/
-│   └── CheckoutModal.tsx         # Modal de checkout
-├── app/
-│   ├── (public)/
-│   │   └── planos/
-│   │       └── page.tsx          # Página de planos
-│   └── (private)/
-│       └── dashboard/
-│           └── assinatura/
-│               └── page.tsx      # Gerenciamento de assinatura
+```json
+{
+  "@stripe/stripe-js": "^2.x.x",
+  "@stripe/react-stripe-js": "^2.x.x"
+}
 ```
 
-## Como Usar
+## Testes
 
-### 1. Acessar Planos
-- Navegue para `/planos`
-- Escolha entre Glow Start (gratuito) ou Glow Pro (pago)
+### Cartões de Teste do Stripe
+- **Sucesso**: `4242 4242 4242 4242`
+- **Falha**: `4000 0000 0000 0002`
+- **3D Secure**: `4000 0025 0000 3155`
 
-### 2. Fazer Pagamento
-- Clique em "Escolher este plano" no plano desejado
-- Preencha as informações do cartão no modal
-- Confirme o pagamento
+### Como Testar
+1. Acesse a página de planos
+2. Escolha um plano pago
+3. Use um dos cartões de teste acima
+4. Data de validade: qualquer data futura
+5. CVV: qualquer 3 dígitos
 
-### 3. Gerenciar Assinatura
-- Acesse `/dashboard/assinatura` (após login)
-- Visualize detalhes do plano atual
-- Cancele ou altere o plano conforme necessário
+## Benefícios da Nova Implementação
 
-## Segurança
+1. **Segurança**: Dados do cartão nunca passam pelo servidor
+2. **Conformidade**: Segue as políticas do Stripe
+3. **PCI Compliance**: Reduz a necessidade de certificação PCI
+4. **Manutenibilidade**: Código mais limpo e seguro
+5. **Experiência do Usuário**: Interface mais moderna com Stripe Elements
 
-- Chaves secretas do Stripe são usadas apenas no servidor
-- Chaves públicas são expostas apenas no cliente
-- Todos os pagamentos são processados pelo Stripe
-- Dados de cartão não são armazenados localmente
+## Troubleshooting
+
+### Erro: "Stripe não foi carregado"
+- Verifique se `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` está configurada
+- Certifique-se de que o domínio está autorizado no Stripe Dashboard
+
+### Erro: "ClientSecret não disponível"
+- Verifique se a API `/api/create-payment-intent` está funcionando
+- Confirme se o usuário está autenticado
+
+### Erro: "Elemento do cartão não encontrado"
+- Verifique se o Stripe Elements está sendo renderizado corretamente
+- Confirme se as dependências estão instaladas
 
 ## Próximos Passos
 
-1. Configurar webhooks do Stripe para sincronização
-2. Implementar integração com Firebase para armazenar dados de assinatura
-3. Adicionar notificações de pagamento
-4. Implementar sistema de trial gratuito
-5. Adicionar relatórios financeiros
-
-## Suporte
-
-Para dúvidas sobre a implementação, consulte:
-- [Documentação do Stripe](https://stripe.com/docs)
-- [Stripe Elements](https://stripe.com/docs/stripe-js)
-- [Stripe API Reference](https://stripe.com/docs/api)
+1. Implementar webhooks para sincronização de status de pagamento
+2. Adicionar suporte a outros métodos de pagamento (PIX, boleto)
+3. Implementar sistema de assinaturas recorrentes
+4. Adicionar histórico de transações no dashboard
 
