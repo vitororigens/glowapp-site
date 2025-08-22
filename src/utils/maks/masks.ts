@@ -14,7 +14,7 @@ export function currencyMask(value: string | number | undefined) {
     }
 
     // Se for string, remove caracteres não numéricos e converte para número
-    const stringValue = String(value);
+    const stringValue = String(value || '');
     const numericValue = Number(stringValue.replace(/\D/g, ''));
 
     return new Intl.NumberFormat('pt-BR', {
@@ -133,4 +133,8 @@ export function applyPhoneMask(value: string): string {
 
 export function phoneUnMask(value: string): string {
     return celularUnMask(value);
+}
+
+export function phoneMask(value: string): string {
+    return celularMask(value);
 }

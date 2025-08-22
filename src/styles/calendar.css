@@ -1,0 +1,56 @@
+/* Estilos para o calendário */
+.rdp-weekdays {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+.rdp-head_cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  color: #6b7280 !important;
+  padding: 8px !important;
+  min-width: 32px !important;
+}
+
+.rdp-tbody {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 2px !important;
+}
+
+.rdp-cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 32px !important;
+  height: 32px !important;
+}
+
+.rdp-button {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 6px !important;
+  font-size: 0.875rem !important;
+  transition: all 0.2s !important;
+}
+
+.rdp-button:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.rdp-button[aria-selected="true"] {
+  background-color: #3b82f6 !important;
+  color: white !important;
+}
+
+.rdp-button[aria-selected="true"]:hover {
+  background-color: #2563eb !important;
+}

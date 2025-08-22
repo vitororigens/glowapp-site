@@ -56,7 +56,14 @@ const Header = () => {
               e.preventDefault();
               const plansSection = document.getElementById('plans');
               if (plansSection) {
-                plansSection.scrollIntoView({ behavior: 'smooth' });
+                const offset = 100; // Offset para mostrar o título
+                const elementPosition = plansSection.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.pageYOffset - offset;
+                
+                window.scrollTo({
+                  top: offsetPosition,
+                  behavior: 'smooth'
+                });
               }
             }}>Planos</a>
             <a href="#contact" onClick={(e) => {
@@ -122,7 +129,14 @@ const MenuMobile = () => {
               e.preventDefault();
               const plansSection = document.getElementById('plans');
               if (plansSection) {
-                plansSection.scrollIntoView({ behavior: 'smooth' });
+                const offset = 100; // Offset para mostrar o título
+                const elementPosition = plansSection.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.pageYOffset - offset;
+                
+                window.scrollTo({
+                  top: offsetPosition,
+                  behavior: 'smooth'
+                });
               }
               handleCloseMenu();
             }}>Planos</a>

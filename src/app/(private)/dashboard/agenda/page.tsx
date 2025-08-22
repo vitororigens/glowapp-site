@@ -13,18 +13,53 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlusCircle, CheckCircle2, Circle, Pencil, Trash2, Calendar as CalendarIcon, DollarSign } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Calendar as CalendarIcon, DollarSign } from "lucide-react";
 import { currencyMask } from "@/utils/maks/masks";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-interface Event {
+// Função para formatar valor do agendamento
+const formatAppointmentPrice = (price: number | undefined) => {
+  if (price === undefined || price === null) return 'R$ 0,00';
+  
+  // O preço está sempre em centavos, então dividimos por 100
+  const valueInReais = price / 100;
+  
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(valueInReais);
+};
+
+interface Appointment {
   id: string;
-  name: string;
-  category: string;
-  date: string;
-  hour: string;
-  observation: string;
-  hasNotification: boolean;
-  isChecked: boolean;
+  client: {
+    name: string;
+    phone: string;
+    email: string;
+  };
+  appointment: {
+    date: string;
+    startTime: string;
+    endTime: string;
+    serviceName?: string;
+    servicePrice?: number;
+    procedureName?: string;
+    procedurePrice?: number;
+    professionalName?: string;
+    professionalId?: string;
+    observations?: string;
+  };
+  status: string;
   createdAt: string;
 }
 
@@ -59,12 +94,14 @@ const normalizeDateStr = (dateStr: string) => {
 };
 
 export default function Agenda() {
-  const [events, setEvents] = useState<Event[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [appointmentToDelete, setAppointmentToDelete] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { user } = useAuthContext();
   const uid = user?.uid;
   const router = useRouter();
@@ -72,29 +109,29 @@ export default function Agenda() {
   useEffect(() => {
     if (uid) {
       Promise.all([
-        fetchEvents(),
+        fetchAppointments(),
         fetchServices(),
         fetchTransactions()
       ]).finally(() => setIsLoading(false));
     }
   }, [uid]);
 
-  const fetchEvents = async () => {
+  const fetchAppointments = async () => {
     try {
-      const eventsRef = collection(database, "Notebook");
-      const q = query(eventsRef, where("uid", "==", uid));
+      const appointmentsRef = collection(database, "Appointments");
+      const q = query(appointmentsRef, where("uid", "==", uid));
       const querySnapshot = await getDocs(q);
       
-      const eventsData = querySnapshot.docs.map(doc => ({
+      const appointmentsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        isChecked: false,
-      })) as Event[];
+      })) as Appointment[];
       
-      setEvents(eventsData);
+      console.log('Agendamentos carregados:', appointmentsData);
+      setAppointments(appointmentsData);
     } catch (error) {
-      console.error("Erro ao buscar eventos:", error);
-      toast.error("Erro ao carregar eventos!");
+      console.error("Erro ao buscar agendamentos:", error);
+      toast.error("Erro ao carregar agendamentos!");
     }
   };
 
@@ -137,7 +174,7 @@ export default function Agenda() {
   const hasItemsOnDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     
-    return events.some(event => normalizeDateStr(event.date) === dateStr) ||
+    return appointments.some(appointment => normalizeDateStr(appointment.appointment.date) === dateStr) ||
            services.some(service => normalizeDateStr(service.date) === dateStr) ||
            transactions.some(transaction => normalizeDateStr(transaction.date) === dateStr);
   };
@@ -149,10 +186,10 @@ export default function Agenda() {
     console.log('Serviços disponíveis:', services);
     console.log('Transações disponíveis:', transactions);
 
-    const filteredEvents = events.filter(event => 
-      normalizeDateStr(event.date) === dateStr &&
-      (event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       event.category.toLowerCase().includes(searchTerm.toLowerCase()))
+    const filteredAppointments = appointments.filter(appointment => 
+      normalizeDateStr(appointment.appointment.date) === dateStr &&
+      (appointment.client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       appointment.appointment.serviceName.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     const filteredServices = services.filter(service => {
@@ -168,32 +205,39 @@ export default function Agenda() {
       transaction.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    return { filteredEvents, filteredServices, filteredTransactions };
+    return { filteredAppointments, filteredServices, filteredTransactions };
   };
 
-  const { filteredEvents, filteredServices, filteredTransactions } = getFilteredItems();
+  const { filteredAppointments, filteredServices, filteredTransactions } = getFilteredItems();
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este evento?")) return;
+  const handleDeleteClick = (id: string) => {
+    setAppointmentToDelete(id);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!appointmentToDelete) return;
 
     try {
-      await deleteDoc(doc(database, "Notebook", id));
-      setEvents(events.filter(event => event.id !== id));
-      toast.success("Evento excluído com sucesso!");
+      await deleteDoc(doc(database, "Appointments", appointmentToDelete));
+      setAppointments(appointments.filter(appointment => appointment.id !== appointmentToDelete));
+      toast.success("Agendamento excluído com sucesso!");
     } catch (error) {
-      console.error("Erro ao excluir evento:", error);
-      toast.error("Erro ao excluir evento!");
+      console.error("Erro ao excluir agendamento:", error);
+      toast.error("Erro ao excluir agendamento!");
+    } finally {
+      setShowDeleteDialog(false);
+      setAppointmentToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteDialog(false);
+    setAppointmentToDelete(null);
   };
 
   const handleEdit = (id: string) => {
     router.push(`/dashboard/agenda/novo?id=${id}`);
-  };
-
-  const handleToggleCheck = (id: string) => {
-    setEvents(events.map(event => 
-      event.id === id ? { ...event, isChecked: !event.isChecked } : event
-    ));
   };
 
   return (
@@ -202,7 +246,7 @@ export default function Agenda() {
         <h1 className="text-2xl font-bold">Agenda</h1>
         <Button onClick={() => router.push("/dashboard/agenda/novo")}>
           <PlusCircle className="mr-2 h-4 w-4" />
-          Novo Evento
+          Novo Agendamento
         </Button>
       </div>
 
@@ -257,12 +301,82 @@ export default function Agenda() {
                     <div key={i} className="h-16 bg-gray-100 animate-pulse rounded-lg" />
                   ))}
                 </div>
-              ) : filteredEvents.length === 0 && filteredServices.length === 0 && filteredTransactions.length === 0 ? (
+              ) : filteredAppointments.length === 0 && filteredServices.length === 0 && filteredTransactions.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   Nenhum item encontrado para esta data.
                 </div>
               ) : (
                 <div className="space-y-6">
+                  {filteredAppointments.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="font-medium text-sm text-gray-500 flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4" />
+                        Agendamentos
+                      </h3>
+                      {filteredAppointments.map((appointment) => (
+                        <div
+                          key={appointment.id}
+                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900 mb-3">{appointment.client.name}</h3>
+                            
+                            <div className="space-y-2 text-sm text-gray-600">
+                              <div>
+                                <span className="font-medium text-gray-700">Serviço:</span>
+                                <span className="ml-1">{appointment.appointment.serviceName || appointment.appointment.procedureName || 'Não especificado'}</span>
+                              </div>
+                              
+                              <div>
+                                <span className="font-medium text-gray-700">Valor:</span>
+                                <span className="ml-1 text-blue-600 font-medium">
+                                  {formatAppointmentPrice(appointment.appointment.servicePrice || appointment.appointment.procedurePrice)}
+                                </span>
+                              </div>
+                              
+                              {appointment.appointment.professionalName && (
+                                <div>
+                                  <span className="font-medium text-gray-700">Profissional:</span>
+                                  <span className="ml-1">{appointment.appointment.professionalName}</span>
+                                </div>
+                              )}
+                              
+                              <div>
+                                <span className="font-medium text-gray-700">Horário:</span>
+                                <span className="ml-1">{appointment.appointment.startTime}</span>
+                              </div>
+                            </div>
+                            
+                            {appointment.appointment.observations && (
+                              <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                                <span className="text-xs font-medium text-blue-700">Observações:</span>
+                                <p className="text-xs text-blue-600 mt-1">{appointment.appointment.observations}</p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(appointment.id)}
+                              className="hover:bg-gray-200"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteClick(appointment.id)}
+                              className="hover:bg-red-100 hover:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {filteredServices.length > 0 && (
                     <div className="space-y-3">
                       <h3 className="font-medium text-sm text-gray-500 flex items-center gap-2">
@@ -317,69 +431,37 @@ export default function Agenda() {
                       ))}
                     </div>
                   )}
-
-                  {filteredEvents.length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="font-medium text-sm text-gray-500 flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4" />
-                        Eventos
-                      </h3>
-                      {filteredEvents.map((event) => (
-                        <div
-                          key={event.id}
-                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <button
-                              onClick={() => handleToggleCheck(event.id)}
-                              className="text-gray-400 hover:text-primary transition-colors"
-                            >
-                              {event.isChecked ? (
-                                <CheckCircle2 className="h-5 w-5 text-primary" />
-                              ) : (
-                                <Circle className="h-5 w-5" />
-                              )}
-                            </button>
-                            <div>
-                              <h3 className="font-medium">{event.name}</h3>
-                              <div className="text-sm text-gray-500 space-x-2">
-                                <span>{event.category}</span>
-                                <span>•</span>
-                                <span>{event.hour.replace(/(\d{2})(\d{2})/, '$1:$2')}</span>
-                              </div>
-                              {event.observation && (
-                                <p className="text-sm text-gray-600 mt-1">{event.observation}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(event.id)}
-                              className="hover:bg-gray-200"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(event.id)}
-                              className="hover:bg-red-100 hover:text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )}
             </ScrollArea>
           </Card>
         </div>
       </div>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="max-w-md mx-auto">
+          <AlertDialogHeader className="text-center">
+            <AlertDialogTitle className="text-lg font-semibold text-gray-900">
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-gray-600 mt-2">
+              Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex justify-end gap-3 mt-6 align-center">
+            <AlertDialogCancel onClick={handleDeleteCancel}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 hover:bg-red-700 text-white mt-2 align-center" 
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

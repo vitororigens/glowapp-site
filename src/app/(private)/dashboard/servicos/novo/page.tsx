@@ -729,19 +729,32 @@ export default function NewService() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Nome Completo</Label>
-            <div className="flex gap-2">
+            <div className="relative">
               <Input
                 {...register("name")}
                 placeholder="Nome completo"
                 className={errors.name ? "border-red-500" : ""}
+                style={{ paddingRight: '40px' }}
               />
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
+                style={{ 
+                  position: 'absolute', 
+                  right: '8px', 
+                  top: '50%', 
+                  transform: 'translateY(-50%)',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '6px',
+                  padding: '0',
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb'
+                }}
                 onClick={() => setShowClientsModal(true)}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3 w-3" />
               </Button>
             </div>
             {errors.name && (

@@ -70,8 +70,8 @@ export default function SubscriptionPlans() {
 
   return (
     <div id="plans" className="mt-20">
-      <div className="container mx-auto py-12">
-        <h2 className="text-3xl font-bold text-center mb-8">Escolha seu Plano</h2>
+      <div className="container mx-auto py-16">
+        <h2 className="text-3xl font-bold text-center mb-12">ESCOLHA SEU PLANO</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {plans.map((plan, index) => (
             <Card 
