@@ -222,6 +222,10 @@ export async function cancelSubscription(subscriptionId: string) {
   try {
     console.log('🔄 Cancelando assinatura:', subscriptionId);
 
+    if (!STRIPE_SECRET_API_KEY) {
+      throw new Error('Chave da API do Stripe não configurada');
+    }
+
     const response = await fetch(`${STRIPE_API_URL}/subscriptions/${subscriptionId}`, {
       method: 'DELETE',
       headers: {
@@ -230,16 +234,32 @@ export async function cancelSubscription(subscriptionId: string) {
       },
     });
 
+    console.log('📡 Resposta do Stripe:', {
+      status: response.status,
+      statusText: response.statusText
+    });
+
     if (!response.ok) {
       const errorData = await response.json();
       console.error('❌ Erro ao cancelar assinatura:', errorData);
+      
+      // Verificar se é erro específico de cartão de teste
+      if (errorData.error?.code === 'subscription_cannot_be_canceled') {
+        throw new Error('Esta assinatura não pode ser cancelada no momento. Tente novamente mais tarde.');
+      }
+      
       throw new Error(
         `Erro ao cancelar assinatura: ${errorData.error?.message || 'Erro desconhecido'}`,
       );
     }
 
     const data = await response.json();
-    console.log('✅ Assinatura cancelada com sucesso:', data);
+    console.log('✅ Assinatura cancelada com sucesso:', {
+      id: data.id,
+      status: data.status,
+      canceled_at: data.canceled_at,
+      current_period_end: data.current_period_end
+    });
 
     return data;
   } catch (error) {

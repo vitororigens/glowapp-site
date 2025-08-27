@@ -36,24 +36,21 @@ export function useUserPlan() {
       if (planDoc.exists()) {
         const data = planDoc.data();
         const lastChecked = data.lastChecked.toDate();
-        const now = new Date();
         
-        // Se a última verificação foi há mais de 1 hora, verificar novamente
-        const hoursSinceLastCheck = (now.getTime() - lastChecked.getTime()) / (1000 * 60 * 60);
+        // Sempre usar os dados mais recentes do Firestore
+        setUserPlan({
+          planId: data.planId,
+          planName: data.planName,
+          isActive: data.isActive,
+          hasPaidPlan: data.hasPaidPlan,
+          lastChecked: lastChecked
+        });
         
-        if (hoursSinceLastCheck > 1) {
-          // Verificar se o usuário tem plano pago no Stripe
-          await checkPaidPlan();
-        } else {
-          // Usar dados em cache
-          setUserPlan({
-            planId: data.planId,
-            planName: data.planName,
-            isActive: data.isActive,
-            hasPaidPlan: data.hasPaidPlan,
-            lastChecked: lastChecked
-          });
-        }
+        console.log('📋 Plano carregado do Firestore:', {
+          planId: data.planId,
+          planName: data.planName,
+          hasPaidPlan: data.hasPaidPlan
+        });
       } else {
         // Primeira vez - criar plano gratuito
         await createFreePlan();
@@ -139,27 +136,51 @@ export function useUserPlan() {
     }
   };
 
-  const updateToPaidPlan = async (planId: string, planName: string) => {
+  const updateToPaidPlan = async (planId: string, planName: string, paymentIntentId?: string) => {
     if (!user?.uid) return;
 
     try {
-      const paidPlan: UserPlan = {
+      console.log('🔄 Atualizando plano via API:', { planId, planName, paymentIntentId });
+
+      // Chamar a API para atualizar o plano
+      const response = await fetch('/api/update-user-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          planId,
+          planName,
+          paymentIntentId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar plano via API');
+      }
+
+      const result = await response.json();
+      console.log('✅ Plano atualizado via API:', result);
+
+      // Atualizar o estado local
+      const updatedPlan: UserPlan = {
         planId,
         planName,
         isActive: true,
-        hasPaidPlan: true,
+        hasPaidPlan: planId !== 'glow-start',
         lastChecked: new Date()
       };
 
-      const planRef = doc(database, 'userPlans', user.uid);
-      await setDoc(planRef, {
-        ...paidPlan,
-        lastChecked: new Date()
-      });
-
-      setUserPlan(paidPlan);
+      setUserPlan(updatedPlan);
+      
+      // Forçar recarregamento do plano em todas as páginas
+      await loadUserPlan();
+      
+      return result;
     } catch (error) {
       console.error('Erro ao atualizar para plano pago:', error);
+      throw error;
     }
   };
 
@@ -179,6 +200,12 @@ export function useUserPlan() {
     return userPlan?.isActive || false;
   };
 
+  // Função para forçar atualização do plano em todas as páginas
+  const refreshUserPlan = async () => {
+    console.log('🔄 Forçando atualização do plano...');
+    await loadUserPlan();
+  };
+
   return {
     userPlan,
     loading,
@@ -187,6 +214,7 @@ export function useUserPlan() {
     getCurrentPlanName,
     isPlanActive,
     updateToPaidPlan,
-    checkPaidPlan
+    checkPaidPlan,
+    refreshUserPlan
   };
 }

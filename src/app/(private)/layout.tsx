@@ -13,6 +13,7 @@ import "../../styles/style-theme.css";
 import "../../styles/style-theme-responsive.css";
 
 import { AuthProvider } from "@/context/AuthContext";
+import { PlanProvider } from "@/context/PlanContext";
 
 import { Cursor } from "@/components/Cursor";
 import StyledComponentsRegistry from "../registry";
@@ -42,7 +43,8 @@ export default function DashboardLayout({
 
   return (
     <AuthProvider>
-      <StyledComponentsRegistry>
+      <PlanProvider>
+        <StyledComponentsRegistry>
         <div className="min-h-screen bg-gray-100">
           <aside
             className={cn(
@@ -107,7 +109,8 @@ export default function DashboardLayout({
         </div>
         <Cursor />
         <ToastContainer />
-      </StyledComponentsRegistry>
+        </StyledComponentsRegistry>
+      </PlanProvider>
     </AuthProvider>
   );
 }

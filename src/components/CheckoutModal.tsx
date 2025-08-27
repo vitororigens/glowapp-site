@@ -7,39 +7,34 @@ import { Label } from '@/components/ui/label';
 import { createPaymentIntent } from '@/services/stripeService';
 import { toast } from 'react-toastify';
 import { useAuthContext } from '@/context/AuthContext';
+import { useUserPlan } from '@/hooks/useUserPlan';
+import { usePlanContext } from '@/context/PlanContext';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Elements, useStripe, useElements, CardNumberElement, CardExpiryElement, CardCvcElement } from '@stripe/react-stripe-js';
 
 // Carregar o Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 // Função para sanitizar erros do Stripe e não expor informações sensíveis
 const sanitizeStripeError = (error: any): string => {
-  console.log('Erro recebido para sanitização:', error);
-  
-  // Se o erro for um objeto vazio ou null/undefined
   if (!error || (typeof error === 'object' && Object.keys(error).length === 0)) {
     return 'Erro temporário no sistema de pagamento. Tente novamente em alguns instantes.';
   }
   
   const message = error?.message || error?.toString() || '';
   
-  // Se a mensagem contém informações sobre API keys, retornar uma mensagem genérica
   if (message.includes('Invalid API Key') || message.includes('pk_live') || message.includes('pk_test')) {
     return 'Erro temporário no sistema de pagamento. Tente novamente em alguns instantes.';
   }
   
-  // Se a mensagem contém informações sobre webhooks ou outras configurações internas
   if (message.includes('webhook') || message.includes('endpoint') || message.includes('secret')) {
     return 'Erro temporário no sistema de pagamento. Tente novamente em alguns instantes.';
   }
   
-  // Erros relacionados ao cartão podem ser mostrados
   if (message.includes('card') || message.includes('declined') || message.includes('insufficient')) {
     return message;
   }
   
-  // Para outros erros técnicos, mostrar mensagem genérica
   if (message.length > 100 || message.includes('Stripe')) {
     return 'Erro ao processar pagamento. Verifique os dados do cartão e tente novamente.';
   }
@@ -58,20 +53,20 @@ interface CheckoutModalProps {
   onSuccess: () => void;
 }
 
-// Componente interno que usa o Stripe Elements
 function CheckoutForm({ plan, onSuccess, onClose }: { 
   plan: { id: string; name: string; price: number }; 
   onSuccess: () => void;
   onClose: () => void;
 }) {
   const { user } = useAuthContext();
+  const { updateToPaidPlan } = useUserPlan();
+  const { refreshPlan } = usePlanContext();
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
   const [clientSecret, setClientSecret] = useState('');
 
   useEffect(() => {
-    // Criar o Payment Intent quando o componente montar
     const createIntent = async () => {
       try {
         if (!user?.email) {
@@ -79,9 +74,7 @@ function CheckoutForm({ plan, onSuccess, onClose }: {
           return;
         }
         
-        console.log('Criando Payment Intent para:', { planId: plan.id, email: user.email, name: user.displayName });
         const secret = await createPaymentIntent(plan.id, user.email, user.displayName || '');
-        console.log('Payment Intent criado com sucesso, clientSecret:', secret);
         setClientSecret(secret);
       } catch (error) {
         console.error('Erro ao criar Payment Intent:', error);
@@ -102,7 +95,6 @@ function CheckoutForm({ plan, onSuccess, onClose }: {
       return;
     }
 
-    // Se for plano gratuito, não precisa processar pagamento
     if (clientSecret === 'free_plan') {
       toast.success('Plano gratuito ativado com sucesso!');
       onSuccess();
@@ -113,35 +105,45 @@ function CheckoutForm({ plan, onSuccess, onClose }: {
     setLoading(true);
 
     try {
-      console.log('Processando pagamento com Stripe Elements...');
-      
-      // Obter o elemento do cartão
-      const cardElement = elements.getElement(CardElement);
-      if (!cardElement) {
+      const cardNumberElement = elements.getElement(CardNumberElement);
+      if (!cardNumberElement) {
         throw new Error('Elemento do cartão não encontrado');
       }
 
-      // Confirmar o pagamento usando o Stripe.js
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
-          card: cardElement,
+          card: cardNumberElement,
         },
       });
 
       if (error) {
-        console.error('Erro no pagamento:', error);
         throw new Error(error.message || 'Erro ao processar pagamento');
       }
 
       if (paymentIntent && paymentIntent.status === 'succeeded') {
-        toast.success('Pagamento realizado com sucesso!');
-        onSuccess();
-        onClose();
+        console.log('✅ Pagamento realizado com sucesso:', paymentIntent);
+        
+        try {
+          // Atualizar o plano do usuário no banco de dados
+          await updateToPaidPlan(plan.id, plan.name, paymentIntent.id);
+          console.log('✅ Plano atualizado com sucesso');
+          
+          // Forçar atualização do plano em todas as páginas
+          await refreshPlan();
+          console.log('✅ Plano sincronizado em todas as páginas');
+          
+          toast.success('Pagamento realizado e plano ativado com sucesso!');
+          onSuccess();
+          onClose();
+        } catch (updateError) {
+          console.error('❌ Erro ao atualizar plano:', updateError);
+          toast.error('Pagamento realizado, mas houve erro ao ativar o plano. Entre em contato com o suporte.');
+          onClose();
+        }
       } else {
         throw new Error('Pagamento não foi confirmado');
       }
     } catch (error) {
-      console.error('Erro ao processar pagamento:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro ao processar pagamento. Tente novamente.';
       toast.error(errorMessage);
     } finally {
@@ -153,7 +155,7 @@ function CheckoutForm({ plan, onSuccess, onClose }: {
     return `R$ ${price.toFixed(2).replace('.', ',')}`;
   };
 
-  const cardElementOptions = {
+  const cardStyle = {
     style: {
       base: {
         fontSize: '16px',
@@ -172,17 +174,27 @@ function CheckoutForm({ plan, onSuccess, onClose }: {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
         <div>
-          <Label htmlFor="card-element">Dados do Cartão</Label>
+          <Label>Número do Cartão</Label>
           <div className="mt-1 p-3 border border-gray-300 rounded-md">
-            <CardElement
-              id="card-element"
-              options={cardElementOptions}
-            />
+            <CardNumberElement options={cardStyle} />
+          </div>
+        </div>
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <Label>Validade (MM/AA)</Label>
+            <div className="mt-1 p-3 border border-gray-300 rounded-md">
+              <CardExpiryElement options={cardStyle} />
+            </div>
+          </div>
+          <div className="flex-1">
+            <Label>CVC</Label>
+            <div className="mt-1 p-3 border border-gray-300 rounded-md">
+              <CardCvcElement options={cardStyle} />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Debug: Mostrar informações do Stripe */}
       <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
         <div>ClientSecret: {clientSecret ? '✅ Presente' : '❌ Ausente'}</div>
         <div>Usuário: {user?.email || 'Não logado'}</div>
@@ -225,4 +237,3 @@ export default function CheckoutModal({ isOpen, onClose, plan, onSuccess }: Chec
     </Dialog>
   );
 }
-

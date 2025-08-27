@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useUserAuth } from './useUserAuth';
-import { findStripeCustomerByEmail, getCustomerSubscriptions } from '@/services/stripeService';
-import { useTrialPeriod } from './useTrialPeriod';
+import { usePlanContext } from '@/context/PlanContext';
 
 export interface PlanLimits {
   clients: number;
@@ -13,7 +12,7 @@ export interface PlanLimits {
 
 export function usePlanLimitations() {
   const { user } = useUserAuth();
-  const { trialInfo, isTrialExpired, getDaysRemaining, isTrialActive } = useTrialPeriod();
+  const { currentPlan, currentPlanName, hasPaidPlan, isPlanActive, loading: planLoading } = usePlanContext();
   const [planLimits, setPlanLimits] = useState<PlanLimits>({
     clients: 10,
     images: 4,
@@ -30,88 +29,38 @@ export function usePlanLimitations() {
       return;
     }
 
-    if (user?.email) {
+    if (user?.email && !planLoading) {
       loadUserPlan();
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, currentPlan, planLoading]); // Adicionar currentPlan como dependência
 
   const loadUserPlan = async () => {
     if (!user?.email) return;
 
     setLoading(true);
     try {
-      // Primeiro, verificar se o trial está ativo
-      const trialActive = isTrialActive();
-      const trialExpired = isTrialExpired();
+      console.log('📋 Carregando limitações para plano:', currentPlan);
       
-      // Se o trial está ativo e não expirou, usar plano gratuito sem buscar no Stripe
-      if (trialActive && !trialExpired) {
-        setPlanLimits({
-          clients: 10,
-          images: 4,
-          isActive: true,
-          planName: 'Glow Start (Trial)',
-          planId: 'glow-start'
-        });
-        setLoading(false);
-        return;
-      }
+      // Definir limitações baseadas no plano atual
+      const limits = getPlanLimits(currentPlan);
       
-      // Se o trial expirou, verificar se tem plano pago no Stripe
-      if (trialExpired) {
-        try {
-          const stripeCustomer = await findStripeCustomerByEmail(user.email);
-          
-          if (stripeCustomer) {
-            const customerSubs = await getCustomerSubscriptions(stripeCustomer.id);
-            
-            if (customerSubs.length > 0) {
-              const subscription = customerSubs[0];
-              const plan = subscription.items.data[0];
-              const productId = plan.price.product;
-              
-              // Verificar se a assinatura está ativa
-              if (subscription.status === 'active') {
-                const limits = getPlanLimits(productId);
-                setPlanLimits({
-                  ...limits,
-                  isActive: true,
-                  planName: getPlanName(productId),
-                  planId: productId
-                });
-                setLoading(false);
-                return;
-              }
-            }
-          }
-        } catch (error) {
-          // Se der erro 404, significa que não tem plano pago
-          console.log('Usuário não possui plano pago ativo:', user.email);
-        }
-        
-        // Se chegou aqui, trial expirado e sem plano pago
-        setPlanLimits({
-          clients: 0,
-          images: 0,
-          isActive: false,
-          planName: 'Glow Start (Expirado)',
-          planId: 'glow-start'
-        });
-      } else {
-        // Fallback para plano gratuito (caso trial não esteja carregado ainda)
-        setPlanLimits({
-          clients: 10,
-          images: 4,
-          isActive: true,
-          planName: 'Glow Start',
-          planId: 'glow-start'
-        });
-      }
+      setPlanLimits({
+        ...limits,
+        isActive: isPlanActive,
+        planName: currentPlanName,
+        planId: currentPlan
+      });
+      
+      console.log('✅ Limitações atualizadas:', {
+        plan: currentPlan,
+        name: currentPlanName,
+        limits: limits
+      });
     } catch (error) {
-      console.error('Erro ao carregar plano do usuário:', error);
-      // Em caso de erro, assume plano gratuito
+      console.error('Erro ao carregar limitações do plano:', error);
+      // Em caso de erro, usar plano gratuito
       setPlanLimits({
         clients: 10,
         images: 4,

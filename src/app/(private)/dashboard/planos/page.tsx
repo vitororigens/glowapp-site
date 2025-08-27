@@ -112,10 +112,8 @@ export default function PlanosPage() {
     toast.success('Plano ativado com sucesso!');
     setShowCheckout(false);
     setSelectedPlan(null);
-    // Recarregar o plano do usuário
-    setTimeout(() => {
-      window.location.reload();
-    }, 1500);
+    // O hook useUserPlan já atualiza automaticamente
+    // Não precisa recarregar a página
   };
 
   const formatPrice = (price: number) => {
