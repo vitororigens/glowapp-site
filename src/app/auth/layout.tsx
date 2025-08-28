@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import StyledComponentsRegistry from "../registry";
-import "@/styles/globals.css";
 import ClientOnly from "@/components/ClientOnly";
 
 import { ToastContainer } from "react-toastify";

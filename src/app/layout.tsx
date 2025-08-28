@@ -1,5 +1,12 @@
 import type { Metadata } from 'next'
 
+// Importações CSS globais
+import "@/styles/bootstrap.css";
+import "@/styles/globals.css";
+import "@/styles/global.css";
+import "@/styles/style-theme.css";
+import "@/styles/style-theme-responsive.css";
+
 export const metadata: Metadata = {
   title: 'GlowApp',
   description: 'Plataforma digital para profissionais',

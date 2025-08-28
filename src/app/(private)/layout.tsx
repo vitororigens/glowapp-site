@@ -5,12 +5,7 @@ import Link from "next/link";
 import { useState, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import ProfileDropdown from "@/components/ProfileDropdown";
-
-import "../../styles/bootstrap.css";
-import "../../styles/globals.css";
-import "../../styles/global.css";
-import "../../styles/style-theme.css";
-import "../../styles/style-theme-responsive.css";
+import ClientOnly from "@/components/ClientOnly";
 
 import { AuthProvider } from "@/context/AuthContext";
 import { PlanProvider } from "@/context/PlanContext";
@@ -42,75 +37,77 @@ export default function DashboardLayout({
   ];
 
   return (
-    <AuthProvider>
-      <PlanProvider>
-        <StyledComponentsRegistry>
-        <div className="min-h-screen bg-gray-100">
-          <aside
-            className={cn(
-              "fixed left-0 top-0 z-40 h-screen w-64 transform bg-white transition-transform duration-200 ease-in-out",
-              !sidebarOpen && "-translate-x-full"
-            )}
-          >
-            <div className="flex h-16 items-center justify-between border-b px-4">
-              <h1 className="text-xl font-bold">Dashboard</h1>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="rounded-lg p-2 hover:bg-gray-100 lg:hidden"
-                title="Close sidebar"
+    <ClientOnly>
+      <AuthProvider>
+        <PlanProvider>
+          <StyledComponentsRegistry>
+            <div className="min-h-screen bg-gray-100">
+              <aside
+                className={cn(
+                  "fixed left-0 top-0 z-40 h-screen w-64 transform bg-white transition-transform duration-200 ease-in-out",
+                  !sidebarOpen && "-translate-x-full"
+                )}
               >
-                <MenuIcon className="h-6 w-6" />
-              </button>
-            </div>
-            <nav className="space-y-1 p-4">
-              {menuItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="block rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </aside>
-
-          <div
-            className={cn(
-              "transition-margin duration-200 ease-in-out",
-              sidebarOpen ? "lg:ml-64" : ""
-            )}
-          >
-            <header className="fixed top-0 z-30 w-full bg-white shadow">
-              <div className="flex h-16 items-center justify-between px-4">
-                <button
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="rounded-lg p-2 hover:bg-gray-100"
-                >
-                  <MenuIcon className="h-6 w-6" />
-                </button>
-                <div className={cn(sidebarOpen ? "lg:mr-80" : "", "mr-4")}> 
-                  <ProfileDropdown />
+                <div className="flex h-16 items-center justify-between border-b px-4">
+                  <h1 className="text-xl font-bold">Dashboard</h1>
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                    className="rounded-lg p-2 hover:bg-gray-100 lg:hidden"
+                    title="Close sidebar"
+                  >
+                    <MenuIcon className="h-6 w-6" />
+                  </button>
                 </div>
-              </div>
-            </header>
-            <main className="container mx-auto px-4 pt-20">
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center h-screen">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid"></div>
-                  </div>
-                }
+                <nav className="space-y-1 p-4">
+                  {menuItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="block rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </nav>
+              </aside>
+
+              <div
+                className={cn(
+                  "transition-margin duration-200 ease-in-out",
+                  sidebarOpen ? "lg:ml-64" : ""
+                )}
               >
-                {children}
-              </Suspense>
-            </main>
-          </div>
-        </div>
-        <Cursor />
-        <ToastContainer />
-        </StyledComponentsRegistry>
-      </PlanProvider>
-    </AuthProvider>
+                <header className="fixed top-0 z-30 w-full bg-white shadow">
+                  <div className="flex h-16 items-center justify-between px-4">
+                    <button
+                      onClick={() => setSidebarOpen(!sidebarOpen)}
+                      className="rounded-lg p-2 hover:bg-gray-100"
+                    >
+                      <MenuIcon className="h-6 w-6" />
+                    </button>
+                    <div className={cn(sidebarOpen ? "lg:mr-80" : "", "mr-4")}> 
+                      <ProfileDropdown />
+                    </div>
+                  </div>
+                </header>
+                <main className="container mx-auto px-4 pt-20">
+                  <Suspense
+                    fallback={
+                      <div className="flex items-center justify-center h-screen">
+                        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid"></div>
+                      </div>
+                    }
+                  >
+                    {children}
+                  </Suspense>
+                </main>
+              </div>
+            </div>
+            <Cursor />
+            <ToastContainer />
+          </StyledComponentsRegistry>
+        </PlanProvider>
+      </AuthProvider>
+    </ClientOnly>
   );
 }
