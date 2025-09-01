@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
+import { formatDateToBrazilian } from "@/utils/formater/date";
 
 interface Service {
   id: string;
@@ -176,7 +177,7 @@ export default function Services() {
                   return (
                     <TableRow key={service.id}>
                       <TableCell>{service.name}</TableCell>
-                      <TableCell>{service.date}</TableCell>
+                      <TableCell>{formatDateToBrazilian(service.date)}</TableCell>
                       <TableCell>{service.time}</TableCell>
                       <TableCell>{formatPrice(valorTotal)}</TableCell>
                       <TableCell className="text-green-600">{formatPrice(paidAmount)}</TableCell>

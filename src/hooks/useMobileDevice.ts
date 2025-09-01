@@ -3,11 +3,13 @@ import { useState, useEffect } from 'react';
 const useIsMobile = ({
   breakpoint = 768
 }) => {
-  if (typeof window === 'undefined') return { isMobile: false };
-
-  const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth <= breakpoint);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [isClient, setIsClient] = useState<boolean>(false);
 
   useEffect(() => {
+    setIsClient(true);
+    setIsMobile(window.innerWidth <= breakpoint);
+
     const handleResize = () => {
       setIsMobile(window.innerWidth <= breakpoint);
     };
@@ -20,7 +22,7 @@ const useIsMobile = ({
     };
   }, [breakpoint]);
 
-  return { isMobile, setIsMobile };
+  return { isMobile: isClient ? isMobile : false, setIsMobile };
 };
 
 export { useIsMobile };

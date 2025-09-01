@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { currencyMask } from "@/utils/maks/masks";
+import { formatDateToBrazilian } from "@/utils/formater/date";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 
 interface Service {
@@ -110,7 +111,7 @@ export default function DashboardHome() {
       .map(service => ({
         id: service.id,
         name: service.name,
-        date: service.date,
+        date: formatDateToBrazilian(service.date),
         price: service.price,
         budget: service.budget,
         sendToFinance: service.sendToFinance,

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, Edit, Trash2, AlertTriangle, Image } from "lucide-react";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatDateToBrazilian } from "@/utils/formater/date";
 
 interface Service {
   id: string;
@@ -496,7 +497,7 @@ export default function ClientHistory() {
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-medium text-lg">{mainService}</h3>
-                          <p className="text-sm text-gray-600">{service.date} | {service.time}</p>
+                          <p className="text-sm text-gray-600">{formatDateToBrazilian(service.date)} | {service.time}</p>
                         </div>
                         <span className={`px-2 py-1 rounded-full text-xs ${
                           isBudget ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'

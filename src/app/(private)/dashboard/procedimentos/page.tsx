@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { currencyMask } from "@/utils/maks/masks";
+import { formatDateToBrazilian } from "@/utils/formater/date";
 
 interface Procedure {
   id: string;
@@ -110,7 +111,7 @@ export default function Procedures() {
                   <TableCell>{procedure.name}</TableCell>
                   <TableCell>{currencyMask(procedure.price)}</TableCell>
                   <TableCell>{procedure.description || "-"}</TableCell>
-                  <TableCell>{procedure.date || "-"}</TableCell>
+                  <TableCell>{procedure.date ? formatDateToBrazilian(procedure.date) : "-"}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="outline"

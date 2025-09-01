@@ -184,3 +184,4 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   console.log('✅ Usuário voltou para plano gratuito:', userId);
 }
+

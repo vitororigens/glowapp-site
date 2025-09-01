@@ -1156,24 +1156,29 @@ export default function NewService() {
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {beforePhotos.map((photo, index) => (
-                <div key={index} className="relative group">
-                  <img
-                    src={photo.url}
-                    alt={`Foto antes ${index + 1}`}
-                    className="w-full h-48 object-cover rounded"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              {beforePhotos.length === 0 ? (
+                <div className="col-span-3 text-center py-8 text-gray-500">
+                  Nenhuma foto adicionada
+                </div>
+              ) : (
+                beforePhotos.map((photo, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={photo.url}
+                      alt={`Foto antes ${index + 1}`}
+                      className="w-full h-48 object-cover rounded"
+                    />
                     <Button
                       variant="destructive"
-                      size="sm"
+                      size="icon"
                       onClick={() => handleRemoveFile('before', index)}
+                      className="absolute top-2 right-2 h-8 w-8 bg-red-600 hover:bg-red-700"
                     >
-                      Remover
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </Card>
@@ -1204,24 +1209,29 @@ export default function NewService() {
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {afterPhotos.map((photo, index) => (
-                <div key={index} className="relative group">
-                  <img
-                    src={photo.url}
-                    alt={`Foto depois ${index + 1}`}
-                    className="w-full h-48 object-cover rounded"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              {afterPhotos.length === 0 ? (
+                <div className="col-span-3 text-center py-8 text-gray-500">
+                  Nenhuma foto adicionada
+                </div>
+              ) : (
+                afterPhotos.map((photo, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={photo.url}
+                      alt={`Foto depois ${index + 1}`}
+                      className="w-full h-48 object-cover rounded"
+                    />
                     <Button
                       variant="destructive"
-                      size="sm"
+                      size="icon"
                       onClick={() => handleRemoveFile('after', index)}
+                      className="absolute top-2 right-2 h-8 w-8 bg-red-600 hover:bg-red-700"
                     >
-                      Remover
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </Card>

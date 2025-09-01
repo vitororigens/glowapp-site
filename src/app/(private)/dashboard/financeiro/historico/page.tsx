@@ -8,6 +8,7 @@ import { currencyMask } from '@/utils/maks/masks';
 import { toast } from "react-toastify";;
 import { deleteDoc, doc } from 'firebase/firestore';
 import { database } from "@/services/firebase";
+import { formatDateToBrazilian } from "@/utils/formater/date";
 
 interface Transaction {
   id: string;
@@ -96,7 +97,7 @@ export default function Historico() {
               {filteredTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell>{transaction.name}</TableCell>
-                  <TableCell>{transaction.date}</TableCell>
+                  <TableCell>{formatDateToBrazilian(transaction.date)}</TableCell>
                   <TableCell className={transaction.type === 'Serviço' ? 'text-green-600' : 'text-green-600'}>{currencyMask(transaction.value.toString())}</TableCell>
                   <TableCell>{transaction.category}</TableCell>
                   <TableCell>{transaction.description}</TableCell>

@@ -16,6 +16,7 @@ import { currencyMask } from "@/utils/maks/masks";
 import { database } from "@/services/firebase";
 import { deleteDoc, doc } from "firebase/firestore";
 import { toast } from "react-toastify";
+import { formatDateToBrazilian } from "@/utils/formater/date";
 
 interface Transaction {
   id: string;
@@ -197,7 +198,7 @@ export default function Financeiro() {
               {allTransactions.filter(t => t.collection === "Revenue").slice(0, 10).map((transaction) => (
                 <TableRow key={`${transaction.collection}-${transaction.id}`}>
                   <TableCell>{transaction.name}</TableCell>
-                  <TableCell>{transaction.date}</TableCell>
+                  <TableCell>{formatDateToBrazilian(transaction.date)}</TableCell>
                   <TableCell>
                     {transaction.type === "Serviço" ? 
                       formatPrice((transaction as any).originalPrice) 
@@ -287,7 +288,7 @@ export default function Financeiro() {
               {allTransactions.filter(t => t.collection === "Expense").slice(0, 10).map((transaction) => (
                 <TableRow key={`${transaction.collection}-${transaction.id}`}>
                   <TableCell>{transaction.name}</TableCell>
-                  <TableCell>{transaction.date}</TableCell>
+                  <TableCell>{formatDateToBrazilian(transaction.date)}</TableCell>
                   <TableCell className="text-red-600">{formatPrice(transaction.value, true)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">

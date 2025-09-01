@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import StyledComponentsRegistry from "../registry";
-import ClientOnly from "@/components/ClientOnly";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -17,13 +16,11 @@ export default function AuthLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClientOnly>
-      <AuthProvider>
-        <StyledComponentsRegistry>
-          {children}
-          <ToastContainer />
-        </StyledComponentsRegistry>
-      </AuthProvider>
-    </ClientOnly>
+    <AuthProvider>
+      <StyledComponentsRegistry>
+        {children}
+        <ToastContainer />
+      </StyledComponentsRegistry>
+    </AuthProvider>
   );
 }
