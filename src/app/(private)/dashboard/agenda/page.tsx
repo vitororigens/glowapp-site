@@ -185,10 +185,12 @@ export default function Agenda() {
       
       const appointmentsData = querySnapshot.docs.map(doc => {
         const data = doc.data();
+        // Normaliza status antigos 'agendado' -> 'pendente'
+        const normalizedStatus = (data.status === 'agendado' || !data.status) ? 'pendente' : data.status;
         return {
           id: doc.id,
           ...data,
-          status: data.status || 'pendente' // Define status padrão se não existir
+          status: normalizedStatus // Define status padrão/normalizado
         };
       }) as Appointment[];
       
@@ -258,23 +260,15 @@ export default function Agenda() {
       (statusFilter === 'todos' || appointment.status === statusFilter)
     );
 
-    const filteredServices = services.filter(service => {
-      const normalizedDate = normalizeDateStr(service.date);
-      console.log('Comparando serviço:', service.name, 'Data:', service.date, 'Normalizada:', normalizedDate);
-      return normalizedDate === dateStr &&
-             !service.budget &&
-             service.name.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-
     const filteredTransactions = transactions.filter(transaction => 
       normalizeDateStr(transaction.date) === dateStr &&
       transaction.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    return { filteredAppointments, filteredServices, filteredTransactions };
+    return { filteredAppointments, filteredTransactions };
   };
 
-  const { filteredAppointments, filteredServices, filteredTransactions } = getFilteredItems();
+  const { filteredAppointments, filteredTransactions } = getFilteredItems();
 
   const handleDeleteClick = (id: string) => {
     setAppointmentToDelete(id);
@@ -351,7 +345,7 @@ export default function Agenda() {
     setAppointmentToConvert(appointment);
     setConversionStep(1);
     setConversionData({
-      clientCpf: '',
+      clientCpf: (appointment.client as any).cpf || '',
       observations: appointment.appointment.observations || '',
       beforePhotos: [],
       afterPhotos: [],
@@ -458,7 +452,7 @@ export default function Agenda() {
     
     setIsUploading(true);
     try {
-      const uploadedFiles = [];
+      const uploadedFiles: { url: string; description?: string }[] = [];
       
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -512,31 +506,74 @@ export default function Agenda() {
 
   const convertToService = async (appointment: Appointment) => {
     try {
-      // Criar um novo serviço baseado no agendamento
+      // Encontrar o contato para obter o contactUid
+      let contactUid: string | undefined = undefined;
+      try {
+        const contactsRef = collection(database, "Contacts");
+        const cpfNumeric = (conversionData.clientCpf || '').replace(/\D/g, '');
+        let qContacts;
+        if (cpfNumeric) {
+          qContacts = query(contactsRef, where("cpf", "==", cpfNumeric));
+        } else {
+          qContacts = query(contactsRef, where("name", "==", appointment.client.name));
+        }
+        const contactsSnap = await getDocs(qContacts);
+        if (!contactsSnap.empty) {
+          contactUid = contactsSnap.docs[0].id;
+        }
+      } catch (e) {
+        console.warn('Não foi possível identificar o contato para contactUid:', e);
+      }
+
+      // Preparar pagamentos no formato do serviço padrão (valor numérico)
+      const processedPayments = payments.map(p => ({
+        method: p.method,
+        value: Number((p.value || '').replace(/\D/g, '')),
+        date: p.date || '',
+        installments: p.installments ?? null,
+      }));
+      const paidAmount = processedPayments.reduce((sum, p) => sum + (p.value || 0), 0);
+
+      // Criar um novo serviço baseado no formato de servicos/novo
       const serviceData = {
-        uid: uid,
-        name: appointment.appointment.serviceName || appointment.appointment.procedureName || 'Serviço convertido',
-        date: appointment.appointment.date,
-        time: appointment.appointment.startTime,
-        price: appointment.appointment.servicePrice || appointment.appointment.procedurePrice || 0,
+        name: appointment.client.name,
+        cpf: (conversionData.clientCpf || '').replace(/\D/g, ''),
+        phone: appointment.client.phone || '',
+        email: appointment.client.email || '',
+        date: appointment.appointment.date || '',
+        time: appointment.appointment.startTime || '',
+        price: (appointment.appointment.servicePrice || appointment.appointment.procedurePrice || 0),
+        paidAmount,
+        priority: "",
+        duration: "",
+        observations: conversionData.observations || '',
+        services: [
+          {
+            id: (appointment as any).appointment?.procedureId || '',
+            code: '',
+            name: appointment.appointment.serviceName || appointment.appointment.procedureName || 'Serviço',
+            price: String(appointment.appointment.servicePrice || appointment.appointment.procedurePrice || 0),
+            date: appointment.appointment.date || ''
+          }
+        ],
+        professionals: appointment.appointment.professionalName ? [
+          {
+            id: appointment.appointment.professionalId || '',
+            name: appointment.appointment.professionalName,
+            specialty: ''
+          }
+        ] : [],
         budget: false,
-        clientName: appointment.client.name,
-        clientPhone: appointment.client.phone,
-        clientEmail: appointment.client.email,
-        clientCpf: conversionData.clientCpf,
-        professionalName: appointment.appointment.professionalName,
-        professionalId: appointment.appointment.professionalId,
-        observations: conversionData.observations,
-        payments: payments.map(payment => ({
-          method: payment.method,
-          value: payment.value.replace(/\D/g, ''),
-          date: payment.date,
-          installments: payment.installments
-        })),
-        beforePhotos: conversionData.beforePhotos,
-        afterPhotos: conversionData.afterPhotos,
+        sendToFinance: false,
+        payments: processedPayments,
+        documents: [],
+        beforePhotos: conversionData.beforePhotos.map(p => ({ url: p.url, description: p.description ?? '' })),
+        afterPhotos: conversionData.afterPhotos.map(p => ({ url: p.url, description: p.description ?? '' })),
+        uid: uid,
+        contactUid: contactUid,
         convertedFromAppointment: true,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
       // Adicionar o serviço
@@ -546,9 +583,9 @@ export default function Agenda() {
       // Excluir o agendamento
       await deleteDoc(doc(database, "Appointments", appointment.id));
       
-      // Atualizar estados locais
-      setServices([...services, { id: docRef.id, ...serviceData }]);
-      setAppointments(appointments.filter(a => a.id !== appointment.id));
+      // Atualizar estados locais (forma funcional para evitar estado stale)
+      setServices((prev) => [...prev, { id: docRef.id, ...serviceData }]);
+      setAppointments((prev) => prev.filter(a => a.id !== appointment.id));
       
       toast.success("Agendamento convertido para serviço com sucesso!");
       setShowConversionModal(false);
@@ -965,7 +1002,7 @@ export default function Agenda() {
                       <div key={i} className="h-12 bg-gray-100 animate-pulse rounded-lg" />
                     ))}
                   </div>
-                ) : filteredAppointments.length === 0 && filteredServices.length === 0 && filteredTransactions.length === 0 ? (
+                ) : filteredAppointments.length === 0 && filteredTransactions.length === 0 ? (
                   <div className="text-center py-4 text-gray-500 text-sm">
                     Nenhum agendamento para esta data.
                   </div>
@@ -983,45 +1020,6 @@ export default function Agenda() {
                           .map((appointment) => (
                             <AppointmentCard key={appointment.id} appointment={appointment} />
                           ))}
-                      </div>
-                    )}
-
-                    {filteredServices.length > 0 && (
-                      <div className="space-y-2">
-                        {filteredServices.map((service) => (
-                          <div
-                            key={service.id}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                          >
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900 text-sm mb-2">{service.name}</h3>
-                              <div className="text-xs text-gray-600">
-                                <span className="font-medium text-gray-700">Valor:</span>
-                                <span className="ml-1 text-blue-600 font-medium">
-                                  {currencyMask(service.price)}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEditService(service.id)}
-                                className="hover:bg-gray-200 h-8 w-8"
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteServiceClick(service.id)}
-                                className="hover:bg-red-100 hover:text-red-600 h-8 w-8"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
                       </div>
                     )}
 
@@ -1295,7 +1293,7 @@ export default function Agenda() {
                         <Label htmlFor="clientCpf">CPF</Label>
                         <Input
                           id="clientCpf"
-                          placeholder="Digite o CPF do cliente"
+                          readOnly
                           value={conversionData.clientCpf}
                           onChange={(e) => setConversionData(prev => ({
                             ...prev,

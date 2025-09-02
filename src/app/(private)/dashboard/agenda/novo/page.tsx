@@ -14,7 +14,7 @@ import { toast } from "react-toastify";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { dataMask, dataUnMask, horaMask, horaUnMask, phoneMask } from "@/utils/maks/masks";
+import { dataMask, dataUnMask, horaMask, horaUnMask, phoneMask, cpfMask } from "@/utils/maks/masks";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
@@ -23,6 +23,7 @@ import { CalendarIcon, User, Phone, Mail, Clock, Calendar as CalendarIcon2, File
 import { cn } from "@/lib/utils";
 import { ProceduresModal } from "@/components/ProceduresModal";
 import { ProfessionalsModal } from "@/components/ProfessionalsModal";
+import { CustomModalClients } from "@/components/CustomModalClients";
 import "@/styles/calendar.css";
 
 // Schema para dados do cliente
@@ -30,6 +31,7 @@ const clientSchema = z.object({
   name: z.string().min(1, "Nome completo é obrigatório"),
   phone: z.string().min(14, "Celular é obrigatório"),
   email: z.string().email("Email inválido").min(1, "Email é obrigatório"),
+  cpf: z.string().min(14, "CPF é obrigatório"),
 });
 
 // Schema para informações do agendamento
@@ -80,6 +82,7 @@ export default function NewAppointment() {
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [showProceduresModal, setShowProceduresModal] = useState(false);
   const [showProfessionalsModal, setShowProfessionalsModal] = useState(false);
+  const [showClientsModal, setShowClientsModal] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(null);
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
@@ -96,6 +99,7 @@ export default function NewAppointment() {
       name: "",
       phone: "",
       email: "",
+      cpf: "",
     },
   });
 
@@ -360,7 +364,12 @@ export default function NewAppointment() {
         : (typeof procedurePrice === 'number' ? procedurePrice : 0);
 
       const appointmentDoc = {
-        client: clientData,
+        client: {
+          name: clientData.name,
+          phone: clientData.phone,
+          email: clientData.email,
+          cpf: clientData.cpf,
+        },
         appointment: {
           ...appointmentData,
           date: format(appointmentData.date, 'yyyy-MM-dd'),
@@ -374,7 +383,7 @@ export default function NewAppointment() {
         },
         uid,
         createdAt: new Date().toISOString(),
-        status: 'agendado'
+        status: 'pendente'
       };
 
       if (appointmentId) {
@@ -436,9 +445,46 @@ export default function NewAppointment() {
               placeholder="Nome completo do cliente"
               style={{ textIndent: '2.0rem' }}
             />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              style={{ 
+                position: 'absolute', 
+                right: '8px', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                padding: '0',
+                backgroundColor: 'white',
+                border: '1px solid #e5e7eb'
+              }}
+              onClick={() => setShowClientsModal(true)}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
           </div>
           {clientForm.formState.errors.name && (
             <p className="text-red-500 text-sm mt-1">{clientForm.formState.errors.name.message}</p>
+          )}
+        </div>
+
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <User className="h-5 w-5 text-gray-400" />
+            </div>
+            <Input
+              {...clientForm.register("cpf")}
+              placeholder="CPF"
+              style={{ textIndent: '2.0rem' }}
+              onChange={(e) => clientForm.setValue("cpf", cpfMask(e.target.value))}
+            />
+          </div>
+          {clientForm.formState.errors.cpf && (
+            <p className="text-red-500 text-sm mt-1">{clientForm.formState.errors.cpf.message}</p>
           )}
         </div>
 
@@ -746,6 +792,21 @@ export default function NewAppointment() {
           onClose={() => setShowProfessionalsModal(false)}
           professionals={professionals}
           onSelect={handleProfessionalSelect}
+        />
+
+        <CustomModalClients
+          visible={showClientsModal}
+          onClose={() => setShowClientsModal(false)}
+          onSelect={(client) => {
+            clientForm.setValue("name", client.name || "");
+            clientForm.setValue("phone", phoneMask(client.phone || ""));
+            clientForm.setValue("cpf", cpfMask(client.cpf || ""));
+            if (client.email) {
+              clientForm.setValue("email", client.email);
+            }
+            setShowClientsModal(false);
+          }}
+          title="Selecionar Cliente"
         />
       </div>
     </div>

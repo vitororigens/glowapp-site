@@ -81,6 +81,7 @@ export default function NewService() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showClientsModal, setShowClientsModal] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [showInstallmentsModal, setShowInstallmentsModal] = useState(false);
   const [currentPaymentIndex, setCurrentPaymentIndex] = useState(-1);
   const { user } = useAuthContext();
@@ -148,6 +149,12 @@ export default function NewService() {
   const remainingAmount = totalPrice - totalPaid;
 
   useEffect(() => {
+    if (contactId && !selectedClientId) {
+      setSelectedClientId(contactId);
+    }
+  }, [contactId, selectedClientId]);
+
+  useEffect(() => {
     if (serviceId) {
       const docRef = doc(database, "Services", serviceId);
       getDoc(docRef).then((docSnap) => {
@@ -182,6 +189,7 @@ export default function NewService() {
               afterPhotos: data.afterPhotos || [],
             });
             console.log("Formulário resetado com os dados carregados.");
+            setSelectedClientId((data as any).contactUid || null);
           }
         }
       });
@@ -389,7 +397,7 @@ export default function NewService() {
           documents: data.documents || [],
           beforePhotos: data.beforePhotos || [],
           afterPhotos: data.afterPhotos || [],
-          contactUid: contactId, // Adicionar o ID do cliente
+          contactUid: selectedClientId || contactId,
           updatedAt: new Date().toISOString()
         };
         
@@ -447,7 +455,7 @@ export default function NewService() {
           beforePhotos: data.beforePhotos || [],
           afterPhotos: data.afterPhotos || [],
           uid,
-          contactUid: contactId, // Adicionar o ID do cliente
+          contactUid: selectedClientId || contactId,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
@@ -1363,6 +1371,7 @@ export default function NewService() {
           if (client.email) {
             setValue("email", client.email);
           }
+          setSelectedClientId(client.id);
           setShowClientsModal(false);
         }}
         title="Selecionar Cliente"
