@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_API_KEY!, {
-  apiVersion: '2024-12-18.acacia',
-});
+const stripe = process.env.STRIPE_SECRET_API_KEY ? new Stripe(process.env.STRIPE_SECRET_API_KEY, {
+  apiVersion: '2025-07-30.basil',
+}) : null;
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe não configurado' },
+        { status: 500 }
+      );
+    }
+
     const { id } = await params;
 
     if (!id) {

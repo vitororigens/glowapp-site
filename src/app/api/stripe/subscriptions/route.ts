@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_API_KEY!, {
-  apiVersion: '2024-12-18.acacia',
-});
+const stripe = process.env.STRIPE_SECRET_API_KEY ? new Stripe(process.env.STRIPE_SECRET_API_KEY, {
+  apiVersion: '2025-07-30.basil',
+}) : null;
 
 export async function GET(request: NextRequest) {
   try {
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe não configurado' },
+        { status: 500 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('customerId');
 
@@ -27,8 +34,8 @@ export async function GET(request: NextRequest) {
     const formattedSubscriptions = subscriptions.data.map(subscription => ({
       id: subscription.id,
       status: subscription.status,
-      current_period_start: subscription.current_period_start,
-      current_period_end: subscription.current_period_end,
+      current_period_start: (subscription as any).current_period_start,
+      current_period_end: (subscription as any).current_period_end,
       created: subscription.created,
       items: {
         data: subscription.items.data.map(item => ({

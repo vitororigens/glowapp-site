@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_API_KEY!, {
-  apiVersion: '2024-12-18.acacia',
-});
+const stripe = process.env.STRIPE_SECRET_API_KEY ? new Stripe(process.env.STRIPE_SECRET_API_KEY, {
+    apiVersion: '2025-07-30.basil',
+}) : null;
 
 export async function POST(request: NextRequest) {
   try {
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe não configurado' },
+        { status: 500 }
+      );
+    }
+
     const { planId, customerEmail, customerName } = await request.json();
 
     // Mapeamento de planos para preços (em centavos)
@@ -94,7 +101,7 @@ export async function POST(request: NextRequest) {
 
     // Criar assinatura
     if (planId === 'glow-pro' && price) {
-      const subscription = await stripe.subscriptions.create({
+      const subscriptionResponse = await stripe.subscriptions.create({
         customer: customer.id,
         items: [
           {
@@ -111,14 +118,26 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // Type guard to check if latest_invoice is an Invoice object
+      const latestInvoice = subscriptionResponse.latest_invoice;
+      let clientSecret: string | undefined;
+      
+      if (latestInvoice && typeof latestInvoice === 'object' && 'payment_intent' in latestInvoice) {
+        const paymentIntent = latestInvoice.payment_intent;
+        if (paymentIntent && typeof paymentIntent === 'object' && 'client_secret' in paymentIntent) {
+          const secret = paymentIntent.client_secret;
+          clientSecret = typeof secret === 'string' ? secret : undefined;
+        }
+      }
+
       return NextResponse.json({
         success: true,
-        subscriptionId: subscription.id,
+        subscriptionId: subscriptionResponse.id,
         customerId: customer.id,
-        clientSecret: subscription.latest_invoice?.payment_intent?.client_secret,
+        clientSecret: clientSecret,
         amount: amount,
-        status: subscription.status,
-        currentPeriodEnd: subscription.current_period_end,
+        status: subscriptionResponse.status,
+        currentPeriodEnd: (subscriptionResponse as any).current_period_end * 1000, // Convert to milliseconds
       });
     }
 

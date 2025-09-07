@@ -3,13 +3,20 @@ import Stripe from 'stripe';
 import { database } from '@/services/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_API_KEY!, {
-  apiVersion: '2024-12-18.acacia',
-});
+const stripe = process.env.STRIPE_SECRET_API_KEY ? new Stripe(process.env.STRIPE_SECRET_API_KEY, {
+  apiVersion: '2025-07-30.basil',
+}) : null;
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(request: NextRequest) {
+  if (!stripe) {
+    return NextResponse.json(
+      { error: 'Stripe não configurado' },
+      { status: 500 }
+    );
+  }
+
   const body = await request.text();
   const sig = request.headers.get('stripe-signature');
 
@@ -107,8 +114,13 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   console.log('📄 Fatura paga com sucesso:', invoice.id);
   
-  if (invoice.subscription) {
-    const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+  if (!stripe) {
+    console.error('❌ Stripe não configurado');
+    return;
+  }
+  
+  if ((invoice as any).subscription) {
+    const subscription = await stripe.subscriptions.retrieve((invoice as any).subscription as string);
     await handleSubscriptionUpdated(subscription);
   }
 }
@@ -117,7 +129,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   console.log('🔄 Assinatura atualizada:', subscription.id);
   
   const planId = subscription.metadata?.planId;
-  const customerEmail = subscription.customer_email;
+  const customerEmail = (subscription as any).customer_email;
   
   if (!planId || !customerEmail) {
     console.error('❌ Metadata incompleta na assinatura');
@@ -153,7 +165,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   console.log('🗑️ Assinatura cancelada:', subscription.id);
   
-  const customerEmail = subscription.customer_email;
+  const customerEmail = (subscription as any).customer_email;
   
   if (!customerEmail) {
     console.error('❌ Email do cliente não encontrado');

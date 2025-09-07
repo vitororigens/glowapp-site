@@ -211,7 +211,7 @@ export default function PlanosPage() {
                                  {/* CTA Button */}
                  <Button
                    onClick={() => handleChoosePlan(plan)}
-                   disabled={loading || (user && getCurrentPlan() === plan.id)}
+                   disabled={!!(loading || (user && getCurrentPlan() === plan.id))}
                    className={`w-full py-3 text-lg font-semibold ${
                      user && getCurrentPlan() === plan.id
                        ? 'bg-green-600 hover:bg-green-700 cursor-not-allowed'
