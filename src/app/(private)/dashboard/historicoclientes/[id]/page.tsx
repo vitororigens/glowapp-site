@@ -41,6 +41,9 @@ interface Service {
   contactId: string;
   contactUid?: string;
   clientId?: string;
+  imagesBefore?: string[];
+  imagesAfter?: string[];
+  observations?: string;
 }
 
 interface Client {
@@ -341,6 +344,9 @@ export default function ClientHistory() {
   };
 
   const handleViewService = (service: Service) => {
+    console.log('🔍 Visualizando serviço:', service);
+    console.log('📸 Images Before:', service.imagesBefore);
+    console.log('📸 Images After:', service.imagesAfter);
     setSelectedService(service);
     setIsServiceModalOpen(true);
   };
@@ -729,31 +735,40 @@ export default function ClientHistory() {
               </div>
 
               {/* Observações do Serviço */}
-              {(selectedService as any).observations && (
+              {selectedService.observations && (
                 <div className="bg-orange-50 p-4 rounded-lg">
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <FileText className="h-5 w-5" />
                     Observações do Serviço
                   </h3>
                   <div className="bg-white p-3 rounded border">
-                    <p className="font-medium">{(selectedService as any).observations}</p>
+                    <p className="font-medium">{selectedService.observations}</p>
                   </div>
                 </div>
               )}
 
               {/* Fotos Antes e Depois */}
-              {((selectedService as any).beforePhotos?.length > 0 || (selectedService as any).afterPhotos?.length > 0) && (
+              {(() => {
+                console.log('🔍 Verificando imagens:', {
+                  imagesBefore: selectedService.imagesBefore,
+                  imagesAfter: selectedService.imagesAfter,
+                  hasBefore: (selectedService.imagesBefore?.length ?? 0) > 0,
+                  hasAfter: (selectedService.imagesAfter?.length ?? 0) > 0
+                });
+                return null;
+              })()}
+              {((selectedService.imagesBefore?.length ?? 0) > 0 || (selectedService.imagesAfter?.length ?? 0) > 0) && (
                 <div className="bg-indigo-50 p-4 rounded-lg">
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <Image className="h-5 w-5" />
                     Fotos do Serviço
                   </h3>
                   
-                  {(selectedService as any).beforePhotos?.length > 0 && (
+                  {(selectedService.imagesBefore?.length ?? 0) > 0 && (
                     <div className="mb-4">
                       <h4 className="font-medium mb-2">Fotos Antes</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {(selectedService as any).beforePhotos.map((photo: string, index: number) => (
+                        {selectedService.imagesBefore?.map((photo: string, index: number) => (
                           <img 
                             key={index} 
                             src={photo} 
@@ -765,11 +780,11 @@ export default function ClientHistory() {
                     </div>
                   )}
                   
-                  {(selectedService as any).afterPhotos?.length > 0 && (
+                  {(selectedService.imagesAfter?.length ?? 0) > 0 && (
                     <div>
                       <h4 className="font-medium mb-2">Fotos Depois</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {(selectedService as any).afterPhotos.map((photo: string, index: number) => (
+                        {selectedService.imagesAfter?.map((photo: string, index: number) => (
                           <img 
                             key={index} 
                             src={photo} 
