@@ -70,6 +70,11 @@ const useFirestoreCollection = <T extends FirestoreDocument>(
           snapshot.docs.forEach((doc) => {
             collectionData.push({ id: doc.id, ...doc.data() } as T);
           });
+          
+          // Debug: log para verificar duplicação
+          console.log(`[${collectionName}] Dados recebidos:`, collectionData);
+          console.log(`[${collectionName}] Total de documentos:`, collectionData.length);
+          
           setData(collectionData);
         } catch (err) {
           console.error(`Erro ao processar dados de ${collectionName}:`, err);

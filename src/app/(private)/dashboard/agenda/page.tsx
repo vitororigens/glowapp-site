@@ -169,32 +169,63 @@ export default function Agenda() {
 
   useEffect(() => {
     if (uid) {
+      console.log('🔄 Iniciando carregamento de dados para UID:', uid);
       Promise.all([
         fetchAppointments(),
         fetchServices(),
         fetchTransactions()
-      ]).finally(() => setIsLoading(false));
+      ]).finally(() => {
+        console.log('✅ Carregamento de dados concluído');
+        setIsLoading(false);
+      });
+    } else {
+      console.log('❌ UID não disponível, não carregando dados');
     }
   }, [uid]);
 
   const fetchAppointments = async () => {
     try {
+      console.log('🔍 Buscando agendamentos para UID:', uid);
       const appointmentsRef = collection(database, "Appointments");
       const q = query(appointmentsRef, where("uid", "==", uid));
       const querySnapshot = await getDocs(q);
       
-      const appointmentsData = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        // Normaliza status antigos 'agendado' -> 'pendente'
-        const normalizedStatus = (data.status === 'agendado' || !data.status) ? 'pendente' : data.status;
-        return {
-          id: doc.id,
-          ...data,
-          status: normalizedStatus // Define status padrão/normalizado
-        };
-      }) as Appointment[];
+      console.log('📊 Total de documentos encontrados:', querySnapshot.docs.length);
       
-      console.log('Agendamentos carregados:', appointmentsData);
+      const appointmentsData = querySnapshot.docs
+        .filter(doc => {
+          const data = doc.data();
+          console.log('📋 Documento:', doc.id, 'UID:', data.uid, 'Dados:', data);
+          
+          // Verificar se o UID realmente corresponde
+          if (data.uid !== uid) {
+            console.warn('⚠️ UID não corresponde! Documento:', doc.id, 'UID do documento:', data.uid, 'UID esperado:', uid);
+            return false; // Filtrar documentos que não pertencem ao usuário
+          }
+          
+          return true;
+        })
+        .map(doc => {
+          const data = doc.data();
+          
+          // Verificar se tem a estrutura mínima esperada
+          if (!data.client || !data.appointment) {
+            console.warn('⚠️ Estrutura de dados inválida para documento:', doc.id, 'Dados:', data);
+            return null;
+          }
+          
+          // Normaliza status antigos 'agendado' -> 'pendente'
+          const normalizedStatus = (data.status === 'agendado' || !data.status) ? 'pendente' : data.status;
+          return {
+            id: doc.id,
+            ...data,
+            status: normalizedStatus // Define status padrão/normalizado
+          };
+        })
+        .filter(appointment => appointment !== null) as Appointment[];
+      
+      console.log('✅ Agendamentos carregados:', appointmentsData);
+      console.log('📊 Total de agendamentos válidos:', appointmentsData.length);
       setAppointments(appointmentsData);
     } catch (error) {
       console.error("Erro ao buscar agendamentos:", error);
@@ -241,9 +272,11 @@ export default function Agenda() {
   const hasItemsOnDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     
-    return appointments.some(appointment => normalizeDateStr(appointment.appointment.date) === dateStr) ||
-           services.some(service => normalizeDateStr(service.date) === dateStr) ||
-           transactions.some(transaction => normalizeDateStr(transaction.date) === dateStr);
+    return appointments.some(appointment => 
+      appointment.appointment?.date && normalizeDateStr(appointment.appointment.date) === dateStr
+    ) ||
+           services.some(service => service.date && normalizeDateStr(service.date) === dateStr) ||
+           transactions.some(transaction => transaction.date && normalizeDateStr(transaction.date) === dateStr);
   };
 
   const getFilteredItems = () => {
@@ -253,12 +286,17 @@ export default function Agenda() {
     console.log('Serviços disponíveis:', services);
     console.log('Transações disponíveis:', transactions);
 
-    const filteredAppointments = appointments.filter(appointment => 
-      normalizeDateStr(appointment.appointment.date) === dateStr &&
-      (appointment.client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       (appointment.appointment.serviceName || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (statusFilter === 'todos' || appointment.status === statusFilter)
-    );
+    const filteredAppointments = appointments.filter(appointment => {
+      // Verificar se appointment.appointment existe e tem a propriedade date
+      if (!appointment.appointment || !appointment.appointment.date) {
+        return false;
+      }
+      
+      return normalizeDateStr(appointment.appointment.date) === dateStr &&
+        (appointment.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         (appointment.appointment.serviceName || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
+        (statusFilter === 'todos' || appointment.status === statusFilter);
+    });
 
     const filteredTransactions = transactions.filter(transaction => 
       normalizeDateStr(transaction.date) === dateStr &&
@@ -346,7 +384,7 @@ export default function Agenda() {
     setConversionStep(1);
     setConversionData({
       clientCpf: (appointment.client as any).cpf || '',
-      observations: appointment.appointment.observations || '',
+      observations: appointment.appointment?.observations || '',
       beforePhotos: [],
       afterPhotos: [],
     });
@@ -363,7 +401,7 @@ export default function Agenda() {
 
   // Funções para pagamentos (igual ao novo serviço)
   const totalPrice = appointmentToConvert ? 
-    (appointmentToConvert.appointment.servicePrice || appointmentToConvert.appointment.procedurePrice || 0) : 0;
+    (appointmentToConvert.appointment?.servicePrice || appointmentToConvert.appointment?.procedurePrice || 0) : 0;
 
   const totalPaid = payments.reduce((acc, payment) => {
     return acc + Number(payment.value.replace(/\D/g, ''));
@@ -536,13 +574,13 @@ export default function Agenda() {
 
       // Criar um novo serviço baseado no formato de servicos/novo
       const serviceData = {
-        name: appointment.client.name,
+        name: appointment.client?.name || '',
         cpf: (conversionData.clientCpf || '').replace(/\D/g, ''),
-        phone: appointment.client.phone || '',
-        email: appointment.client.email || '',
-        date: appointment.appointment.date || '',
-        time: appointment.appointment.startTime || '',
-        price: (appointment.appointment.servicePrice || appointment.appointment.procedurePrice || 0),
+        phone: appointment.client?.phone || '',
+        email: appointment.client?.email || '',
+        date: appointment.appointment?.date || '',
+        time: appointment.appointment?.startTime || '',
+        price: (appointment.appointment?.servicePrice || appointment.appointment?.procedurePrice || 0),
         paidAmount,
         priority: "",
         duration: "",
@@ -551,15 +589,15 @@ export default function Agenda() {
           {
             id: (appointment as any).appointment?.procedureId || '',
             code: '',
-            name: appointment.appointment.serviceName || appointment.appointment.procedureName || 'Serviço',
-            price: String(appointment.appointment.servicePrice || appointment.appointment.procedurePrice || 0),
-            date: appointment.appointment.date || ''
+            name: appointment.appointment?.serviceName || appointment.appointment?.procedureName || 'Serviço',
+            price: String(appointment.appointment?.servicePrice || appointment.appointment?.procedurePrice || 0),
+            date: appointment.appointment?.date || ''
           }
         ],
-        professionals: appointment.appointment.professionalName ? [
+        professionals: appointment.appointment?.professionalName ? [
           {
-            id: appointment.appointment.professionalId || '',
-            name: appointment.appointment.professionalName,
+            id: appointment.appointment?.professionalId || '',
+            name: appointment.appointment?.professionalName,
             specialty: ''
           }
         ] : [],
@@ -597,8 +635,11 @@ export default function Agenda() {
   };
 
   const todayAppointments = appointments.filter(appointment => {
+    if (!appointment.appointment?.date) return false;
     const appointmentLocalDate = createLocalDate(appointment.appointment.date);
-    return isSameDate(appointmentLocalDate, new Date());
+    const isToday = isSameDate(appointmentLocalDate, new Date());
+    console.log('📅 Verificando agendamento:', appointment.id, 'Data:', appointment.appointment.date, 'É hoje?', isToday);
+    return isToday;
   }).length;
 
   // Componente para renderizar o card de agendamento
@@ -664,18 +705,20 @@ export default function Agenda() {
         <div className="space-y-2 text-sm text-gray-600 mb-4">
           <div className="flex items-center gap-2">
             <CalendarIcon className="h-4 w-4 text-gray-400" />
-                                    <span>{formatDateToBrazilian(appointment.appointment.date)} às {appointment.appointment.startTime}</span>
+            <span>
+              {appointment.appointment?.date ? formatDateToBrazilian(appointment.appointment.date) : 'Data não informada'} às {appointment.appointment?.startTime || 'Horário não informado'}
+            </span>
           </div>
           
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-gray-400" />
-            <span>{appointment.appointment.professionalName || 'Não especificado'}</span>
+            <span>{appointment.appointment?.professionalName || 'Não especificado'}</span>
           </div>
           
           <div className="flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-gray-400" />
             <span className="font-medium text-blue-600">
-              {formatAppointmentPrice(appointment.appointment.servicePrice || appointment.appointment.procedurePrice)}
+              {formatAppointmentPrice(appointment.appointment?.servicePrice || appointment.appointment?.procedurePrice)}
             </span>
           </div>
         </div>
@@ -745,6 +788,7 @@ export default function Agenda() {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Agendamentos totais</h3>
                   <p className="text-2xl font-bold text-gray-900">{appointments.length}</p>
+                  {console.log('📊 Exibindo contagem de agendamentos:', appointments.length, 'Agendamentos:', appointments)}
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Hoje</h3>
@@ -783,6 +827,7 @@ export default function Agenda() {
                 const isCurrentMonth = new Date().getMonth() === month - 1 && new Date().getFullYear() === currentYear;
                 
                 const appointmentsInMonth = appointments.filter(appointment => {
+                  if (!appointment.appointment?.date) return false;
                   const appointmentLocalDate = createLocalDate(appointment.appointment.date);
                   return appointmentLocalDate.getMonth() === month - 1 && appointmentLocalDate.getFullYear() === currentYear;
                 }).length;
@@ -860,6 +905,7 @@ export default function Agenda() {
                     const isSelected = isSameDate(currentDate, selectedDate);
                     
                     const hasAppointments = appointments.some(appointment => {
+                      if (!appointment.appointment?.date) return false;
                       const appointmentLocalDate = createLocalDate(appointment.appointment.date);
                       return isSameDate(appointmentLocalDate, currentDate);
                     });
@@ -910,14 +956,14 @@ export default function Agenda() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-32 h-7 text-xs"
                   />
-                  <Button
+                  {/* <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowAllAppointmentsModal(true)}
                     className="h-7 text-xs"
                   >
                     Ver tudo
-                  </Button>
+                  </Button> */}
                 </div>
               </div>
 
@@ -1013,8 +1059,8 @@ export default function Agenda() {
                         {filteredAppointments
                           .sort((a, b) => {
                             // Ordenar por horário
-                            const timeA = a.appointment.startTime || '00:00';
-                            const timeB = b.appointment.startTime || '00:00';
+                            const timeA = a.appointment?.startTime || '00:00';
+                            const timeB = b.appointment?.startTime || '00:00';
                             return timeA.localeCompare(timeB);
                           })
                           .map((appointment) => (
@@ -1192,8 +1238,8 @@ export default function Agenda() {
               <div className="space-y-4">
                 {filteredAppointments
                   .sort((a, b) => {
-                    const timeA = a.appointment.startTime || '00:00';
-                    const timeB = b.appointment.startTime || '00:00';
+                    const timeA = a.appointment?.startTime || '00:00';
+                    const timeB = b.appointment?.startTime || '00:00';
                     return timeA.localeCompare(timeB);
                   })
                   .map((appointment) => (
@@ -1266,7 +1312,7 @@ export default function Agenda() {
                         <Label htmlFor="clientName">Nome Completo</Label>
                         <Input
                           id="clientName"
-                          value={appointmentToConvert.client.name}
+                          value={appointmentToConvert.client?.name || ''}
                           readOnly
                           className="bg-gray-50"
                         />
@@ -1275,7 +1321,7 @@ export default function Agenda() {
                         <Label htmlFor="clientPhone">Telefone</Label>
                         <Input
                           id="clientPhone"
-                          value={appointmentToConvert.client.phone}
+                          value={appointmentToConvert.client?.phone || ''}
                           readOnly
                           className="bg-gray-50"
                         />
@@ -1284,7 +1330,7 @@ export default function Agenda() {
                         <Label htmlFor="clientEmail">Email</Label>
                         <Input
                           id="clientEmail"
-                          value={appointmentToConvert.client.email}
+                          value={appointmentToConvert.client?.email || ''}
                           readOnly
                           className="bg-gray-50"
                         />
@@ -1314,7 +1360,7 @@ export default function Agenda() {
                         <Label htmlFor="procedureName">Nome do Procedimento</Label>
                         <Input
                           id="procedureName"
-                          value={appointmentToConvert.appointment.serviceName || appointmentToConvert.appointment.procedureName || ''}
+                          value={appointmentToConvert.appointment?.serviceName || appointmentToConvert.appointment?.procedureName || ''}
                           readOnly
                           className="bg-gray-50"
                         />
@@ -1323,7 +1369,7 @@ export default function Agenda() {
                         <Label htmlFor="procedurePrice">Valor</Label>
                         <Input
                           id="procedurePrice"
-                          value={formatAppointmentPrice(appointmentToConvert.appointment.servicePrice || appointmentToConvert.appointment.procedurePrice)}
+                          value={formatAppointmentPrice(appointmentToConvert.appointment?.servicePrice || appointmentToConvert.appointment?.procedurePrice)}
                           readOnly
                           className="bg-gray-50"
                         />
@@ -1332,7 +1378,7 @@ export default function Agenda() {
                         <Label htmlFor="professionalName">Profissional</Label>
                         <Input
                           id="professionalName"
-                          value={appointmentToConvert.appointment.professionalName || ''}
+                          value={appointmentToConvert.appointment?.professionalName || ''}
                           readOnly
                           className="bg-gray-50"
                         />
@@ -1341,7 +1387,7 @@ export default function Agenda() {
                         <Label htmlFor="procedureDate">Data</Label>
                         <Input
                           id="procedureDate"
-                          value={appointmentToConvert.appointment.date}
+                          value={appointmentToConvert.appointment?.date || ''}
                           readOnly
                           className="bg-gray-50"
                         />
@@ -1651,9 +1697,9 @@ export default function Agenda() {
                           Dados do Cliente
                         </h4>
                         <div className="bg-gray-50 p-3 rounded-lg space-y-2 text-sm">
-                          <p><strong>Nome:</strong> {appointmentToConvert.client.name}</p>
-                          <p><strong>Telefone:</strong> {appointmentToConvert.client.phone}</p>
-                          <p><strong>Email:</strong> {appointmentToConvert.client.email}</p>
+                          <p><strong>Nome:</strong> {appointmentToConvert.client?.name || 'Não informado'}</p>
+                          <p><strong>Telefone:</strong> {appointmentToConvert.client?.phone || 'Não informado'}</p>
+                          <p><strong>Email:</strong> {appointmentToConvert.client?.email || 'Não informado'}</p>
                         </div>
                       </div>
 
@@ -1664,10 +1710,10 @@ export default function Agenda() {
                           Informações do Procedimento
                         </h4>
                         <div className="bg-gray-50 p-3 rounded-lg space-y-2 text-sm">
-                          <p><strong>Procedimento:</strong> {appointmentToConvert.appointment.serviceName || appointmentToConvert.appointment.procedureName}</p>
-                          <p><strong>Valor:</strong> {formatAppointmentPrice(appointmentToConvert.appointment.servicePrice || appointmentToConvert.appointment.procedurePrice)}</p>
-                          <p><strong>Profissional:</strong> {appointmentToConvert.appointment.professionalName}</p>
-                          <p><strong>Data:</strong> {formatDateToBrazilian(appointmentToConvert.appointment.date)}</p>
+                          <p><strong>Procedimento:</strong> {appointmentToConvert.appointment?.serviceName || appointmentToConvert.appointment?.procedureName || 'Não informado'}</p>
+                          <p><strong>Valor:</strong> {formatAppointmentPrice(appointmentToConvert.appointment?.servicePrice || appointmentToConvert.appointment?.procedurePrice)}</p>
+                          <p><strong>Profissional:</strong> {appointmentToConvert.appointment?.professionalName || 'Não informado'}</p>
+                          <p><strong>Data:</strong> {appointmentToConvert.appointment?.date ? formatDateToBrazilian(appointmentToConvert.appointment.date) : 'Não informado'}</p>
                         </div>
                       </div>
                     </div>

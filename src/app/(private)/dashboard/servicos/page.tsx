@@ -63,10 +63,21 @@ export default function Services() {
       };
     }
 
-    const { totalPaid, totalServices: servicesCount, totalBudgets } = services.reduce((acc, service) => {
-      if (service.budget) return acc;
+    // Debug: log dos serviços para verificar duplicação
+    console.log('Serviços carregados:', services);
+    console.log('Total de serviços no array:', services.length);
 
-      if (service.payments && service.payments.length > 0) {
+    // Contar serviços e orçamentos separadamente
+    const totalServices = services.filter(s => !s.budget).length;
+    const totalBudgets = services.filter(s => s.budget).length;
+
+    console.log('Serviços (não orçamentos):', totalServices);
+    console.log('Orçamentos:', totalBudgets);
+
+    // Calcular total pago apenas
+    const totalPaid = services
+      .filter(service => !service.budget && service.payments && service.payments.length > 0)
+      .reduce((acc, service) => {
         const paidAmount = service.payments
           .reduce((sum, p) => {
             const value = typeof p.value === 'number' 
@@ -74,18 +85,10 @@ export default function Services() {
               : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
             return sum + value;
           }, 0);
+        return acc + paidAmount;
+      }, 0);
 
-        return {
-          totalPaid: acc.totalPaid + paidAmount,
-          totalServices: acc.totalServices + 1,
-          totalBudgets: acc.totalBudgets
-        };
-      }
-
-      return acc;
-    }, { totalPaid: 0, totalServices: services.filter(s => !s.budget).length, totalBudgets: services.filter(s => s.budget).length });
-
-    return { totalPaid, totalServices: servicesCount, totalBudgets };
+    return { totalPaid, totalServices, totalBudgets };
   };
 
   const { totalPaid, totalServices: servicesCount, totalBudgets } = calculateTotals();
@@ -195,32 +198,61 @@ export default function Services() {
                       <TableCell>
                         {service.payments && service.payments.length > 0 ? (
                           <div className="flex flex-wrap gap-2">
-                            {service.payments.map((payment, idx) => {
-                              const mostrarValor = service.payments && (service.payments.length > 1 || Number(payment.value) !== valorTotal);
-                              return (
-                                <span
-                                  key={idx}
-                                  className={`px-2 py-1 rounded-full text-xs ${
-                                    payment.method === "dinheiro"
-                                      ? "bg-teal-100 text-teal-800"
+                            {service.payments
+                              .filter((payment, idx, arr) => {
+                                // Filtrar pagamentos duplicados ou com valor zero desnecessário
+                                const paymentValue = typeof payment.value === 'number' 
+                                  ? payment.value 
+                                  : Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", "."));
+                                
+                                // Se o valor é zero, só mostrar se for o único pagamento
+                                if (paymentValue === 0 && arr.length > 1) {
+                                  return false;
+                                }
+                                
+                                // Se há múltiplos pagamentos com o mesmo método e valor, mostrar apenas um
+                                const isDuplicate = arr.slice(0, idx).some((prevPayment, prevIdx) => 
+                                  prevPayment.method === payment.method && 
+                                  prevPayment.installments === payment.installments &&
+                                  (typeof prevPayment.value === 'number' ? prevPayment.value : Number(String(prevPayment.value).replace(/[^\d,-]/g, "").replace(",", "."))) === paymentValue
+                                );
+                                
+                                return !isDuplicate;
+                              })
+                              .map((payment, idx) => {
+                                // Debug: log dos pagamentos filtrados
+                                console.log(`Pagamento filtrado ${idx}:`, payment);
+                                
+                                const paymentValue = typeof payment.value === 'number' 
+                                  ? payment.value 
+                                  : Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", "."));
+                                
+                                const mostrarValor = service.payments && (service.payments.length > 1 || paymentValue !== valorTotal);
+                                
+                                return (
+                                  <span
+                                    key={`${payment.method}-${paymentValue}-${idx}`}
+                                    className={`px-2 py-1 rounded-full text-xs ${
+                                      payment.method === "dinheiro"
+                                        ? "bg-teal-100 text-teal-800"
+                                        : payment.method === "pix"
+                                        ? "bg-purple-100 text-purple-800"
+                                        : payment.method === "boleto"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-orange-100 text-orange-800"
+                                    }`}
+                                  >
+                                    {payment.method === "dinheiro"
+                                      ? "Dinheiro"
                                       : payment.method === "pix"
-                                      ? "bg-purple-100 text-purple-800"
+                                      ? "PIX"
                                       : payment.method === "boleto"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-orange-100 text-orange-800"
-                                  }`}
-                                >
-                                  {payment.method === "dinheiro"
-                                    ? "Dinheiro"
-                                    : payment.method === "pix"
-                                    ? "PIX"
-                                    : payment.method === "boleto"
-                                    ? "Boleto"
-                                    : `Cartão${payment.installments ? ` ${payment.installments}x` : ""}`}
-                                  {mostrarValor ? ` ${formatPrice(payment.value)}` : ""}
-                                </span>
-                              );
-                            })}
+                                      ? "Boleto"
+                                      : `Cartão${payment.installments ? ` ${payment.installments}x` : ""}`}
+                                    {mostrarValor ? ` ${formatPrice(payment.value)}` : ""}
+                                  </span>
+                                );
+                              })}
                           </div>
                         ) : (
                           <span className="text-gray-500">Sem pagamentos</span>
