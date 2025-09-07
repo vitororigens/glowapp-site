@@ -41,10 +41,13 @@ const useFirestoreCollection = <T extends FirestoreDocument>(
 
   useEffect(() => {
     if (!uid) {
+      console.log(`[${collectionName}] UID não disponível, não carregando dados`);
       setLoading(false);
+      setData(null);
       return;
     }
 
+    console.log(`[${collectionName}] Iniciando carregamento para UID:`, uid);
     setLoading(true);
     setError(null);
 
@@ -68,14 +71,27 @@ const useFirestoreCollection = <T extends FirestoreDocument>(
         try {
           const collectionData: T[] = [];
           snapshot.docs.forEach((doc) => {
-            collectionData.push({ id: doc.id, ...doc.data() } as T);
+            const docData = { id: doc.id, ...doc.data() } as T;
+            collectionData.push(docData);
           });
           
-          // Debug: log para verificar duplicação
+          // Debug: logs detalhados para verificar filtragem por usuário
+          console.log(`[${collectionName}] UID do usuário atual:`, uid);
+          console.log(`[${collectionName}] Query executada:`, collectionQuery);
           console.log(`[${collectionName}] Dados recebidos:`, collectionData);
           console.log(`[${collectionName}] Total de documentos:`, collectionData.length);
           
-          setData(collectionData);
+          // Verificar se todos os documentos têm o UID correto
+          const wrongUidDocs = collectionData.filter(doc => (doc as any).uid !== uid);
+          if (wrongUidDocs.length > 0) {
+            console.error(`[${collectionName}] ATENÇÃO: Documentos com UID incorreto encontrados:`, wrongUidDocs);
+            // Filtrar apenas documentos com UID correto
+            const correctUidDocs = collectionData.filter(doc => (doc as any).uid === uid);
+            console.log(`[${collectionName}] Filtrando ${wrongUidDocs.length} documentos com UID incorreto. Restam ${correctUidDocs.length} documentos válidos.`);
+            setData(correctUidDocs);
+          } else {
+            setData(collectionData);
+          }
         } catch (err) {
           console.error(`Erro ao processar dados de ${collectionName}:`, err);
           setError(err instanceof Error ? err : new Error('Erro desconhecido'));
@@ -91,7 +107,7 @@ const useFirestoreCollection = <T extends FirestoreDocument>(
     );
 
     return () => unsubscribe();
-  }, [collectionName, queryParams, uid]);
+  }, [collectionName, uid, queryParams?.field, queryParams?.operator, queryParams?.value]);
 
   return { data, loading, error };
 };

@@ -17,6 +17,8 @@ import { database } from "@/services/firebase";
 import { deleteDoc, doc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { formatDateToBrazilian } from "@/utils/formater/date";
+import { useAuthContext } from "@/context/AuthContext";
+import { updateDoc } from "firebase/firestore";
 
 interface Transaction {
   id: string;
@@ -27,6 +29,7 @@ interface Transaction {
   category: string;
   description: string;
   collection: "Revenue" | "Expense";
+  uid?: string;
 }
 
 interface Service {
@@ -36,6 +39,7 @@ interface Service {
   price: string;
   budget: boolean;
   sendToFinance: boolean;
+  uid?: string;
   payments?: Array<{
     method: 'dinheiro' | 'pix' | 'cartao' | 'boleto';
     value: string | number;
@@ -46,9 +50,72 @@ interface Service {
 
 export default function Financeiro() {
   const router = useRouter();
+  const { user } = useAuthContext();
   const { data: revenues, loading: revenuesLoading } = useFirestoreCollection<Transaction>("Revenue");
   const { data: expenses, loading: expensesLoading } = useFirestoreCollection<Transaction>("Expense");
   const { data: services, loading: servicesLoading } = useFirestoreCollection<Service>("Services");
+
+  // Debug: logs para verificar dados recebidos
+  console.log("=== DEBUG FINANCEIRO ===");
+  console.log("Usuário atual:", user);
+  console.log("UID do usuário:", user?.uid);
+  console.log("Receitas carregadas:", revenues);
+  console.log("Despesas carregadas:", expenses);
+  console.log("Serviços carregados:", services);
+  
+  // Verificar se há dados sem UID ou com UID incorreto
+  if (revenues) {
+    const revenuesWithoutUid = revenues.filter(rev => !rev.uid || rev.uid !== user?.uid);
+    if (revenuesWithoutUid.length > 0) {
+      console.error("Receitas sem UID ou com UID incorreto:", revenuesWithoutUid);
+    }
+  }
+  
+  if (expenses) {
+    const expensesWithoutUid = expenses.filter(exp => !exp.uid || exp.uid !== user?.uid);
+    if (expensesWithoutUid.length > 0) {
+      console.error("Despesas sem UID ou com UID incorreto:", expensesWithoutUid);
+    }
+  }
+  
+  if (services) {
+    const servicesWithoutUid = services.filter(service => !service.uid || service.uid !== user?.uid);
+    if (servicesWithoutUid.length > 0) {
+      console.error("Serviços sem UID ou com UID incorreto:", servicesWithoutUid);
+    }
+  }
+  
+  console.log("========================");
+
+  // Função para corrigir dados antigos que podem não ter UID
+  const fixMissingUid = async (data: any[], collectionName: string) => {
+    if (!user?.uid) return;
+    
+    const itemsWithoutUid = data.filter(item => !item.uid);
+    if (itemsWithoutUid.length > 0) {
+      console.log(`Corrigindo ${itemsWithoutUid.length} itens sem UID na coleção ${collectionName}`);
+      
+      for (const item of itemsWithoutUid) {
+        try {
+          await updateDoc(doc(database, collectionName, item.id), { uid: user.uid });
+          console.log(`UID adicionado ao item ${item.id} na coleção ${collectionName}`);
+        } catch (error) {
+          console.error(`Erro ao corrigir UID do item ${item.id}:`, error);
+        }
+      }
+    }
+  };
+
+  // Corrigir dados antigos quando os dados forem carregados
+  if (revenues && user?.uid) {
+    fixMissingUid(revenues, "Revenue");
+  }
+  if (expenses && user?.uid) {
+    fixMissingUid(expenses, "Expense");
+  }
+  if (services && user?.uid) {
+    fixMissingUid(services, "Services");
+  }
 
   const handleDelete = async (id: string, collection: "Revenue" | "Expense") => {
     if (window.confirm("Tem certeza que deseja excluir este registro?")) {
@@ -166,21 +233,21 @@ export default function Financeiro() {
             <p className="text-2xl font-bold text-green-600">{new Intl.NumberFormat('pt-BR', {
               style: 'currency',
               currency: 'BRL'
-            }).format(totalRevenue / 100)}</p>
+            }).format(totalRevenue)}</p>
           </Card>
           <Card className="p-4">
             <h3 className="text-sm font-bold text-gray-500">Despesas</h3>
             <p className="text-2xl font-bold text-red-600">{new Intl.NumberFormat('pt-BR', {
               style: 'currency',
               currency: 'BRL'
-            }).format(totalExpense / 100)}</p>
+            }).format(totalExpense)}</p>
           </Card>
           <Card className="p-4">
             <h3 className="text-sm font-bold text-gray-500">Saldo</h3>
             <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{new Intl.NumberFormat('pt-BR', {
               style: 'currency',
               currency: 'BRL'
-            }).format(balance / 100)}</p>
+            }).format(balance)}</p>
           </Card>
         </div>
       </div>
@@ -210,10 +277,10 @@ export default function Financeiro() {
                   <TableCell>{formatDateToBrazilian(transaction.date)}</TableCell>
                   <TableCell>
                     {transaction.type === "Serviço" ? 
-                      formatPrice((transaction as any).originalPrice) 
-                      : formatPrice(transaction.value)}
+                      formatPrice(Number((transaction as any).originalPrice) * 100) 
+                      : formatPrice(Number(transaction.value) * 100)}
                   </TableCell>
-                  <TableCell className="text-green-600">{formatPrice(transaction.value)}</TableCell>
+                  <TableCell className="text-green-600">{formatPrice(Number(transaction.value) * 100)}</TableCell>
                   <TableCell>
                     {transaction.type === "Serviço" && (transaction as any).payments && (transaction as any).payments.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
@@ -298,7 +365,7 @@ export default function Financeiro() {
                 <TableRow key={`${transaction.collection}-${transaction.id}`}>
                   <TableCell>{transaction.name}</TableCell>
                   <TableCell>{formatDateToBrazilian(transaction.date)}</TableCell>
-                  <TableCell className="text-red-600">{formatPrice(transaction.value, true)}</TableCell>
+                  <TableCell className="text-red-600">{formatPrice(Number(transaction.value) * 100, true)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleEdit(transaction)}>Editar</Button>
