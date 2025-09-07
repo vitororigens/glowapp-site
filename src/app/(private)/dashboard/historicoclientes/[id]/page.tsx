@@ -10,10 +10,11 @@ import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "fireb
 import { toast } from "react-toastify";
 import { currencyMask, celularMask, cpfMask } from "@/utils/maks/masks";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, Edit, Trash2, AlertTriangle, Image } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, AlertTriangle, Image, Eye, X, Calendar, Clock, DollarSign, User, Phone, Mail, FileText } from "lucide-react";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatDateToBrazilian } from "@/utils/formater/date";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Service {
   id: string;
@@ -59,6 +60,8 @@ export default function ClientHistory() {
   const [isLoadingClient, setIsLoadingClient] = useState(true);
   const [isLoadingServices, setIsLoadingServices] = useState(true);
   const [clientImageCount, setClientImageCount] = useState(0);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   
   const { user } = useAuthContext();
   const { planLimits, canAddImageToClient, getRemainingImagesForClient } = usePlanLimitations();
@@ -336,6 +339,16 @@ export default function ClientHistory() {
       toast.error("Erro ao excluir serviço!");
     }
   };
+
+  const handleViewService = (service: Service) => {
+    setSelectedService(service);
+    setIsServiceModalOpen(true);
+  };
+
+  const closeServiceModal = () => {
+    setSelectedService(null);
+    setIsServiceModalOpen(false);
+  };
   
   const isLoading = isLoadingClient || isLoadingServices;
   const hasNoServices = !isLoading && services.length === 0;
@@ -491,7 +504,7 @@ export default function ClientHistory() {
               const isBudget = service.budget;
               
               return (
-                <Card key={service.id} className="overflow-hidden">
+                <Card key={service.id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleViewService(service)}>
                   <CardContent className="p-0">
                     <div className={`${isBudget ? 'bg-yellow-50' : 'bg-green-50'} p-3`}>
                       <div className="flex justify-between items-start">
@@ -513,10 +526,37 @@ export default function ClientHistory() {
                           <p className="font-medium">{currencyMask(String(service.price))}</p>
                         </div>
                         <div className="flex space-x-1">
-                          <Button variant="outline" size="sm" onClick={() => handleEditService(service.id)}>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewService(service);
+                            }}
+                            title="Ver detalhes completos"
+                          >
+                            <Eye className="h-4 w-4 text-blue-500" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditService(service.id);
+                            }}
+                            title="Editar serviço"
+                          >
                             <Edit className="h-4 w-4 text-green-500" />
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleDeleteService(service.id)}>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteService(service.id);
+                            }}
+                            title="Excluir serviço"
+                          >
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </div>
@@ -529,6 +569,238 @@ export default function ClientHistory() {
           </div>
         )}
       </div>
+
+      {/* Modal de Detalhes do Serviço */}
+      <Dialog open={isServiceModalOpen} onOpenChange={setIsServiceModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Detalhes Completos do Serviço
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedService && (
+            <div className="space-y-6">
+              {/* Informações Básicas */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Informações Básicas
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Nome do Serviço</p>
+                    <p className="font-medium">{selectedService.name || "Não informado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Tipo</p>
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      selectedService.budget ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                    }`}>
+                      {selectedService.budget ? 'Orçamento' : 'Serviço'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Data</p>
+                    <p className="font-medium">{formatDateToBrazilian(selectedService.date)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Horário</p>
+                    <p className="font-medium">{selectedService.time || "Não informado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Valor Total</p>
+                    <p className="font-medium text-lg">{currencyMask(String(selectedService.price))}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detalhes dos Serviços */}
+              {selectedService.services && selectedService.services.length > 0 && (
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Procedimentos Realizados
+                  </h3>
+                  <div className="space-y-3">
+                    {selectedService.services.map((serviceItem, index) => (
+                      <div key={index} className="bg-white p-3 rounded border">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div>
+                            <p className="text-sm text-gray-500">Código</p>
+                            <p className="font-medium">{serviceItem.code || "Não informado"}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Nome do Procedimento</p>
+                            <p className="font-medium">{serviceItem.name || "Não informado"}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Valor</p>
+                            <p className="font-medium">{currencyMask(serviceItem.price)}</p>
+                          </div>
+                        </div>
+                        {serviceItem.date && (
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-500">Data do Procedimento</p>
+                            <p className="font-medium">{formatDateToBrazilian(serviceItem.date)}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Formas de Pagamento */}
+              {selectedService.payments && selectedService.payments.length > 0 && (
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Formas de Pagamento
+                  </h3>
+                  <div className="space-y-3">
+                    {selectedService.payments.map((payment, index) => (
+                      <div key={index} className="bg-white p-3 rounded border">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                          <div>
+                            <p className="text-sm text-gray-500">Método</p>
+                            <p className="font-medium capitalize">{payment.method || "Não informado"}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Valor</p>
+                            <p className="font-medium">{currencyMask(String(payment.value))}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Parcelas</p>
+                            <p className="font-medium">{payment.installments ? `${payment.installments}x` : "À vista"}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Status</p>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              payment.status === 'pago' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {payment.status === 'pago' ? 'Pago' : 'Pendente'}
+                            </span>
+                          </div>
+                        </div>
+                        {payment.date && (
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-500">Data do Pagamento</p>
+                            <p className="font-medium">{formatDateToBrazilian(payment.date)}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Informações do Cliente */}
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Informações do Cliente
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Nome</p>
+                    <p className="font-medium">{clientData?.name || "Não informado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Telefone</p>
+                    <p className="font-medium">{clientData?.phone ? celularMask(clientData.phone) : "Não informado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="font-medium">{clientData?.email || "Não informado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">CPF</p>
+                    <p className="font-medium">{clientData?.cpf ? cpfMask(clientData.cpf) : "Não informado"}</p>
+                  </div>
+                </div>
+                {clientData?.observations && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-500">Observações do Cliente</p>
+                    <p className="font-medium bg-white p-3 rounded border">{clientData.observations}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Observações do Serviço */}
+              {(selectedService as any).observations && (
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Observações do Serviço
+                  </h3>
+                  <div className="bg-white p-3 rounded border">
+                    <p className="font-medium">{(selectedService as any).observations}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Fotos Antes e Depois */}
+              {((selectedService as any).beforePhotos?.length > 0 || (selectedService as any).afterPhotos?.length > 0) && (
+                <div className="bg-indigo-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Image className="h-5 w-5" />
+                    Fotos do Serviço
+                  </h3>
+                  
+                  {(selectedService as any).beforePhotos?.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="font-medium mb-2">Fotos Antes</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {(selectedService as any).beforePhotos.map((photo: string, index: number) => (
+                          <img 
+                            key={index} 
+                            src={photo} 
+                            alt={`Antes ${index + 1}`}
+                            className="w-full h-24 object-cover rounded border"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {(selectedService as any).afterPhotos?.length > 0 && (
+                    <div>
+                      <h4 className="font-medium mb-2">Fotos Depois</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {(selectedService as any).afterPhotos.map((photo: string, index: number) => (
+                          <img 
+                            key={index} 
+                            src={photo} 
+                            alt={`Depois ${index + 1}`}
+                            className="w-full h-24 object-cover rounded border"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Botões de Ação */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button variant="outline" onClick={closeServiceModal}>
+                  <X className="h-4 w-4 mr-2" />
+                  Fechar
+                </Button>
+                <Button onClick={() => {
+                  closeServiceModal();
+                  handleEditService(selectedService.id);
+                }}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar Serviço
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 
