@@ -8,6 +8,52 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
 import { currencyMask, cpfMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
+
+// Função para carregar valores do banco de dados
+const loadCurrencyFromDB = (value: number | string | undefined) => {
+  if (value === undefined || value === null || value === 0) return '';
+  
+  // Se for número, assume que está em centavos (valores salvos no banco)
+  if (typeof value === 'number') {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value / 100);
+  }
+  
+  // Se for string, converte para número e formata
+  const numericValue = Number(String(value).replace(/\D/g, ''));
+  if (numericValue === 0) return '';
+  
+  // Assume que está em centavos (valores salvos no banco)
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(numericValue / 100);
+};
+
+// Função para carregar valores do banco para campos de formulário
+const loadCurrencyForForm = (value: number | string | undefined) => {
+  if (value === undefined || value === null || value === 0) return '';
+  
+  // Se for número, assume que está em centavos e converte para formato de input
+  if (typeof value === 'number') {
+    // Para valores em centavos, formatamos corretamente
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value / 100);
+  }
+  
+  // Se for string, converte para número e formata
+  const numericValue = Number(String(value).replace(/\D/g, ''));
+  if (numericValue === 0) return '';
+  
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(numericValue / 100);
+};
 import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
 import { doc, getDoc, setDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
@@ -141,10 +187,52 @@ export default function NewService() {
   const afterPhotos = watch("afterPhotos") || [];
   const payments = watch("payments") || [];
   const totalPrice = watch("price") ? Number(watch("price").replace(/\D/g, '')) : 0;
+  
+  // Debug para verificar o cálculo do totalPrice
+  console.log("🔍 Debug totalPrice calculation:", {
+    priceField: watch("price"),
+    totalPrice: totalPrice,
+    expectedDisplay: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)
+  });
+  
+  // Debug para verificar o cálculo do totalPrice
+  useEffect(() => {
+    const currentPrice = watch("price");
+    console.log("🔍 Debug totalPrice:", {
+      priceField: currentPrice,
+      totalPrice: totalPrice,
+      priceFieldType: typeof currentPrice,
+      numericValue: currentPrice ? Number(currentPrice.replace(/\D/g, '')) : 0,
+      expectedValue: currentPrice ? Number(currentPrice.replace(/\D/g, '')) : 0
+    });
+  }, [watch("price"), totalPrice]);
+  
+  // Debug logs para verificar valores
+  useEffect(() => {
+    const currentPrice = watch("price");
+    console.log("🔍 Debug preço:", {
+      priceField: currentPrice,
+      totalPrice: totalPrice,
+      priceFieldType: typeof currentPrice
+    });
+  }, [watch("price"), totalPrice]);
 
   const totalPaid = payments.reduce((acc, payment) => {
-    return acc + Number(payment.value.replace(/\D/g, ''));
+    // Os valores dos pagamentos estão em centavos, então dividimos por 100 para obter reais
+    const paymentValue = Number(payment.value.replace(/\D/g, '')) / 100;
+    console.log("💰 Debug pagamento:", {
+      paymentValue: payment.value,
+      numericValue: Number(payment.value.replace(/\D/g, '')),
+      dividedValue: paymentValue,
+      acc: acc
+    });
+    return acc + paymentValue;
   }, 0);
+  
+  console.log("💰 Debug totalPaid:", {
+    totalPaid: totalPaid,
+    payments: payments.map(p => ({ value: p.value, numeric: Number(p.value.replace(/\D/g, '')) }))
+  });
 
   const remainingAmount = totalPrice - totalPaid;
 
@@ -161,6 +249,11 @@ export default function NewService() {
         if (docSnap.exists()) {
           const data = docSnap.data();
           console.log("Dados carregados do serviço:", data);
+          console.log("💰 Preço original do banco:", data.price, "Tipo:", typeof data.price);
+          console.log("📸 Imagens antes:", data.beforePhotos, "Tipo:", typeof data.beforePhotos);
+          console.log("📸 Imagens depois:", data.afterPhotos, "Tipo:", typeof data.afterPhotos);
+          console.log("📸 Images Before:", data.imagesBefore, "Tipo:", typeof data.imagesBefore);
+          console.log("📸 Images After:", data.imagesAfter, "Tipo:", typeof data.imagesAfter);
           if (data) {
             console.log("Pagamentos carregados:", data.payments);
             reset({
@@ -168,27 +261,39 @@ export default function NewService() {
               cpf: cpfMask(data.cpf || ""),
               phone: celularMask(data.phone || ""),
               email: data.email || "",
-              date: data.date || new Date().toISOString().split('T')[0],
-              time: data.time || "",
-              price: currencyMask(data.price || ""),
+              date: data.date ? (data.date.includes('/') ? 
+                data.date.split('/').reverse().join('-') : 
+                data.date) : new Date().toISOString().split('T')[0],
+              time: data.time && data.time !== "0" ? data.time : "",
+              price: loadCurrencyForForm(data.price),
               priority: data.priority || "",
               duration: data.duration || "",
               observations: data.observations || "",
-              services: data.services || [],
+              services: data.services ? data.services.map((service: any) => ({
+                ...service,
+                price: service.price ? new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(service.price / 100) : service.price
+              })) : [],
               professionals: data.professionals || [],
               budget: data.budget || false,
               sendToFinance: data.sendToFinance || false,
               payments: data.payments ? data.payments.map((p: any) => ({
                 method: p.method,
-                value: currencyMask(String(p.value || 0)),
+                value: loadCurrencyForForm(p.value),
                 date: p.date,
                 installments: p.installments || undefined
               })) : [],
               documents: data.documents || [],
-              beforePhotos: data.beforePhotos || [],
-              afterPhotos: data.afterPhotos || [],
+              beforePhotos: data.imagesBefore || data.beforePhotos || [],
+              afterPhotos: data.imagesAfter || data.afterPhotos || [],
             });
             console.log("Formulário resetado com os dados carregados.");
+            console.log("💰 Preço original do banco:", data.price, "Tipo:", typeof data.price);
+            console.log("💰 Preço após loadCurrencyForForm:", loadCurrencyForForm(data.price));
+            console.log("💰 Preço após currencyMask:", currencyMask(String(data.price || 0)));
+            console.log("💰 Teste: 3000 / 100 =", 3000 / 100);
             setSelectedClientId((data as any).contactUid || null);
           }
         }
@@ -371,6 +476,12 @@ export default function NewService() {
       const paidAmount = processedPayments.reduce((sum, payment) => sum + payment.value, 0);
       
       const price = Number(data.price.replace(/\D/g, ''));
+      
+      console.log("💰 Salvando preço:", {
+        originalPrice: data.price,
+        numericPrice: price,
+        expectedPrice: 3000
+      });
       
       if (serviceId) {
         console.log("Editando serviço existente:", serviceId);
@@ -627,7 +738,7 @@ export default function NewService() {
     }
     
     if (adjustedTotalPaid + value > totalPrice) {
-      toast.error(`O valor total dos pagamentos (${currencyMask((adjustedTotalPaid + value).toString())}) não pode exceder o valor do serviço (${currencyMask(totalPrice.toString())})`);
+      toast.error(`O valor total dos pagamentos (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((adjustedTotalPaid + value) / 100)}) não pode exceder o valor do serviço (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)})`);
       return;
     }
 
@@ -675,7 +786,7 @@ export default function NewService() {
       toast.warning('O valor dos pagamentos excede o valor total do serviço. Por favor, ajuste os valores.');
       
       if (payments.length > 1) {
-        toast.info(`Valor total do serviço: ${currencyMask(totalPrice.toString())}, Total já registrado em pagamentos: ${currencyMask(totalPaid.toString())}`);
+        toast.info(`Valor total do serviço: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)}, Total já registrado em pagamentos: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPaid)}`);
       }
     }
   }, [totalPrice, totalPaid, payments.length]);
@@ -891,12 +1002,18 @@ export default function NewService() {
           <div className="bg-gray-50 p-3 rounded-md mb-4">
             <div className="flex justify-between items-center mb-2">
               <span>Valor total do serviço:</span>
-              <span className="font-semibold">{currencyMask(totalPrice.toString())}</span>
+              <span className="font-semibold">{new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+              }).format(totalPrice)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Total pago:</span>
               <span className="font-semibold text-green-600">
-                {currencyMask(totalPaid.toString())}
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(totalPaid)}
               </span>
             </div>
           </div>

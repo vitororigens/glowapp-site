@@ -98,7 +98,10 @@ export default function Historico() {
                 <TableRow key={transaction.id}>
                   <TableCell>{transaction.name}</TableCell>
                   <TableCell>{formatDateToBrazilian(transaction.date)}</TableCell>
-                  <TableCell className={transaction.type === 'Serviço' ? 'text-green-600' : 'text-green-600'}>{currencyMask(transaction.value.toString())}</TableCell>
+                  <TableCell className={transaction.type === 'Serviço' ? 'text-green-600' : 'text-green-600'}>{new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(transaction.value / 100)}</TableCell>
                   <TableCell>{transaction.category}</TableCell>
                   <TableCell>{transaction.description}</TableCell>
                   {tipo === 'receita' && 'payments' in transaction && Array.isArray(transaction.payments) && (
@@ -124,7 +127,10 @@ export default function Historico() {
                                 : payment.method === "boleto"
                                 ? "Boleto"
                                 : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
-                              &nbsp;({currencyMask(String(payment.value))})
+                              &nbsp;({new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                              }).format(Number(payment.value) / 100)})
                             </span>
                           </div>
                         ))}
@@ -138,7 +144,10 @@ export default function Historico() {
                       </div>
                     </TableCell>
                   )}
-                  {tipo === 'receita' && 'pendingValue' in transaction && typeof transaction.pendingValue === 'number' && <TableCell className="text-orange-500">{currencyMask(transaction.pendingValue.toString())}</TableCell>}
+                  {tipo === 'receita' && 'pendingValue' in transaction && typeof transaction.pendingValue === 'number' && <TableCell className="text-orange-500">{new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(transaction.pendingValue / 100)}</TableCell>}
                 </TableRow>
               ))}
             </TableBody>

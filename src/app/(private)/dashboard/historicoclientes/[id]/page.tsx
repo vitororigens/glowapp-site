@@ -8,13 +8,36 @@ import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
 import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
-import { currencyMask, celularMask, cpfMask } from "@/utils/maks/masks";
+import { currencyMask, celularMask, cpfMask, formatCurrencyFromCents } from "@/utils/maks/masks";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, Edit, Trash2, AlertTriangle, Image, Eye, X, Calendar, Clock, DollarSign, User, Phone, Mail, FileText } from "lucide-react";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatDateToBrazilian } from "@/utils/formater/date";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+// Função para carregar valores do banco de dados (valores em reais)
+const loadCurrencyFromDB = (value: number | string | undefined) => {
+  if (value === undefined || value === null || value === 0) return '';
+  
+  // Se for número, assume que está em reais (valores salvos no banco)
+  if (typeof value === 'number') {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  }
+  
+  // Se for string, converte para número e formata
+  const numericValue = Number(String(value).replace(/\D/g, ''));
+  if (numericValue === 0) return '';
+  
+  // Assume que está em reais (valores salvos no banco)
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(numericValue);
+};
 
 interface Service {
   id: string;
@@ -276,14 +299,16 @@ export default function ClientHistory() {
           contactUid: data.contactUid,
           name: data.name,
           beforePhotos: data.beforePhotos?.length || 0,
-          afterPhotos: data.afterPhotos?.length || 0
+          afterPhotos: data.afterPhotos?.length || 0,
+          imagesBefore: data.imagesBefore?.length || 0,
+          imagesAfter: data.imagesAfter?.length || 0
         });
         
         // Verificar se é do cliente correto
         if (data.contactUid === clientId || data.name === clientName) {
           servicesFound++;
-          const beforeCount = data.beforePhotos?.length || 0;
-          const afterCount = data.afterPhotos?.length || 0;
+          const beforeCount = (data.imagesBefore?.length || 0) + (data.beforePhotos?.length || 0);
+          const afterCount = (data.imagesAfter?.length || 0) + (data.afterPhotos?.length || 0);
           totalImages += beforeCount + afterCount;
           console.log(`Serviço do cliente encontrado: ${beforeCount} antes + ${afterCount} depois = ${beforeCount + afterCount} total`);
         }
@@ -529,7 +554,7 @@ export default function ClientHistory() {
                       <div className="flex justify-between items-center mt-2">
                         <div>
                           <p className="text-sm text-gray-600">Valor:</p>
-                          <p className="font-medium">{currencyMask(String(service.price))}</p>
+                          <p className="font-medium">{loadCurrencyFromDB(service.price)}</p>
                         </div>
                         <div className="flex space-x-1">
                           <Button 
@@ -617,7 +642,7 @@ export default function ClientHistory() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Valor Total</p>
-                    <p className="font-medium text-lg">{currencyMask(String(selectedService.price))}</p>
+                    <p className="font-medium text-lg">{loadCurrencyFromDB(selectedService.price)}</p>
                   </div>
                 </div>
               </div>
@@ -643,7 +668,7 @@ export default function ClientHistory() {
                           </div>
                           <div>
                             <p className="text-sm text-gray-500">Valor</p>
-                            <p className="font-medium">{currencyMask(serviceItem.price)}</p>
+                            <p className="font-medium">{loadCurrencyFromDB(serviceItem.price)}</p>
                           </div>
                         </div>
                         {serviceItem.date && (
@@ -675,7 +700,7 @@ export default function ClientHistory() {
                           </div>
                           <div>
                             <p className="text-sm text-gray-500">Valor</p>
-                            <p className="font-medium">{currencyMask(String(payment.value))}</p>
+                            <p className="font-medium">{currencyMask(payment.value)}</p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-500">Parcelas</p>
@@ -774,6 +799,10 @@ export default function ClientHistory() {
                             src={photo} 
                             alt={`Antes ${index + 1}`}
                             className="w-full h-24 object-cover rounded border"
+                            onError={(e) => {
+                              console.error('Erro ao carregar imagem:', photo);
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
                         ))}
                       </div>
@@ -790,6 +819,10 @@ export default function ClientHistory() {
                             src={photo} 
                             alt={`Depois ${index + 1}`}
                             className="w-full h-24 object-cover rounded border"
+                            onError={(e) => {
+                              console.error('Erro ao carregar imagem:', photo);
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
                         ))}
                       </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { currencyMask } from "@/utils/maks/masks";
+import { formatCurrency, formatCurrencyFromCents } from "@/utils/maks/masks";
 import { formatDateToBrazilian } from "@/utils/formater/date";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 
@@ -72,6 +72,7 @@ export default function DashboardHome() {
         if (service.payments && service.payments.length > 0) {
           return acc + service.payments
             .reduce((sum, payment) => {
+              // Usa a função padronizada para converter valor para centavos
               const paymentValue = typeof payment.value === 'number' 
                 ? payment.value 
                 : Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", "."));
@@ -188,7 +189,7 @@ export default function DashboardHome() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-green-600">
-                {currencyMask(dashboardData.totalRevenue.toString())}
+                {formatCurrencyFromCents(dashboardData.totalRevenue)}
               </p>
             </CardContent>
           </Card>
@@ -233,8 +234,8 @@ export default function DashboardHome() {
                     <tr key={service.id} className="border-b">
                       <td className="py-2">{service.name}</td>
                       <td className="py-2">{service.date}</td>
-                      <td className="py-2">{currencyMask(servicePrice.toString())}</td>
-                      <td className="py-2 text-green-600">{currencyMask(paidAmount.toString())}</td>
+                      <td className="py-2">{formatCurrencyFromCents(servicePrice)}</td>
+                      <td className="py-2 text-green-600">{formatCurrencyFromCents(paidAmount)}</td>
                       <td className="py-2">
                         <span className={`px-2 py-1 rounded-full text-xs ${service.budget ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}>
                           {service.budget ? "Orçamento" : "Serviço"}
@@ -266,7 +267,7 @@ export default function DashboardHome() {
                                     : payment.method === "boleto"
                                     ? "Boleto"
                                     : `Cartão${payment.installments ? ` ${payment.installments}x` : ""}`}
-                                  {mostrarValor ? ` ${currencyMask(String(payment.value))}` : ""}
+                                  {mostrarValor ? ` ${formatCurrencyFromCents(Number(payment.value))}` : ""}
                                 </span>
                               );
                             })}

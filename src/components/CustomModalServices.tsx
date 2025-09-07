@@ -130,7 +130,10 @@ export function CustomModalServices({
                       {service.name}
                     </Label>
                     <p className="text-sm text-gray-500">
-                      Código: {service.code} | Valor: {currencyMask(service.price)}
+                      Código: {service.code} | Valor: {new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL'
+                      }).format(Number(service.price) / 100)}
                     </p>
                   </div>
                 </div>

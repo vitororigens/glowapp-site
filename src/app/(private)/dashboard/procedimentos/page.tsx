@@ -109,7 +109,10 @@ export default function Procedures() {
                 <TableRow key={procedure.id}>
                   <TableCell>{procedure.code}</TableCell>
                   <TableCell>{procedure.name}</TableCell>
-                  <TableCell>{currencyMask(procedure.price)}</TableCell>
+                  <TableCell>{new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(Number(procedure.price) / 100)}</TableCell>
                   <TableCell>{procedure.description || "-"}</TableCell>
                   <TableCell>{procedure.date ? formatDateToBrazilian(procedure.date) : "-"}</TableCell>
                   <TableCell className="text-right">

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 import { formatDateToBrazilian } from "@/utils/formater/date";
+import { formatCurrencyFromCents } from "@/utils/maks/masks";
 
 interface Service {
   id: string;
@@ -79,12 +80,13 @@ export default function Services() {
       .filter(service => !service.budget && service.payments && service.payments.length > 0)
       .reduce((acc, service) => {
         const paidAmount = service.payments
-          .reduce((sum, p) => {
+          ?.reduce((sum, p) => {
             const value = typeof p.value === 'number' 
               ? p.value 
               : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-            return sum + value;
-          }, 0);
+            // Os valores estão em centavos, então dividimos por 100 para obter reais
+            return sum + (value / 100);
+          }, 0) || 0;
         return acc + paidAmount;
       }, 0);
 
@@ -94,14 +96,7 @@ export default function Services() {
   const { totalPaid, totalServices: servicesCount, totalBudgets } = calculateTotals();
 
   const formatPrice = (price: number | string) => {
-    if (typeof price === 'string') {
-      price = Number(price.replace(/\D/g, ''));
-    }
-    
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(price / 100);
+    return formatCurrencyFromCents(price);
   };
 
   const handleDelete = async (id: string) => {
@@ -147,7 +142,7 @@ export default function Services() {
               </div>
               <div className="bg-white p-4 rounded-lg shadow border">
                 <div className="text-sm text-gray-500 mb-1">Valores Recebidos</div>
-                <div className="text-2xl font-bold text-green-600">{formatPrice(totalPaid)}</div>
+                <div className="text-2xl font-bold text-green-600">{formatCurrencyFromCents(totalPaid * 100)}</div>
               </div>
             </div>
           </div>
@@ -173,17 +168,19 @@ export default function Services() {
                         const value = typeof p.value === 'number' 
                           ? p.value 
                           : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-                        return sum + value;
+                        // Os valores estão em centavos, então dividimos por 100 para obter reais
+                        return sum + (value / 100);
                       }, 0)
                     : 0;
-                  const valorTotal = typeof service.price === 'number' ? service.price : Number(String(service.price).replace(/[^\d,-]/g, "").replace(",", "."));
+                  const valorTotal = service.price;
+                  console.log(valorTotal);
                   return (
                     <TableRow key={service.id}>
                       <TableCell>{service.name}</TableCell>
                       <TableCell>{formatDateToBrazilian(service.date)}</TableCell>
                       <TableCell>{service.time}</TableCell>
-                      <TableCell>{formatPrice(valorTotal)}</TableCell>
-                      <TableCell className="text-green-600">{formatPrice(paidAmount)}</TableCell>
+                      <TableCell>{formatCurrencyFromCents(valorTotal * 100)}</TableCell>
+                      <TableCell className="text-green-600">{formatCurrencyFromCents(paidAmount * 100)}</TableCell>
                       <TableCell>
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
@@ -249,7 +246,7 @@ export default function Services() {
                                       : payment.method === "boleto"
                                       ? "Boleto"
                                       : `Cartão${payment.installments ? ` ${payment.installments}x` : ""}`}
-                                    {mostrarValor ? ` ${formatPrice(payment.value)}` : ""}
+                                    {mostrarValor ? ` ${formatCurrencyFromCents(Number(payment.value))}` : ""}
                                   </span>
                                 );
                               })}

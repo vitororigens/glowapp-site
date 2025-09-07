@@ -130,7 +130,10 @@ export function ItemsHistory({
         </ContainerText>
         <Divider />
         <ContainerText>
-          <Title>R$ {currencyMask(price)}</Title>
+          <Title>{new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(Number(price) / 100)}</Title>
           <SubTitle>{priority}</SubTitle>
         </ContainerText>
       </div>

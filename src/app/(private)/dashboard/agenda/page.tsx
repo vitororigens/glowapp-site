@@ -404,7 +404,8 @@ export default function Agenda() {
     (appointmentToConvert.appointment?.servicePrice || appointmentToConvert.appointment?.procedurePrice || 0) : 0;
 
   const totalPaid = payments.reduce((acc, payment) => {
-    return acc + Number(payment.value.replace(/\D/g, ''));
+    // Os valores dos pagamentos estão em centavos, então dividimos por 100 para obter reais
+    return acc + (Number(payment.value.replace(/\D/g, '')) / 100);
   }, 0);
 
   const handlePaymentMethodChange = (value: "dinheiro" | "pix" | "cartao" | "boleto") => {
@@ -452,7 +453,7 @@ export default function Agenda() {
     }
     
     if (adjustedTotalPaid + value > totalPrice) {
-      toast.error(`O valor total dos pagamentos (${currencyMask(adjustedTotalPaid + value)}) não pode exceder o valor do serviço (${currencyMask(totalPrice)})`);
+      toast.error(`O valor total dos pagamentos (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((adjustedTotalPaid + value) / 100)}) não pode exceder o valor do serviço (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100)})`);
       return;
     }
 
@@ -788,7 +789,7 @@ export default function Agenda() {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Agendamentos totais</h3>
                   <p className="text-2xl font-bold text-gray-900">{appointments.length}</p>
-                  {console.log('📊 Exibindo contagem de agendamentos:', appointments.length, 'Agendamentos:', appointments)}
+                  {(() => { console.log('📊 Exibindo contagem de agendamentos:', appointments.length, 'Agendamentos:', appointments); return null; })()}
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Hoje</h3>
@@ -1081,7 +1082,10 @@ export default function Agenda() {
                               <div className="text-xs text-gray-600">
                                 <span className="font-medium text-gray-700">Valor:</span>
                                 <span className={`ml-1 font-medium ${transaction.type === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
-                                  {transaction.type === 'entrada' ? '+' : '-'} {currencyMask(transaction.value.toString())}
+                                  {transaction.type === 'entrada' ? '+' : '-'} {new Intl.NumberFormat('pt-BR', {
+                                    style: 'currency',
+                                    currency: 'BRL'
+                                  }).format(transaction.value / 100)}
                                 </span>
                               </div>
                             </div>
@@ -1407,12 +1411,12 @@ export default function Agenda() {
                       <div className="bg-gray-50 p-3 rounded-md mb-4">
                         <div className="flex justify-between items-center mb-2">
                           <span>Valor total do serviço:</span>
-                          <span className="font-semibold">{currencyMask(totalPrice)}</span>
+                          <span className="font-semibold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100)}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Total pago:</span>
                           <span className="font-semibold text-green-600">
-                            {currencyMask(totalPaid)}
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPaid / 100)}
                           </span>
                         </div>
                       </div>
@@ -1460,10 +1464,10 @@ export default function Agenda() {
                           <div>
                             <Label>Tipo de Pagamento</Label>
                             <RadioGroup
-                              value={newPayment.value === currencyMask(totalPrice) ? "full" : "partial"}
+                              value={newPayment.value === new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100) ? "full" : "partial"}
                               onValueChange={(value) => {
                                 if (value === "full") {
-                                  setNewPayment({...newPayment, value: currencyMask(totalPrice)});
+                                  setNewPayment({...newPayment, value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100)});
                                 } else {
                                   setNewPayment({...newPayment, value: ""});
                                 }
@@ -1488,7 +1492,7 @@ export default function Agenda() {
                               value={newPayment.value}
                               onChange={(e) => setNewPayment({...newPayment, value: currencyMask(e.target.value)})}
                               className="mt-2"
-                              disabled={newPayment.value === currencyMask(totalPrice)}
+                              disabled={newPayment.value === new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100)}
                             />
                           </div>
                         </div>

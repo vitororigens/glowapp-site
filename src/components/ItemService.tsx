@@ -17,7 +17,7 @@ export function ItemService({ id, code, name, price, onRemove }: ItemServiceProp
       <div>
         <p className="font-medium">{name}</p>
         <p className="text-sm text-gray-500">
-          Código: {code} | Valor: {currencyMask(price)}
+          Código: {code} | Valor: {price}
         </p>
       </div>
       <Button

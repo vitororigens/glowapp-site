@@ -163,15 +163,24 @@ export default function Financeiro() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10 w-full max-w-5xl">
           <Card className="p-4">
             <h3 className="text-sm font-bold text-gray-500">Receitas</h3>
-            <p className="text-2xl font-bold text-green-600">{currencyMask(totalRevenue.toString())}</p>
+            <p className="text-2xl font-bold text-green-600">{new Intl.NumberFormat('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            }).format(totalRevenue / 100)}</p>
           </Card>
           <Card className="p-4">
             <h3 className="text-sm font-bold text-gray-500">Despesas</h3>
-            <p className="text-2xl font-bold text-red-600">{currencyMask(totalExpense.toString())}</p>
+            <p className="text-2xl font-bold text-red-600">{new Intl.NumberFormat('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            }).format(totalExpense / 100)}</p>
           </Card>
           <Card className="p-4">
             <h3 className="text-sm font-bold text-gray-500">Saldo</h3>
-            <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{currencyMask(balance.toString())}</p>
+            <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{new Intl.NumberFormat('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            }).format(balance / 100)}</p>
           </Card>
         </div>
       </div>
