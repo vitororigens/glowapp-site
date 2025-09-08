@@ -237,6 +237,11 @@ export default function NewService() {
           console.log("📸 Imagens depois:", data.afterPhotos, "Tipo:", typeof data.afterPhotos);
           console.log("📸 Images Before:", data.imagesBefore, "Tipo:", typeof data.imagesBefore);
           console.log("📸 Images After:", data.imagesAfter, "Tipo:", typeof data.imagesAfter);
+          
+          // Verificar se imagesBefore é um array de strings ou objetos
+          if (data.imagesBefore && Array.isArray(data.imagesBefore)) {
+            console.log("📸 ImagesBefore primeiro item:", data.imagesBefore[0], "Tipo:", typeof data.imagesBefore[0]);
+          }
           if (data) {
             console.log("Pagamentos carregados:", data.payments);
             reset({
@@ -247,7 +252,7 @@ export default function NewService() {
               date: data.date ? (data.date.includes('/') ? 
                 data.date.split('/').reverse().join('-') : 
                 data.date) : new Date().toISOString().split('T')[0],
-              time: data.time && data.time !== "0" ? data.time : "",
+              time: data.time && data.time !== "0" && data.time !== "00:00" ? data.time : "",
               price: formatCurrency(data.price),
               priority: data.priority || "",
               duration: data.duration || "",
@@ -269,14 +274,31 @@ export default function NewService() {
                 installments: p.installments || undefined
               })) : [],
               documents: data.documents || [],
-              beforePhotos: data.imagesBefore || data.beforePhotos || [],
-              afterPhotos: data.imagesAfter || data.afterPhotos || [],
+              beforePhotos: data.imagesBefore ? 
+                data.imagesBefore.map((url: string) => ({ url, description: '' })) : 
+                data.beforePhotos || [],
+              afterPhotos: data.imagesAfter ? 
+                data.imagesAfter.map((url: string) => ({ url, description: '' })) : 
+                data.afterPhotos || [],
             });
             console.log("Formulário resetado com os dados carregados.");
             console.log("💰 Preço original do banco:", data.price, "Tipo:", typeof data.price);
             console.log("💰 Preço após formatCurrency:", formatCurrency(data.price));
             console.log("💰 Preço após currencyMask:", currencyMask(String(data.price || 0)));
             console.log("💰 Teste: 3000 / 100 =", 3000 / 100);
+            console.log("📸 BeforePhotos carregadas:", data.imagesBefore || data.beforePhotos);
+            console.log("📸 AfterPhotos carregadas:", data.imagesAfter || data.afterPhotos);
+            
+            // Log das imagens mapeadas
+            const mappedBeforePhotos = data.imagesBefore ? 
+              data.imagesBefore.map((url: string) => ({ url, description: '' })) : 
+              data.beforePhotos || [];
+            const mappedAfterPhotos = data.imagesAfter ? 
+              data.imagesAfter.map((url: string) => ({ url, description: '' })) : 
+              data.afterPhotos || [];
+            
+            console.log("📸 BeforePhotos mapeadas:", mappedBeforePhotos);
+            console.log("📸 AfterPhotos mapeadas:", mappedAfterPhotos);
             setSelectedClientId((data as any).contactUid || null);
           }
         }
@@ -1154,7 +1176,7 @@ export default function NewService() {
                 id={service.id}
                 code={service.code}
                 name={service.name}
-                price={service.price}
+                price={currencyMask(Number(service.price) * 100)} 
                 onRemove={handleRemoveService}
               />
             ))}
@@ -1264,23 +1286,29 @@ export default function NewService() {
                   Nenhuma foto adicionada
                 </div>
               ) : (
-                beforePhotos.map((photo, index) => (
-                  <div key={index} className="relative">
-                    <img
-                      src={photo.url}
-                      alt={`Foto antes ${index + 1}`}
-                      className="w-full h-48 object-cover rounded"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => handleRemoveFile('before', index)}
-                      className="absolute top-2 right-2 h-8 w-8 bg-red-600 hover:bg-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))
+                beforePhotos.map((photo, index) => {
+                  console.log("📸 Renderizando foto antes:", photo);
+                  return (
+                    <div key={index} className="relative">
+                      <img
+                        src={photo.url}
+                        alt={`Foto antes ${index + 1}`}
+                        className="w-full h-48 object-cover rounded"
+                        onError={(e) => {
+                          console.error("❌ Erro ao carregar imagem:", photo.url, e);
+                        }}
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleRemoveFile('before', index)}
+                        className="absolute top-2 right-2 h-8 w-8 bg-red-600 hover:bg-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -1317,23 +1345,29 @@ export default function NewService() {
                   Nenhuma foto adicionada
                 </div>
               ) : (
-                afterPhotos.map((photo, index) => (
-                  <div key={index} className="relative">
-                    <img
-                      src={photo.url}
-                      alt={`Foto depois ${index + 1}`}
-                      className="w-full h-48 object-cover rounded"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => handleRemoveFile('after', index)}
-                      className="absolute top-2 right-2 h-8 w-8 bg-red-600 hover:bg-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))
+                afterPhotos.map((photo, index) => {
+                  console.log("📸 Renderizando foto depois:", photo);
+                  return (
+                    <div key={index} className="relative">
+                      <img
+                        src={photo.url}
+                        alt={`Foto depois ${index + 1}`}
+                        className="w-full h-48 object-cover rounded"
+                        onError={(e) => {
+                          console.error("❌ Erro ao carregar imagem:", photo.url, e);
+                        }}
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleRemoveFile('after', index)}
+                        className="absolute top-2 right-2 h-8 w-8 bg-red-600 hover:bg-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
