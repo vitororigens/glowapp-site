@@ -9,57 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
 import { currencyMask, cpfMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
 
-// Função para carregar valores do banco de dados
-const loadCurrencyFromDB = (value: number | string | undefined) => {
-  if (value === undefined || value === null || value === 0) return '';
-  
-  // Se for número, assume que está em centavos (valores salvos no banco)
-  if (typeof value === 'number') {
-    // Multiplica por 100 para corrigir valores antigos que estão incorretos
-    const correctedValue = value * 100;
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(correctedValue / 100);
-  }
-  
-  // Se for string, converte para número e formata
-  const numericValue = Number(String(value).replace(/\D/g, ''));
-  if (numericValue === 0) return '';
-  
-  // Multiplica por 100 para corrigir valores antigos
-  const correctedValue = numericValue * 100;
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(correctedValue / 100);
-};
 
-// Função para carregar valores do banco para campos de formulário
-const loadCurrencyForForm = (value: number | string | undefined) => {
-  if (value === undefined || value === null || value === 0) return '';
-  
-  // Se for número, assume que está em centavos e converte para formato de input
-  if (typeof value === 'number') {
-    // Multiplica por 100 para corrigir valores antigos que estão incorretos
-    const correctedValue = value * 100;
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(correctedValue / 100);
-  }
-  
-  // Se for string, converte para número e formata
-  const numericValue = Number(String(value).replace(/\D/g, ''));
-  if (numericValue === 0) return '';
-  
-  // Multiplica por 100 para corrigir valores antigos
-  const correctedValue = numericValue * 100;
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(correctedValue / 100);
-};
 import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
 import { doc, getDoc, setDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
@@ -81,6 +31,28 @@ import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+// Função para carregar valores do banco para campos de formulário
+const formatCurrency = (value: number | string | undefined) => {
+  if (value === undefined || value === null || value === 0) return '';
+  
+  // Se for número, usa o valor diretamente
+  if (typeof value === 'number') {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  }
+  
+  // Se for string, converte para número e formata
+  const numericValue = Number(String(value).replace(/\D/g, ''));
+  if (numericValue === 0) return '';
+  
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(numericValue);
+};
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -135,7 +107,7 @@ export default function NewService() {
   const [showClientsModal, setShowClientsModal] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [showInstallmentsModal, setShowInstallmentsModal] = useState(false);
-  const [currentPaymentIndex, setCurrentPaymentIndex] = useState(-1);
+  const [formatCurrencytPaymentIndex, setCurrentPaymentIndex] = useState(-1);
   const { user } = useAuthContext();
   const uid = user?.uid;
   const router = useRouter();
@@ -203,23 +175,23 @@ export default function NewService() {
   
   // Debug para verificar o cálculo do totalPrice
   useEffect(() => {
-    const currentPrice = watch("price");
+    const formatCurrencytPrice = watch("price");
     console.log("🔍 Debug totalPrice:", {
-      priceField: currentPrice,
+      priceField: formatCurrencytPrice,
       totalPrice: totalPrice,
-      priceFieldType: typeof currentPrice,
-      numericValue: currentPrice ? Number(currentPrice.replace(/\D/g, '')) : 0,
-      expectedValue: currentPrice ? Number(currentPrice.replace(/\D/g, '')) : 0
+      priceFieldType: typeof formatCurrencytPrice,
+      numericValue: formatCurrencytPrice ? Number(formatCurrencytPrice.replace(/\D/g, '')) : 0,
+      expectedValue: formatCurrencytPrice ? Number(formatCurrencytPrice.replace(/\D/g, '')) : 0
     });
   }, [watch("price"), totalPrice]);
   
   // Debug logs para verificar valores
   useEffect(() => {
-    const currentPrice = watch("price");
+    const formatCurrencytPrice = watch("price");
     console.log("🔍 Debug preço:", {
-      priceField: currentPrice,
+      priceField: formatCurrencytPrice,
       totalPrice: totalPrice,
-      priceFieldType: typeof currentPrice
+      priceFieldType: typeof formatCurrencytPrice
     });
   }, [watch("price"), totalPrice]);
 
@@ -271,7 +243,7 @@ export default function NewService() {
                 data.date.split('/').reverse().join('-') : 
                 data.date) : new Date().toISOString().split('T')[0],
               time: data.time && data.time !== "0" ? data.time : "",
-              price: loadCurrencyForForm(data.price),
+              price: formatCurrency(data.price),
               priority: data.priority || "",
               duration: data.duration || "",
               observations: data.observations || "",
@@ -287,7 +259,7 @@ export default function NewService() {
               sendToFinance: data.sendToFinance || false,
               payments: data.payments ? data.payments.map((p: any) => ({
                 method: p.method,
-                value: loadCurrencyForForm(p.value),
+                value: formatCurrency(p.value),
                 date: p.date,
                 installments: p.installments || undefined
               })) : [],
@@ -297,7 +269,7 @@ export default function NewService() {
             });
             console.log("Formulário resetado com os dados carregados.");
             console.log("💰 Preço original do banco:", data.price, "Tipo:", typeof data.price);
-            console.log("💰 Preço após loadCurrencyForForm:", loadCurrencyForForm(data.price));
+            console.log("💰 Preço após formatCurrency:", formatCurrency(data.price));
             console.log("💰 Preço após currencyMask:", currencyMask(String(data.price || 0)));
             console.log("💰 Teste: 3000 / 100 =", 3000 / 100);
             setSelectedClientId((data as any).contactUid || null);
@@ -604,11 +576,11 @@ export default function NewService() {
     
     setValue("price", currencyMask(total.toString()));
     
-    const currentTotalPaid = payments.reduce((acc, payment) => {
+    const formatCurrencytTotalPaid = payments.reduce((acc, payment) => {
       return acc + Number(payment.value.replace(/\D/g, ''));
     }, 0);
 
-    if (currentTotalPaid > total && payments.length > 0) {
+    if (formatCurrencytTotalPaid > total && payments.length > 0) {
       toast.warning('O valor total foi reduzido. Verifique as formas de pagamento.');
     }
   };
@@ -623,14 +595,14 @@ export default function NewService() {
 
     // Verificar limitação de imagens por cliente (bloqueio silencioso)
     if ((type === 'before' || type === 'after') && contactId && planLimits) {
-      const currentBeforePhotos = watch("beforePhotos") || [];
-      const currentAfterPhotos = watch("afterPhotos") || [];
-      const currentServiceImages = currentBeforePhotos.length + currentAfterPhotos.length;
-      const totalClientImages = clientImageCount - currentServiceImages; // Remove imagens do serviço atual
+      const formatCurrencytBeforePhotos = watch("beforePhotos") || [];
+      const formatCurrencytAfterPhotos = watch("afterPhotos") || [];
+      const formatCurrencytServiceImages = formatCurrencytBeforePhotos.length + formatCurrencytAfterPhotos.length;
+      const totalClientImages = clientImageCount - formatCurrencytServiceImages; // Remove imagens do serviço atual
       const newImagesCount = files.length;
       
-      if (!canAddImageToClient(totalClientImages + currentServiceImages + newImagesCount)) {
-        const remaining = getRemainingImagesForClient(totalClientImages + currentServiceImages);
+      if (!canAddImageToClient(totalClientImages + formatCurrencytServiceImages + newImagesCount)) {
+        const remaining = getRemainingImagesForClient(totalClientImages + formatCurrencytServiceImages);
         toast.error(`Limite de ${planLimits.images} imagens por cliente atingido! Você pode adicionar mais ${remaining} imagens.`);
         return;
       }
@@ -738,8 +710,8 @@ export default function NewService() {
 
     let adjustedTotalPaid = totalPaid;
     
-    if (currentPaymentIndex !== -1) {
-      const oldPaymentValue = Number(payments[currentPaymentIndex].value.replace(/\D/g, ''));
+    if (formatCurrencytPaymentIndex !== -1) {
+      const oldPaymentValue = Number(payments[formatCurrencytPaymentIndex].value.replace(/\D/g, ''));
       adjustedTotalPaid = adjustedTotalPaid - oldPaymentValue;
     }
     
@@ -755,7 +727,7 @@ export default function NewService() {
       value: formattedValue
     });
     
-    if (currentPaymentIndex === -1) {
+    if (formatCurrencytPaymentIndex === -1) {
       setValue("payments", [
         ...payments, 
         {
@@ -765,7 +737,7 @@ export default function NewService() {
       ]);
     } else {
       const updatedPayments = [...payments];
-      updatedPayments[currentPaymentIndex] = {
+      updatedPayments[formatCurrencytPaymentIndex] = {
         ...newPayment,
         value: formattedValue
       };
@@ -1008,18 +980,12 @@ export default function NewService() {
           <div className="bg-gray-50 p-3 rounded-md mb-4">
             <div className="flex justify-between items-center mb-2">
               <span>Valor total do serviço:</span>
-              <span className="font-semibold">{new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-              }).format(totalPrice)}</span>
+              <span className="font-semibold">{currencyMask(totalPrice)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Total pago:</span>
               <span className="font-semibold text-green-600">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format(totalPaid)}
+                {currencyMask(totalPaid)}
               </span>
             </div>
           </div>
@@ -1112,7 +1078,7 @@ export default function NewService() {
                 onClick={handleAddPayment}
                 disabled={!newPayment.value || Number(newPayment.value.replace(/\D/g, '')) <= 0}
               >
-                {currentPaymentIndex === -1 ? "Adicionar Pagamento" : "Atualizar Pagamento"}
+                {formatCurrencytPaymentIndex === -1 ? "Adicionar Pagamento" : "Atualizar Pagamento"}
               </Button>
             </div>
           </div>
@@ -1136,7 +1102,7 @@ export default function NewService() {
                           : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
                       </div>
                       <div className="text-sm">
-                        {payment.date} - {payment.value}
+                        {payment.date} - {currencyMask(payment.value)}
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -1400,8 +1366,8 @@ export default function NewService() {
         visible={showServicesModal}
         onClose={() => setShowServicesModal(false)}
         onConfirm={(selectedItems) => {
-          const currentServices = services || [];
-          const existingIds = currentServices.map(s => s.id);
+          const formatCurrencytServices = services || [];
+          const existingIds = formatCurrencytServices.map(s => s.id);
           const newServices = selectedItems.filter(id => !existingIds.includes(id));
           
           const fetchSelectedServices = async () => {
@@ -1421,7 +1387,7 @@ export default function NewService() {
                   date: doc.data().date
                 }));
 
-              const updatedServices = [...currentServices, ...selectedServices];
+              const updatedServices = [...formatCurrencytServices, ...selectedServices];
               setValue("services", updatedServices);
 
               const total = updatedServices.reduce((sum, service) => {
@@ -1452,8 +1418,8 @@ export default function NewService() {
         visible={showProfessionalsModal}
         onClose={() => setShowProfessionalsModal(false)}
         onConfirm={(selectedItems) => {
-          const currentProfessionals = professionals || [];
-          const existingIds = currentProfessionals.map(p => p.id);
+          const formatCurrencytProfessionals = professionals || [];
+          const existingIds = formatCurrencytProfessionals.map(p => p.id);
           const newProfessionals = selectedItems.filter(id => !existingIds.includes(id));
           
           const fetchSelectedProfessionals = async () => {
@@ -1471,7 +1437,7 @@ export default function NewService() {
                   specialty: doc.data().specialty
                 }));
 
-              setValue("professionals", [...currentProfessionals, ...selectedProfessionals]);
+              setValue("professionals", [...formatCurrencytProfessionals, ...selectedProfessionals]);
             } catch (error) {
               console.error("Erro ao buscar profissionais selecionados:", error);
               toast.error("Erro ao adicionar profissionais!");
