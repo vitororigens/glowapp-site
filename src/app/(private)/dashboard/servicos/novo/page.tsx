@@ -164,7 +164,7 @@ export default function NewService() {
   const beforePhotos = watch("beforePhotos") || [];
   const afterPhotos = watch("afterPhotos") || [];
   const payments = watch("payments") || [];
-  const totalPrice = watch("price") ? Number(watch("price").replace(/\D/g, '')) : 0;
+  const totalPrice = watch("price") ? Number(watch("price").replace(/\D/g, '')) / 100 : 0;
   
   // Debug para verificar o cálculo do totalPrice
   console.log("🔍 Debug totalPrice calculation:", {
@@ -453,7 +453,7 @@ export default function NewService() {
       
       const paidAmount = processedPayments.reduce((sum, payment) => sum + payment.value, 0);
       
-      const price = Number(data.price.replace(/\D/g, ''));
+      const price = Number(data.price.replace(/\D/g, '')) / 100;
       
       console.log("💰 Salvando preço:", {
         originalPrice: data.price,
@@ -569,7 +569,7 @@ export default function NewService() {
     
     const total = updatedServices.reduce((sum, service) => {
       const servicePrice = typeof service.price === 'string' 
-        ? Number(service.price.replace(/\D/g, ''))
+        ? Number(service.price.replace(/\D/g, '')) / 100
         : Number(service.price);
       return sum + servicePrice;
     }, 0);
@@ -980,7 +980,10 @@ export default function NewService() {
           <div className="bg-gray-50 p-3 rounded-md mb-4">
             <div className="flex justify-between items-center mb-2">
               <span>Valor total do serviço:</span>
-              <span className="font-semibold">{currencyMask(totalPrice)}</span>
+              <span className="font-semibold">{new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+              }).format(totalPrice)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Total pago:</span>
@@ -1102,7 +1105,7 @@ export default function NewService() {
                           : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
                       </div>
                       <div className="text-sm">
-                        {payment.date} - {currencyMask(payment.value)}
+                        {payment.date} - {payment.value}
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -1392,7 +1395,7 @@ export default function NewService() {
 
               const total = updatedServices.reduce((sum, service) => {
                 const price = typeof service.price === 'string' 
-                  ? Number(service.price.replace(/\D/g, ''))
+                  ? Number(service.price.replace(/\D/g, '')) / 100
                   : Number(service.price);
                 return sum + price;
               }, 0);
