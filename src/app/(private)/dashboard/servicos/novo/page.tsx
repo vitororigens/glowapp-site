@@ -15,21 +15,24 @@ const loadCurrencyFromDB = (value: number | string | undefined) => {
   
   // Se for número, assume que está em centavos (valores salvos no banco)
   if (typeof value === 'number') {
+    // Multiplica por 100 para corrigir valores antigos que estão incorretos
+    const correctedValue = value * 100;
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(value / 100);
+    }).format(correctedValue / 100);
   }
   
   // Se for string, converte para número e formata
   const numericValue = Number(String(value).replace(/\D/g, ''));
   if (numericValue === 0) return '';
   
-  // Assume que está em centavos (valores salvos no banco)
+  // Multiplica por 100 para corrigir valores antigos
+  const correctedValue = numericValue * 100;
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
-  }).format(numericValue / 100);
+  }).format(correctedValue / 100);
 };
 
 // Função para carregar valores do banco para campos de formulário
@@ -38,21 +41,24 @@ const loadCurrencyForForm = (value: number | string | undefined) => {
   
   // Se for número, assume que está em centavos e converte para formato de input
   if (typeof value === 'number') {
-    // Para valores em centavos, formatamos corretamente
+    // Multiplica por 100 para corrigir valores antigos que estão incorretos
+    const correctedValue = value * 100;
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(value / 100);
+    }).format(correctedValue / 100);
   }
   
   // Se for string, converte para número e formata
   const numericValue = Number(String(value).replace(/\D/g, ''));
   if (numericValue === 0) return '';
   
+  // Multiplica por 100 para corrigir valores antigos
+  const correctedValue = numericValue * 100;
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
-  }).format(numericValue / 100);
+  }).format(correctedValue / 100);
 };
 import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";

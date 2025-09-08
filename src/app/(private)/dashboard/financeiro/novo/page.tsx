@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
-import { currencyMask, currencyUnMask } from "@/utils/maks/masks";
+import { currencyMask, currencyUnMask, formatCurrencyFromCents, convertToCentsString } from "@/utils/maks/masks";
+import { convertBrazilianToISO, formatDateToBrazilian } from "@/utils/formater/date";
 import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -17,7 +18,7 @@ export default function NewLaunch() {
   const [selectedType, setSelectedType] = useState<"revenue" | "expense" | "">("");
   const [isLoading, setIsLoading] = useState(false);
   
-  const { register, handleSubmit, setValue, formState: { errors }, reset } = useForm<FormSchemaType>({
+  const { register, handleSubmit, setValue, formState: { errors }, reset, watch } = useForm<FormSchemaType>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -29,6 +30,8 @@ export default function NewLaunch() {
     }
   });
   
+  const value = watch("value"); // pega o valor do form
+  console.log("value", value);
   const { user } = useAuthContext();
   const uid = user?.uid;
   const router = useRouter();
@@ -58,15 +61,30 @@ export default function NewLaunch() {
         .then((docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
+            const convertedDate = data.date ? convertBrazilianToISO(data.date) : "";
+            // Força multiplicação por 100 para corrigir valores antigos
+            const valueInCents = data.value ? Number(data.value) * 100 : 0;
+            
+            // Teste direto para verificar se a função está funcionando
+            console.log("Teste 300000:", formatCurrencyFromCents(300000));
+            console.log("Valor do banco:", data.value);
+            console.log("Valor multiplicado:", valueInCents);
+            
+            const formattedValue = data.value ? formatCurrencyFromCents(valueInCents) : "";
+            console.log("Valor formatado:", formattedValue);
             reset({
               name: data.name || "",
               category: data.category || "",
-              date: data.date || "",
+              date: convertedDate,
               time: data.time || "",
-              value: data.value ? currencyMask(data.value.toString()) : "",
               description: data.description || "",
               type: itemType
             });
+            
+            // Define o valor separadamente para garantir que seja aplicado
+            setTimeout(() => {
+              setValue("value", formattedValue);
+            }, 100);
           } else {
             alert("Lançamento não encontrado!");
           }
@@ -90,7 +108,8 @@ export default function NewLaunch() {
   const docId = itemId || crypto.randomUUID();
   const docRef = doc(database, collectionName, docId);
 
-  const numericValue = Number(currencyUnMask(data.value));
+  const valueInCents = convertToCentsString(data.value);
+  const numericValue = Number(valueInCents);
   if (isNaN(numericValue)) {
     alert("Valor inválido.");
     return;
@@ -100,6 +119,7 @@ export default function NewLaunch() {
 
   const baseData = {
     ...data,
+    date: formatDateToBrazilian(data.date), // Convert back to Brazilian format for storage
     uid,
     type: typePt,
     value: numericValue,
@@ -168,14 +188,25 @@ export default function NewLaunch() {
           </div>
 
           <div>
-            <Label>Valor</Label>
-            <Input 
-              type="text" 
-              {...register("value")} 
-              onChange={(e) => setValue("value", currencyMask(e.target.value))} 
-            />
-            {errors.value && <p className="text-red-500 text-sm">{errors.value.message}</p>}
-          </div>
+  <Label>Valor</Label>
+
+
+<Input 
+  type="text"
+  value={value}
+  onChange={(e) => {
+    const raw = currencyUnMask(e.target.value); // só números
+    const masked = currencyMask(raw.toString()); // aplica máscara
+    console.log("masked", masked);
+    console.log("raw", raw);
+    console.log("e.target.value", e.target.value);
+    setValue("value", masked, { shouldValidate: true });
+  }}
+/>
+
+  {errors.value && <p className="text-red-500 text-sm">{errors.value.message}</p>}
+</div>
+
 
           <div>
             <Label>Descrição</Label>
