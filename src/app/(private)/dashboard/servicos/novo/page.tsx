@@ -36,17 +36,22 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 const formatCurrency = (value: number | string | undefined) => {
   if (value === undefined || value === null || value === 0) return '';
   
+  let numericValue: number;
+  
   // Se for número, usa o valor diretamente
   if (typeof value === 'number') {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
+    numericValue = value;
+  } else {
+    // Se for string, converte para número
+    numericValue = Number(String(value).replace(/\D/g, ''));
   }
   
-  // Se for string, converte para número e formata
-  const numericValue = Number(String(value).replace(/\D/g, ''));
   if (numericValue === 0) return '';
+  
+  // Se o valor for muito grande (provavelmente em centavos), divide por 100
+  if (numericValue > 100000) {
+    numericValue = numericValue / 100;
+  }
   
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -196,7 +201,7 @@ export default function NewService() {
   }, [watch("price"), totalPrice]);
 
   const totalPaid = payments.reduce((acc, payment) => {
-    // Os valores dos pagamentos estão em centavos, então dividimos por 100 para obter reais
+    // Os valores dos pagamentos já estão formatados, então convertemos para número
     const paymentValue = Number(payment.value.replace(/\D/g, '')) / 100;
     console.log("💰 Debug pagamento:", {
       paymentValue: payment.value,
@@ -720,11 +725,9 @@ export default function NewService() {
       return;
     }
 
-    const formattedValue = currencyMask(newPayment.value);
-    
     console.log("Adicionando pagamento:", {
       ...newPayment,
-      value: formattedValue
+      value: newPayment.value
     });
     
     if (formatCurrencytPaymentIndex === -1) {
@@ -732,14 +735,14 @@ export default function NewService() {
         ...payments, 
         {
           ...newPayment,
-          value: formattedValue
+          value: newPayment.value
         }
       ]);
     } else {
       const updatedPayments = [...payments];
       updatedPayments[formatCurrencytPaymentIndex] = {
         ...newPayment,
-        value: formattedValue
+        value: newPayment.value
       };
       setValue("payments", updatedPayments);
       setCurrentPaymentIndex(-1);
@@ -988,7 +991,7 @@ export default function NewService() {
             <div className="flex justify-between items-center">
               <span>Total pago:</span>
               <span className="font-semibold text-green-600">
-                {currencyMask(totalPaid)}
+                {currencyMask(totalPaid * 100)}
               </span>
             </div>
           </div>
@@ -1102,7 +1105,7 @@ export default function NewService() {
                           ? "PIX"
                           : payment.method === "boleto"
                           ? "Boleto"
-                          : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
+                          : `Cartão ${payment.installments ? `${currencyMask(payment.installments * 100)}x` : ""}`}
                       </div>
                       <div className="text-sm">
                         {payment.date} - {payment.value}
