@@ -101,7 +101,7 @@ export default function Historico() {
                   <TableCell className={transaction.type === 'Serviço' ? 'text-green-600' : 'text-green-600'}>{new Intl.NumberFormat('pt-BR', {
                     style: 'currency',
                     currency: 'BRL'
-                  }).format(transaction.value / 100)}</TableCell>
+                  }).format(Number(transaction.value) / 100)}</TableCell>
                   <TableCell>{transaction.category}</TableCell>
                   <TableCell>{transaction.description}</TableCell>
                   {tipo === 'receita' && 'payments' in transaction && Array.isArray(transaction.payments) && (
