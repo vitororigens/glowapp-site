@@ -16,6 +16,13 @@ export const HeaderContainer = styled.header`
 
   padding: 10px 5vw;
   z-index: 1000;
+
+  @media (max-width: 1080px) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0;
+  }
 `;
 // 
 export const Logo = styled(Link)`
@@ -114,125 +121,68 @@ export const ActionsLink = styled(Link)`
 `;
 // 
 export const MobileMenu = styled.div`
-  position: fixed;
-	right: 0;
-	top: 0;
-	width: 300px;
-	padding-right:30px;
-	max-width:100%;
-	height: 100%;
-	visibility: hidden;
-	z-index: 99999999;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
 
-  &.active{
-    visibility: visible;
-
-    .menu-backdrop{
-      opacity: 1;
-      width:100%;
-      visibility: visible;
-      transition: all 900ms ease;
-        -moz-transition: all 900ms ease;
-        -webkit-transition: all 900ms ease;
-        -ms-transition: all 900ms ease;
-        -o-transition: all 900ms ease;
-      -webkit-transform: translateX(0%);
-      -ms-transform: translateX(0%);
-      transform: translateX(0%);
-    }
-    .menu-box{
-      right:0px;
-      -webkit-transition-delay: 600ms;
-      -moz-transition-delay: 600ms;
-      -ms-transition-delay: 600ms;
-      -o-transition-delay: 600ms;
-      transition-delay: 600ms;
-    }
-    .close-btn{
-      -webkit-transform: translateY(0px);
-      -ms-transform: translateY(0px);
-      transform: translateY(0px);
-      -webkit-transition-delay: 900ms;
-      -moz-transition-delay: 900ms;
-      -ms-transition-delay: 900ms;
-      -o-transition-delay: 900ms;
-      transition-delay: 900ms;
-    }
+  &.active {
+    display: block !important;
   }
 
-  .menu-backdrop{
+  .menu-backdrop {
     position: fixed;
-    right: 0;
     top: 0;
-    width: 0%;
+    left: 0;
+    width: 100%;
     height: 100%;
-    z-index: 1;
-    background: rgba(0,0,0,0.90);
-    -webkit-transform: translateX(101%);
-    -ms-transform: translateX(101%);
-    transform: translateX(101%);
-    transition: all 900ms ease;
-      -moz-transition: all 900ms ease;
-      -webkit-transition: all 900ms ease;
-      -ms-transition: all 900ms ease;
-      -o-transition: all 900ms ease;
-    
-    -webkit-transition-delay: 300ms;
-    -moz-transition-delay: 300ms;
-    -ms-transition-delay: 300ms;
-    -o-transition-delay: 300ms;
-    transition-delay: 300ms;
-    z-index: 1;
+    background: rgba(0, 0, 0, 0.5);
   }
 
-  .nav-logo{
-    position:relative;
-    padding:20px 20px;
-    text-align:left;
+  .menu-box {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 300px;
+    max-width: 85vw;
+    height: 100%;
+    background: #ffffff;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+  }
 
-    img{
-      max-width:200px;
+  .nav-logo {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+
+    img {
+      max-width: 200px;
     }
   }
 
-  .menu-box{
-    position: absolute;
-    right: -400px;
-    top: 0px;
-    width: 85vw;
-    height: 100%;
-    max-height: 100%;
-    overflow-y: auto;
-    background: #ffffff;
-    padding: 0px 0px;
-    z-index: 5;
-    border-radius: 0px;
-    
-    transition: all 900ms ease;
-    -moz-transition: all 900ms ease;
-    -webkit-transition: all 900ms ease;
-    -ms-transition: all 900ms ease;
-    -o-transition: all 900ms ease;
-  }
-
-  .close-btn{
+  .close-btn {
     position: absolute;
     right: 15px;
     top: 15px;
-
+    background: none;
+    border: none;
     color: #202020;
     cursor: pointer;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-    -webkit-transition:all 0.5s ease;
-    -moz-transition:all 0.5s ease;
-    -ms-transition:all 0.5s ease;
-    -o-transition:all 0.5s ease;
-    transition:all 0.5s ease;
-    -webkit-transform: translateY(-50%);
-    -ms-transform: translateY(-50%);
-    transform: translateY(-50%);
-
-    z-index: 10;
+    svg {
+      width: 24px;
+      height: 24px;
+    }
   }
 `;
 export const OpenMenu = styled.button`

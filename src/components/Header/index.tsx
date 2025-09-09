@@ -1,166 +1,234 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuthContext } from "@/context/AuthContext";
-
 import { useIsMobile } from "@/hooks/useMobileDevice";
-
 import { signOut } from "firebase/auth";
 import { auth } from "@/services/firebase";
-import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 import { useUserData } from "@/hooks/useUserData";
 
-import $ from "jquery";
-
 import {
-  IconHome,
-  IconLogout,
   IconMenu3,
-  IconUser,
   IconX,
 } from "@tabler/icons-react";
 
 import { Button } from "../Button";
-
-import * as S from "./styles";
 import { getInitialNameLetters } from "@/utils/formater/get-inital-name-letter";
-
-interface UserData {
-  id: string;
-  imageUrl?: string;
-  name?: string;
-  email?: string;
-}
 
 const Header = () => {
   const { isMobile } = useIsMobile({ breakpoint: 1080 });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleOpenMenu = () => {
-    $(".mobile-menu").addClass("active");
-    $(".btn-menu").addClass("active");
+    setIsMobileMenuOpen(true);
   };
 
+  const handleCloseMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
+
+  // Fechar menu quando mudar para desktop
+  useEffect(() => {
+    if (!isMobile) {
+      setIsMobileMenuOpen(false);
+    }
+  }, [isMobile]);
+
   return (
-    <S.HeaderContainer>
-      <S.Logo href={"/"}>
-        <img src="/img/logos/main-logo.png" alt="Logo" />
-      </S.Logo>
+    <header className="fixed left-0 top-0 right-0 z-50 bg-white shadow-md">
+      <div className="flex items-center justify-between px-4 py-3 lg:px-8">
+        {/* Logo */}
+        <a href="/" className="flex-shrink-0">
+          <img src="/img/logos/main-logo.png" alt="Logo" className="h-8 lg:h-10" />
+        </a>
 
-      {!isMobile && (
-        <>
-          <S.Navbar>
-            <a href="/">Home</a>
-            <a href="#plans" onClick={(e) => {
-              e.preventDefault();
-              const plansSection = document.getElementById('plans');
-              if (plansSection) {
-                const offset = 100; // Offset para mostrar o título
-                const elementPosition = plansSection.getBoundingClientRect().top;
-                const offsetPosition = elementPosition + window.pageYOffset - offset;
-                
-                window.scrollTo({
-                  top: offsetPosition,
-                  behavior: 'smooth'
-                });
-              }
-            }}>Planos</a>
-            <a href="#contact" onClick={(e) => {
-              e.preventDefault();
-              const contactSection = document.getElementById('contact');
-              if (contactSection) {
-                contactSection.scrollIntoView({ behavior: 'smooth' });
-              }
-            }}>Contato</a>
-            <a href="/">Sobre</a>
-          </S.Navbar>
-          <S.ActionsWrapper>
-            <ProfileDropdown />
-          </S.ActionsWrapper>
-        </>
-      )}
+        {/* Desktop Navigation */}
+        {!isMobile && (
+          <>
+            <nav className="hidden lg:flex items-center space-x-8">
+              <a href="/" className="text-gray-700 hover:text-pink-500 transition-colors">
+                Home
+              </a>
+              <a 
+                href="#plans" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  const plansSection = document.getElementById('plans');
+                  if (plansSection) {
+                    const offset = 100;
+                    const elementPosition = plansSection.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - offset;
+                    window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+                  }
+                }}
+                className="text-gray-700 hover:text-pink-500 transition-colors"
+              >
+                Planos
+              </a>
+              <a 
+                href="#contact" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  const contactSection = document.getElementById('contact');
+                  if (contactSection) {
+                    contactSection.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className="text-gray-700 hover:text-pink-500 transition-colors"
+              >
+                Contato
+              </a>
+              <a href="/" className="text-gray-700 hover:text-pink-500 transition-colors">
+                Sobre
+              </a>
+            </nav>
 
+            {/* Desktop Profile */}
+            <div className="hidden lg:block">
+              <ProfileDropdown />
+            </div>
+          </>
+        )}
+
+        {/* Mobile Menu Button */}
+        {isMobile && (
+          <button
+            onClick={handleOpenMenu}
+            className="p-2 text-gray-700 hover:text-pink-500 transition-colors"
+          >
+            <IconMenu3 size={24} />
+          </button>
+        )}
+      </div>
+
+      {/* Mobile Menu Modal */}
       {isMobile && (
-        <>
-          <S.OpenMenu onClick={handleOpenMenu}>
-            <IconMenu3 />
-          </S.OpenMenu>
-
-          <MenuMobile />
-        </>
+        <MobileMenuModal 
+          isOpen={isMobileMenuOpen} 
+          onClose={handleCloseMenu} 
+        />
       )}
-    </S.HeaderContainer>
+    </header>
   );
 };
 
-const MenuMobile = () => {
+const MobileMenuModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { user } = useAuthContext();
   const router = useRouter();
-
   const { userData: utilsInfo } = useUserData();
-
-  const handleCloseMenu = () => {
-    $(".mobile-menu").removeClass("active");
-    $(".btn-menu").addClass("active");
-  };
 
   const handleSignOut = async () => {
     await signOut(auth);
     router.push("/auth/login");
+    onClose();
   };
 
-  return (
-    <S.MobileMenu className="mobile-menu">
-      <div className="menu-backdrop"></div>
-      <button className="close-btn" onClick={handleCloseMenu}>
-        <IconX />
-      </button>
+  const handleLinkClick = (callback?: () => void) => {
+    if (callback) callback();
+    onClose();
+  };
 
-      <div className="menu-box">
-        <div className="nav-logo">
-          <img src="/img/logos/main-logo.png" alt="Logo" />
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 lg:hidden">
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50" 
+        onClick={onClose}
+      />
+      
+      {/* Menu Panel */}
+      <div className="fixed right-0 top-0 h-full w-80 max-w-[85vw] bg-white shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <img src="/img/logos/main-logo.png" alt="Logo" className="h-8" />
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <IconX size={24} />
+          </button>
         </div>
 
-        <div className="menu-outer">
-          <S.Navbar>
-            <a href="/">Home</a>
-            <a href="#plans" onClick={(e) => {
+        {/* Navigation */}
+        <nav className="p-4 space-y-2">
+          <a 
+            href="/" 
+            onClick={() => handleLinkClick()}
+            className="block py-3 px-4 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Home
+          </a>
+          <a 
+            href="#plans" 
+            onClick={(e) => {
               e.preventDefault();
               const plansSection = document.getElementById('plans');
               if (plansSection) {
-                const offset = 100; // Offset para mostrar o título
+                const offset = 100;
                 const elementPosition = plansSection.getBoundingClientRect().top;
                 const offsetPosition = elementPosition + window.pageYOffset - offset;
-                
-                window.scrollTo({
-                  top: offsetPosition,
-                  behavior: 'smooth'
-                });
+                window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
               }
-              handleCloseMenu();
-            }}>Planos</a>
-            <a href="#contact" onClick={(e) => {
+              handleLinkClick();
+            }}
+            className="block py-3 px-4 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Planos
+          </a>
+          <a 
+            href="#contact" 
+            onClick={(e) => {
               e.preventDefault();
               const contactSection = document.getElementById('contact');
               if (contactSection) {
                 contactSection.scrollIntoView({ behavior: 'smooth' });
               }
-              handleCloseMenu();
-            }}>Contato</a>
-            <a href="/">Sobre</a>
-            {user ? (
-              <>
-                <a href="/dashboard">Dashboard</a>
-                <button onClick={handleSignOut}>Sair</button>
-              </>
-            ) : (
-              <a href="/auth/login">Login</a>
-            )}
-          </S.Navbar>
-        </div>
+              handleLinkClick();
+            }}
+            className="block py-3 px-4 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Contato
+          </a>
+          <a 
+            href="/" 
+            onClick={() => handleLinkClick()}
+            className="block py-3 px-4 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Sobre
+          </a>
+          
+          {user ? (
+            <>
+              <a 
+                href="/dashboard" 
+                onClick={() => handleLinkClick()}
+                className="block py-3 px-4 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Dashboard
+              </a>
+              <button 
+                onClick={handleSignOut}
+                className="block w-full text-left py-3 px-4 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Sair
+              </button>
+            </>
+          ) : (
+            <a 
+              href="/auth/login" 
+              onClick={() => handleLinkClick()}
+              className="block py-3 px-4 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Login
+            </a>
+          )}
+        </nav>
       </div>
-    </S.MobileMenu>
+    </div>
   );
 };
 
@@ -168,7 +236,6 @@ const ProfileDropdown = () => {
   const router = useRouter();
   const { user } = useAuthContext();
   const [showDropdown, setShowDropdown] = useState(false);
-
   const { userData: utilsInfo } = useUserData();
 
   const handleSignOut = async () => {
@@ -177,29 +244,20 @@ const ProfileDropdown = () => {
   };
 
   return (
-    <>
+    <div className="relative">
       {user ? (
-        <div className="relative inline-block text-left">
+        <div className="relative">
           <button
             type="button"
             className="flex rounded-full overflow-hidden bg-white shadow-sm h-10 w-10 sm:h-12 sm:w-12"
-            onClick={() => {
-              setShowDropdown((prev) => !prev);
-            }}
+            onClick={() => setShowDropdown(!showDropdown)}
           >
             {utilsInfo?.imageUrl ? (
               <img
                 src={utilsInfo.imageUrl}
                 alt="Avatar"
                 className="w-full h-full object-cover"
-                style={{ 
-                  objectFit: 'cover',
-                  objectPosition: 'center',
-                  width: '100%',
-                  height: '100%'
-                }}
                 onError={(e) => {
-                  console.log('Erro ao carregar imagem no header:', e);
                   e.currentTarget.style.display = 'none';
                 }}
               />
@@ -213,7 +271,7 @@ const ProfileDropdown = () => {
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+            <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
               <div className="py-1">
                 <a
                   href="/dashboard"
@@ -221,7 +279,6 @@ const ProfileDropdown = () => {
                 >
                   Dashboard
                 </a>
-
                 <a
                   href="/dashboard/perfil"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -247,7 +304,7 @@ const ProfileDropdown = () => {
       ) : (
         <Button onClick={() => router.push("/auth/login")}>Login</Button>
       )}
-    </>
+    </div>
   );
 };
 
