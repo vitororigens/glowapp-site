@@ -10,7 +10,7 @@ import UpgradeBanner from "@/components/UpgradeBanner";
 import ProcedureCard from "@/components/ProcedureCard";
 import ServiceViewModal from "@/components/ServiceViewModal";
 import TodayAppointments from "@/components/TodayAppointments";
-import { Users, Calendar, DollarSign, Scissors, Plus, Eye } from "lucide-react";
+import { Users, Calendar, DollarSign, Scissors, Plus, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Service {
@@ -149,10 +149,22 @@ export default function DashboardHome() {
 
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
+  const [currentServiceIndex, setCurrentServiceIndex] = useState(0);
 
   const handleViewServiceDetails = (service: any) => {
     setSelectedService(service);
     setIsServiceModalOpen(true);
+  };
+
+  // Funções do carrossel para serviços
+  const nextServiceSlide = () => {
+    const maxIndex = Math.max(0, dashboardData.recentServices.length - 3);
+    setCurrentServiceIndex((prev) => (prev + 1) % (maxIndex + 1));
+  };
+
+  const prevServiceSlide = () => {
+    const maxIndex = Math.max(0, dashboardData.recentServices.length - 3);
+    setCurrentServiceIndex((prev) => (prev - 1 + maxIndex + 1) % (maxIndex + 1));
   };
 
   useEffect(() => {
@@ -386,16 +398,40 @@ export default function DashboardHome() {
           </div>
           
           {dashboardData.recentServices.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {dashboardData.recentServices
-                .filter(service => service.id && typeof service.id === 'string')
-                .map((service) => (
-                  <ProcedureCard 
-                    key={service.id} 
-                    service={service} 
-                    onViewDetails={handleViewServiceDetails}
-                  />
-                ))}
+            <div className="relative">
+              {/* Carrossel Container */}
+              <div className="overflow-hidden">
+                <div className="flex transition-transform duration-300 ease-in-out" style={{ transform: `translateX(-${currentServiceIndex * (100 / 3)}%)` }}>
+                  {dashboardData.recentServices
+                    .filter(service => service.id && typeof service.id === 'string')
+                    .map((service) => (
+                      <div key={service.id} className="w-1/3 flex-shrink-0 px-3">
+                        <ProcedureCard 
+                          service={service} 
+                          onViewDetails={handleViewServiceDetails}
+                        />
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Botões de navegação do carrossel */}
+              {dashboardData.recentServices.length > 3 && (
+                <>
+                  <button
+                    onClick={prevServiceSlide}
+                    className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-4 bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow duration-200 z-10"
+                  >
+                    <ChevronLeft className="w-6 h-6 text-gray-600" />
+                  </button>
+                  <button
+                    onClick={nextServiceSlide}
+                    className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-4 bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow duration-200 z-10"
+                  >
+                    <ChevronRight className="w-6 h-6 text-gray-600" />
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
