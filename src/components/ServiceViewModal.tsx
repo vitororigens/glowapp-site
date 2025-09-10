@@ -1,0 +1,408 @@
+"use client";
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { 
+  X, 
+  Edit, 
+  Calendar, 
+  Clock, 
+  DollarSign, 
+  FileText, 
+  User, 
+  Phone, 
+  Mail, 
+  MapPin,
+  CreditCard,
+  Image as ImageIcon,
+  Eye
+} from 'lucide-react';
+import { formatDateToBrazilian } from '@/utils/formater/date';
+import { formatCurrencyFromCents } from '@/utils/maks/masks';
+
+interface ServiceViewModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  service: {
+    id: string;
+    name: string;
+    cpf?: string;
+    phone?: string;
+    email?: string;
+    date: string;
+    time?: string;
+    price: string | number;
+    priority?: string;
+    duration?: string;
+    observations?: string;
+    services?: Array<{
+      id: string;
+      code: string;
+      name: string;
+      price: string;
+      date?: string;
+    }>;
+    professionals?: Array<{
+      id: string;
+      name: string;
+      specialty: string;
+    }>;
+    budget: boolean;
+    payments?: Array<{
+      method: 'dinheiro' | 'pix' | 'cartao' | 'boleto';
+      value: string | number;
+      date: string;
+      installments?: number;
+    }>;
+    beforePhotos?: Array<{
+      url: string;
+      description?: string;
+    }>;
+    afterPhotos?: Array<{
+      url: string;
+      description?: string;
+    }>;
+  } | null;
+}
+
+export default function ServiceViewModal({ isOpen, onClose, service }: ServiceViewModalProps) {
+  const router = useRouter();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentImageType, setCurrentImageType] = useState<'before' | 'after'>('before');
+
+  if (!service) return null;
+
+  const handleEdit = () => {
+    router.push(`/dashboard/servicos/novo?id=${service.id}`);
+    onClose();
+  };
+
+  const allPhotos = [
+    ...(service.beforePhotos || []).map(photo => ({ ...photo, type: 'before' as const })),
+    ...(service.afterPhotos || []).map(photo => ({ ...photo, type: 'after' as const }))
+  ];
+
+  const currentPhotos = currentImageType === 'before' ? service.beforePhotos || [] : service.afterPhotos || [];
+
+  const nextImage = () => {
+    if (currentPhotos.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % currentPhotos.length);
+    }
+  };
+
+  const prevImage = () => {
+    if (currentPhotos.length > 1) {
+      setCurrentImageIndex((prev) => (prev - 1 + currentPhotos.length) % currentPhotos.length);
+    }
+  };
+
+  const servicePrice = typeof service.price === 'number' 
+    ? service.price 
+    : Number(String(service.price).replace(/[^\d,-]/g, "").replace(",", "."));
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Detalhes Completos do Serviço
+          </DialogTitle>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleEdit}
+              className="flex items-center gap-2"
+            >
+              <Edit className="h-4 w-4" />
+              Editar
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="flex items-center gap-2"
+            >
+              <X className="h-4 w-4" />
+              Fechar
+            </Button>
+          </div>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Informações do Cliente */}
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Informações do Cliente
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <p className="text-sm text-gray-500">Nome</p>
+                <p className="font-medium">{service.name || "Não informado"}</p>
+              </div>
+              {service.cpf && (
+                <div>
+                  <p className="text-sm text-gray-500">CPF</p>
+                  <p className="font-medium">{service.cpf}</p>
+                </div>
+              )}
+              {service.phone && (
+                <div>
+                  <p className="text-sm text-gray-500">Telefone</p>
+                  <p className="font-medium">{service.phone}</p>
+                </div>
+              )}
+              {service.email && (
+                <div>
+                  <p className="text-sm text-gray-500">Email</p>
+                  <p className="font-medium">{service.email}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Informações Básicas do Serviço */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Informações do Serviço
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <p className="text-sm text-gray-500">Tipo</p>
+                <Badge className={service.budget ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}>
+                  {service.budget ? 'Orçamento' : 'Serviço'}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Data</p>
+                <p className="font-medium">{formatDateToBrazilian(service.date)}</p>
+              </div>
+              {service.time && (
+                <div>
+                  <p className="text-sm text-gray-500">Horário</p>
+                  <p className="font-medium">{service.time}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-sm text-gray-500">Valor Total</p>
+                <p className="font-medium text-lg text-green-600">{formatCurrencyFromCents(servicePrice)}</p>
+              </div>
+              {service.priority && (
+                <div>
+                  <p className="text-sm text-gray-500">Prioridade</p>
+                  <p className="font-medium">{service.priority}</p>
+                </div>
+              )}
+              {service.duration && (
+                <div>
+                  <p className="text-sm text-gray-500">Duração</p>
+                  <p className="font-medium">{service.duration}</p>
+                </div>
+              )}
+            </div>
+            {service.observations && (
+              <div className="mt-4">
+                <p className="text-sm text-gray-500">Observações</p>
+                <p className="font-medium bg-white p-3 rounded border">{service.observations}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Procedimentos Realizados */}
+          {service.services && service.services.length > 0 && (
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Procedimentos Realizados
+              </h3>
+              <div className="space-y-3">
+                {service.services.map((serviceItem, index) => (
+                  <div key={index} className="bg-white p-3 rounded border">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <p className="text-sm text-gray-500">Código</p>
+                        <p className="font-medium">{serviceItem.code || "Não informado"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Nome do Procedimento</p>
+                        <p className="font-medium">{serviceItem.name || "Não informado"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Valor</p>
+                        <p className="font-medium">{formatCurrencyFromCents(Number(serviceItem.price))}</p>
+                      </div>
+                    </div>
+                    {serviceItem.date && (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-500">Data do Procedimento</p>
+                        <p className="font-medium">{formatDateToBrazilian(serviceItem.date)}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Profissionais */}
+          {service.professionals && service.professionals.length > 0 && (
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Profissionais
+              </h3>
+              <div className="space-y-3">
+                {service.professionals.map((professional, index) => (
+                  <div key={index} className="bg-white p-3 rounded border">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-sm text-gray-500">Nome</p>
+                        <p className="font-medium">{professional.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Especialidade</p>
+                        <p className="font-medium">{professional.specialty || "Não informado"}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Formas de Pagamento */}
+          {service.payments && service.payments.length > 0 && (
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Formas de Pagamento
+              </h3>
+              <div className="space-y-3">
+                {service.payments.map((payment, index) => (
+                  <div key={index} className="bg-white p-3 rounded border">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                      <div>
+                        <p className="text-sm text-gray-500">Método</p>
+                        <p className="font-medium capitalize">{payment.method}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Valor</p>
+                        <p className="font-medium">{formatCurrencyFromCents(Number(payment.value))}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Data</p>
+                        <p className="font-medium">{formatDateToBrazilian(payment.date)}</p>
+                      </div>
+                      {payment.installments && (
+                        <div>
+                          <p className="text-sm text-gray-500">Parcelas</p>
+                          <p className="font-medium">{payment.installments}x</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Galeria de Fotos */}
+          {allPhotos.length > 0 && (
+            <div className="bg-pink-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <ImageIcon className="h-5 w-5" />
+                Galeria de Fotos
+              </h3>
+              
+              {/* Seletor de tipo de foto */}
+              <div className="flex gap-2 mb-4">
+                <Button
+                  variant={currentImageType === 'before' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setCurrentImageType('before');
+                    setCurrentImageIndex(0);
+                  }}
+                >
+                  Fotos Antes ({service.beforePhotos?.length || 0})
+                </Button>
+                <Button
+                  variant={currentImageType === 'after' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setCurrentImageType('after');
+                    setCurrentImageIndex(0);
+                  }}
+                >
+                  Fotos Depois ({service.afterPhotos?.length || 0})
+                </Button>
+              </div>
+
+              {/* Visualizador de imagens */}
+              {currentPhotos.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="relative bg-white rounded-lg overflow-hidden">
+                    <img
+                      src={currentPhotos[currentImageIndex]?.url}
+                      alt={`Foto ${currentImageType} ${currentImageIndex + 1}`}
+                      className="w-full h-96 object-cover"
+                    />
+                    
+                    {/* Navegação de imagens */}
+                    {currentPhotos.length > 1 && (
+                      <>
+                        <button
+                          onClick={prevImage}
+                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70"
+                        >
+                          ←
+                        </button>
+                        <button
+                          onClick={nextImage}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70"
+                        >
+                          →
+                        </button>
+                        
+                        {/* Indicadores */}
+                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+                          {currentPhotos.map((_, index) => (
+                            <div
+                              key={index}
+                              className={`w-2 h-2 rounded-full ${
+                                index === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Descrição da foto */}
+                  {currentPhotos[currentImageIndex]?.description && (
+                    <div className="bg-white p-3 rounded border">
+                      <p className="text-sm text-gray-500">Descrição</p>
+                      <p className="font-medium">{currentPhotos[currentImageIndex]?.description}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-white rounded-lg">
+                  <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">Nenhuma foto {currentImageType === 'before' ? 'antes' : 'depois'}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

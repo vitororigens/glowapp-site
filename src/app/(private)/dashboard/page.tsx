@@ -5,14 +5,47 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatCurrencyFromCents } from "@/utils/maks/masks";
 import { formatDateToBrazilian } from "@/utils/formater/date";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
+import { usePlanContext } from "@/context/PlanContext";
+import UpgradeBanner from "@/components/UpgradeBanner";
+import ProcedureCard from "@/components/ProcedureCard";
+import ServiceViewModal from "@/components/ServiceViewModal";
+import { Users, Calendar, DollarSign, Scissors, Plus, Eye } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface Service {
   id: string;
   name: string;
+  cpf?: string;
+  phone?: string;
+  email?: string;
   date: string;
+  time?: string;
   price: string | number;
+  priority?: string;
+  duration?: string;
   budget: boolean;
   sendToFinance: boolean;
+  observations?: string;
+  services?: Array<{
+    id: string;
+    code: string;
+    name: string;
+    price: string;
+    date?: string;
+  }>;
+  professionals?: Array<{
+    id: string;
+    name: string;
+    specialty: string;
+  }>;
+  beforePhotos?: Array<{
+    url: string;
+    description?: string;
+  }>;
+  afterPhotos?: Array<{
+    url: string;
+    description?: string;
+  }>;
   payments?: Array<{
     method: 'dinheiro' | 'pix' | 'cartao' | 'boleto';
     value: string | number;
@@ -28,18 +61,66 @@ interface Contact {
   phone?: string;
 }
 
+interface Appointment {
+  id: string;
+  client: {
+    name: string;
+    phone: string;
+    email: string;
+  };
+  appointment: {
+    date: string;
+    startTime: string;
+    endTime: string;
+    serviceName?: string;
+    servicePrice?: number;
+    procedureName?: string;
+    procedurePrice?: number;
+    professionalName?: string;
+    observations?: string;
+  };
+  status: 'pendente' | 'confirmado' | 'concluido' | 'cancelado' | 'nao_compareceu';
+  createdAt: string;
+}
+
 interface DashboardData {
   totalClients: number;
   totalServices: number;
   totalRevenue: number;
-  totalPending: number;
-  recentServices: Array<{
+  todayAppointments: number;
+  recentProcedures: Array<{
     id: string;
     name: string;
+    cpf?: string;
+    phone?: string;
+    email?: string;
     date: string;
+    time?: string;
     price: string | number;
+    priority?: string;
+    duration?: string;
     budget: boolean;
-    sendToFinance: boolean;
+    observations?: string;
+    services?: Array<{
+      id: string;
+      code: string;
+      name: string;
+      price: string;
+      date?: string;
+    }>;
+    professionals?: Array<{
+      id: string;
+      name: string;
+      specialty: string;
+    }>;
+    beforePhotos?: Array<{
+      url: string;
+      description?: string;
+    }>;
+    afterPhotos?: Array<{
+      url: string;
+      description?: string;
+    }>;
     payments?: Array<{
       method: 'dinheiro' | 'pix' | 'cartao' | 'boleto';
       value: string | number;
@@ -52,13 +133,25 @@ interface DashboardData {
 export default function DashboardHome() {
   const { data: services, loading: servicesLoading, error: servicesError } = useFirestoreCollection<Service>("Services");
   const { data: clients, loading: clientsLoading, error: clientsError } = useFirestoreCollection<Contact>("Contacts");
+  const { data: appointments, loading: appointmentsLoading, error: appointmentsError } = useFirestoreCollection<Appointment>("Appointments");
+  const { currentPlan, loading: planLoading } = usePlanContext();
+  const router = useRouter();
+  
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     totalClients: 0,
     totalServices: 0,
     totalRevenue: 0,
-    totalPending: 0,
-    recentServices: [],
+    todayAppointments: 0,
+    recentProcedures: [],
   });
+
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<any>(null);
+
+  const handleViewServiceDetails = (service: any) => {
+    setSelectedService(service);
+    setIsServiceModalOpen(true);
+  };
 
   useEffect(() => {
     if (!services || !clients) return;
@@ -72,7 +165,6 @@ export default function DashboardHome() {
         if (service.payments && service.payments.length > 0) {
           return acc + service.payments
             .reduce((sum, payment) => {
-              // Usa a função padronizada para converter valor para centavos
               const paymentValue = typeof payment.value === 'number' 
                 ? payment.value 
                 : Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", "."));
@@ -82,208 +174,252 @@ export default function DashboardHome() {
           return acc;
         }
       }, 0);
-      
-    const totalPending = services
-      .filter(service => !service.budget)
-      .reduce((acc, service) => {
-        const servicePrice = typeof service.price === 'number' 
-          ? service.price 
-          : Number(String(service.price).replace(/[^\d,-]/g, "").replace(",", "."));
-        
-        const paidAmount = service.payments 
-          ? service.payments.reduce((sum, payment) => {
-              const paymentValue = typeof payment.value === 'number' 
-                ? payment.value 
-                : Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", "."));
-              return sum + paymentValue;
-            }, 0)
-          : 0;
-        
-        return acc + (servicePrice - paidAmount);
-      }, 0);
 
-    const recentServices = [...services]
+    // Calcular agendamentos de hoje
+    const today = new Date().toISOString().split('T')[0];
+    const todayAppointments = appointments 
+      ? appointments.filter(appointment => appointment.appointment.date === today).length 
+      : 0;
+
+    // Últimos procedimentos (todos os serviços, não apenas com fotos)
+    const recentProcedures = [...services]
+      .filter(service => {
+        // Debug: verificar estrutura dos serviços
+        if (!service.id) {
+          console.warn('Service without ID:', service);
+          return false;
+        }
+        
+        const hasPhotos = (service.beforePhotos && service.beforePhotos.length > 0) || (service.afterPhotos && service.afterPhotos.length > 0);
+        console.log('Service:', service.name, 'hasPhotos:', hasPhotos, 'beforePhotos:', service.beforePhotos, 'afterPhotos:', service.afterPhotos);
+        
+        // Mostrar todos os serviços, não apenas os com fotos
+        return true;
+      })
       .sort((a, b) => {
         const dateA = new Date(a.date.split("/").reverse().join("-"));
         const dateB = new Date(b.date.split("/").reverse().join("-"));
         return dateB.getTime() - dateA.getTime();
       })
-      .slice(0, 5)
-      .map(service => ({
-        id: service.id,
-        name: service.name,
-        date: formatDateToBrazilian(service.date),
-        price: service.price,
-        budget: service.budget,
-        sendToFinance: service.sendToFinance,
-        payments: service.payments
-      }));
+      .slice(0, 6)
+      .map(service => {
+        // Debug: verificar se o ID é válido
+        if (!service.id || typeof service.id !== 'string') {
+          console.error('Invalid service ID:', service.id, 'for service:', service);
+        }
+        
+        return {
+          id: service.id,
+          name: service.name,
+          cpf: service.cpf,
+          phone: service.phone,
+          email: service.email,
+          date: service.date,
+          time: service.time,
+          price: service.price,
+          priority: service.priority,
+          duration: service.duration,
+          budget: service.budget,
+          observations: service.observations,
+          services: service.services,
+          professionals: service.professionals,
+          beforePhotos: service.beforePhotos,
+          afterPhotos: service.afterPhotos,
+          payments: service.payments
+        };
+      });
 
     setDashboardData({
       totalClients,
       totalServices,
       totalRevenue,
-      totalPending,
-      recentServices,
+      todayAppointments,
+      recentProcedures,
     });
-  }, [services, clients]);
+  }, [services, clients, appointments]);
 
-  if (servicesLoading || clientsLoading) {
+  if (servicesLoading || clientsLoading || appointmentsLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Carregando dados...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando dados...</p>
         </div>
       </div>
     );
   }
 
-  if (servicesError) {
+  if (servicesError || clientsError || appointmentsError) {
     return (
-      <div className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center text-red-500">
-          <p>Erro ao carregar serviços. Por favor, tente novamente mais tarde.</p>
-          <p className="text-sm mt-2">Detalhes: {servicesError.message}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (clientsError) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
-        <div className="text-center text-red-500">
-          <p>Erro ao carregar clientes. Por favor, tente novamente mais tarde.</p>
-          <p className="text-sm mt-2">Detalhes: {clientsError.message}</p>
+          <p>Erro ao carregar dados. Por favor, tente novamente mais tarde.</p>
+          <p className="text-sm mt-2">Detalhes: {servicesError?.message || clientsError?.message || appointmentsError?.message}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+    <div className="min-h-screen bg-gray-50">
+      <div className="p-6 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+          <p className="text-gray-600">Visão geral do seu negócio</p>
+        </div>
 
-      <div className="w-full flex flex-col items-center">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10 w-full max-w-5xl">
-          <Card>
-            <CardHeader>
-              <CardTitle>Total de Clientes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{dashboardData.totalClients}</p>
+        {/* Banner de Upgrade - Mostrar apenas para usuários do plano Start */}
+        {!planLoading && currentPlan === 'glow-start' && (
+          <div className="mb-8">
+            <UpgradeBanner />
+          </div>
+        )}
+
+        {/* Cards de Métricas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Total de Clientes */}
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Total de Clientes</p>
+                  <p className="text-3xl font-bold text-gray-900">{dashboardData.totalClients}</p>
+                </div>
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <Users className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Total de Serviços Realizados</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{dashboardData.totalServices}</p>
+
+          {/* Agendamentos Hoje */}
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Agendamentos</p>
+                  <p className="text-xs text-gray-500 mb-1">Hoje</p>
+                  <p className="text-3xl font-bold text-gray-900">{dashboardData.todayAppointments}</p>
+                </div>
+                <div className="p-3 bg-pink-100 rounded-full">
+                  <Calendar className="w-6 h-6 text-pink-600" />
+                </div>
+              </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Valores Recebidos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-green-600">
-                {formatCurrencyFromCents(dashboardData.totalRevenue)}
-              </p>
+
+          {/* Total de Serviços */}
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Serviços Realizados</p>
+                  <p className="text-3xl font-bold text-gray-900">{dashboardData.totalServices}</p>
+                </div>
+                <div className="p-3 bg-green-100 rounded-full">
+                  <Scissors className="w-6 h-6 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Valores Recebidos */}
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Valores Recebidos</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {formatCurrencyFromCents(dashboardData.totalRevenue)}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-100 rounded-full">
+                  <DollarSign className="w-6 h-6 text-green-600" />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Acessos Rápidos */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Acessos Rápidos</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button
+              onClick={() => router.push('/dashboard/agenda/novo')}
+              className="bg-pink-500 hover:bg-pink-600 text-white p-4 rounded-xl flex items-center justify-center space-x-3 transition-colors duration-200"
+            >
+              <Calendar className="w-6 h-6" />
+              <span className="font-medium">Agendamento</span>
+            </button>
+            <button
+              onClick={() => router.push('/dashboard/servicos/novo')}
+              className="bg-pink-500 hover:bg-pink-600 text-white p-4 rounded-xl flex items-center justify-center space-x-3 transition-colors duration-200"
+            >
+              <Scissors className="w-6 h-6" />
+              <span className="font-medium">Serviço</span>
+            </button>
+            <button
+              onClick={() => router.push('/dashboard/clientes')}
+              className="bg-pink-500 hover:bg-pink-600 text-white p-4 rounded-xl flex items-center justify-center space-x-3 transition-colors duration-200"
+            >
+              <Users className="w-6 h-6" />
+              <span className="font-medium">Cliente</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Últimos Procedimentos */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Últimos Procedimentos</h2>
+            <button
+              onClick={() => router.push('/dashboard/servicos')}
+              className="text-pink-600 hover:text-pink-700 text-sm font-medium flex items-center space-x-1"
+            >
+              <span>Ver Todos</span>
+              <Eye className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {dashboardData.recentProcedures.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {dashboardData.recentProcedures
+                .filter(procedure => procedure.id && typeof procedure.id === 'string')
+                .map((procedure) => (
+                  <ProcedureCard 
+                    key={procedure.id} 
+                    service={procedure} 
+                    onViewDetails={handleViewServiceDetails}
+                  />
+                ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                <Scissors className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum procedimento encontrado</h3>
+              <p className="text-gray-500 mb-4">Comece criando seu primeiro serviço com fotos</p>
+              <button
+                onClick={() => router.push('/dashboard/servicos/novo')}
+                className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-lg flex items-center space-x-2 mx-auto transition-colors duration-200"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Novo Serviço</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Serviços Recentes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2">Cliente</th>
-                  <th className="text-left py-2">Data</th>
-                  <th className="text-left py-2">Valor Total</th>
-                  <th className="text-left py-2">Valor Pago</th>
-                  <th className="text-left py-2">Status</th>
-                  <th className="text-left py-2">Formas de Pagamento</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dashboardData.recentServices.map((service) => {
-                  const servicePrice = typeof service.price === 'number' 
-                    ? service.price 
-                    : Number(String(service.price).replace(/[^\d,-]/g, "").replace(",", "."));
-                    
-                  const paidAmount = service.payments 
-                    ? service.payments.reduce((sum, p) => {
-                        const value = typeof p.value === 'number' 
-                          ? p.value 
-                          : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-                        return sum + value;
-                      }, 0)
-                    : 0;
-                    
-                  const pendingAmount = servicePrice - paidAmount;
-                    
-                  return (
-                    <tr key={service.id} className="border-b">
-                      <td className="py-2">{service.name}</td>
-                      <td className="py-2">{service.date}</td>
-                      <td className="py-2">{formatCurrencyFromCents(servicePrice)}</td>
-                      <td className="py-2 text-green-600">{formatCurrencyFromCents(paidAmount)}</td>
-                      <td className="py-2">
-                        <span className={`px-2 py-1 rounded-full text-xs ${service.budget ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}>
-                          {service.budget ? "Orçamento" : "Serviço"}
-                        </span>
-                      </td>
-                      <td className="py-2">
-                        {service.payments && service.payments.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {service.payments.map((payment, idx) => {
-                              const valorTotal = typeof service.price === 'number' ? service.price : Number(String(service.price).replace(/[^\d,-]/g, "").replace(",", "."));
-                              const mostrarValor = (service.payments && service.payments.length > 1) || Number(payment.value) !== valorTotal;
-                              return (
-                                <span
-                                  key={idx}
-                                  className={`px-2 py-1 rounded-full text-xs ${
-                                    payment.method === "dinheiro"
-                                      ? "bg-teal-100 text-teal-800"
-                                      : payment.method === "pix"
-                                      ? "bg-purple-100 text-purple-800"
-                                      : payment.method === "boleto"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-orange-100 text-orange-800"
-                                  }`}
-                                >
-                                  {payment.method === "dinheiro"
-                                    ? "Dinheiro"
-                                    : payment.method === "pix"
-                                    ? "PIX"
-                                    : payment.method === "boleto"
-                                    ? "Boleto"
-                                    : `Cartão${payment.installments ? ` ${payment.installments}x` : ""}`}
-                                  {mostrarValor ? ` ${formatCurrencyFromCents(Number(payment.value))}` : ""}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <span className="text-gray-500">Sem pagamentos</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Modal de Visualização de Serviço */}
+      <ServiceViewModal
+        isOpen={isServiceModalOpen}
+        onClose={() => setIsServiceModalOpen(false)}
+        service={selectedService}
+      />
     </div>
   );
 }
