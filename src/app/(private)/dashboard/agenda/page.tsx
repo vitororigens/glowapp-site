@@ -21,6 +21,7 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlusCircle, Pencil, Trash2, Calendar as CalendarIcon, DollarSign, Search, X, CheckCircle, XCircle, User, ArrowLeft, ArrowRight, FileText, CreditCard, Receipt, AlertTriangle } from "lucide-react";
 import { currencyMask } from "@/utils/maks/masks";
+import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -165,6 +166,7 @@ export default function Agenda() {
   });
   const { user } = useAuthContext();
   const uid = user?.uid;
+  const { planLimits, canAddImageToClient, getRemainingImagesForClient } = usePlanLimitations();
   const router = useRouter();
 
   useEffect(() => {
@@ -545,6 +547,62 @@ export default function Agenda() {
 
   const convertToService = async (appointment: Appointment) => {
     try {
+      // Verificar limitação de imagens por cliente antes de converter
+      if (planLimits) {
+        const beforePhotosCount = conversionData.beforePhotos.length;
+        const afterPhotosCount = conversionData.afterPhotos.length;
+        const totalNewImages = beforePhotosCount + afterPhotosCount;
+        
+        if (totalNewImages > 0) {
+          // Buscar contagem atual de imagens do cliente
+          let contactUid: string | undefined = undefined;
+          try {
+            const contactsRef = collection(database, "Contacts");
+            const cpfNumeric = (conversionData.clientCpf || '').replace(/\D/g, '');
+            let qContacts;
+            if (cpfNumeric) {
+              qContacts = query(contactsRef, where("cpf", "==", cpfNumeric));
+            } else {
+              qContacts = query(contactsRef, where("name", "==", appointment.client.name));
+            }
+            const contactsSnap = await getDocs(qContacts);
+            if (!contactsSnap.empty) {
+              contactUid = contactsSnap.docs[0].id;
+            }
+          } catch (e) {
+            console.warn('Não foi possível identificar o contato para validação:', e);
+          }
+
+          if (contactUid) {
+            // Buscar imagens existentes do cliente
+            const servicesRef = collection(database, "Services");
+            const q = query(
+              servicesRef,
+              where("uid", "==", uid),
+              where("contactUid", "==", contactUid)
+            );
+            
+            const querySnapshot = await getDocs(q);
+            let existingImages = 0;
+            
+            querySnapshot.docs.forEach(doc => {
+              const data = doc.data();
+              const beforeCount = data.beforePhotos?.length || 0;
+              const afterCount = data.afterPhotos?.length || 0;
+              existingImages += beforeCount + afterCount;
+            });
+
+            const totalImages = existingImages + totalNewImages;
+            
+            if (totalImages > planLimits.images) {
+              const remaining = Math.max(0, planLimits.images - existingImages);
+              toast.error(`Limite de ${planLimits.images} imagens por cliente atingido! Você pode adicionar mais ${remaining} imagens. Faça upgrade para adicionar mais imagens.`);
+              return;
+            }
+          }
+        }
+      }
+
       // Encontrar o contato para obter o contactUid
       let contactUid: string | undefined = undefined;
       try {

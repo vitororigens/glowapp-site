@@ -347,6 +347,22 @@ export default function NewService() {
       console.error("UID não encontrado");
       return;
     }
+
+    // Verificar limitação de imagens por cliente antes de processar
+    if (contactId && planLimits) {
+      const currentBeforePhotos = data.beforePhotos || [];
+      const currentAfterPhotos = data.afterPhotos || [];
+      const currentServiceImages = currentBeforePhotos.length + currentAfterPhotos.length;
+      
+      // Se há imagens no serviço atual, verificar se excede o limite
+      if (currentServiceImages > 0) {
+        if (clientImageCount > planLimits.images) {
+          const remaining = Math.max(0, planLimits.images - (clientImageCount - currentServiceImages));
+          toast.error(`Limite de ${planLimits.images} imagens por cliente atingido! Você pode adicionar mais ${remaining} imagens. Faça upgrade para adicionar mais imagens.`);
+          return;
+        }
+      }
+    }
     
     setIsLoading(true);
     
@@ -622,14 +638,15 @@ export default function NewService() {
 
     // Verificar limitação de imagens por cliente (bloqueio silencioso)
     if ((type === 'before' || type === 'after') && contactId && planLimits) {
-      const formatCurrencytBeforePhotos = watch("beforePhotos") || [];
-      const formatCurrencytAfterPhotos = watch("afterPhotos") || [];
-      const formatCurrencytServiceImages = formatCurrencytBeforePhotos.length + formatCurrencytAfterPhotos.length;
-      const totalClientImages = clientImageCount - formatCurrencytServiceImages; // Remove imagens do serviço atual
+      const currentBeforePhotos = watch("beforePhotos") || [];
+      const currentAfterPhotos = watch("afterPhotos") || [];
+      const currentServiceImages = currentBeforePhotos.length + currentAfterPhotos.length;
+      const totalClientImages = clientImageCount - currentServiceImages; // Remove imagens do serviço atual
       const newImagesCount = files.length;
+      const totalAfterUpload = totalClientImages + currentServiceImages + newImagesCount;
       
-      if (!canAddImageToClient(totalClientImages + formatCurrencytServiceImages + newImagesCount)) {
-        const remaining = getRemainingImagesForClient(totalClientImages + formatCurrencytServiceImages);
+      if (totalAfterUpload > planLimits.images) {
+        const remaining = Math.max(0, planLimits.images - (totalClientImages + currentServiceImages));
         toast.error(`Limite de ${planLimits.images} imagens por cliente atingido! Você pode adicionar mais ${remaining} imagens.`);
         return;
       }

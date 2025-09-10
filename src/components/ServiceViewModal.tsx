@@ -451,7 +451,7 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
       
       {/* Modal de tela cheia */}
       {isFullscreen && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-95 flex items-center justify-center">
+        <div className="fixed inset-0 z-[60] bg-black bg-opacity-95 flex items-center justify-center">
           <div className="relative w-full h-full flex items-center justify-center p-4">
             {/* Botão fechar */}
             <button

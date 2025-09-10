@@ -279,14 +279,14 @@ export default function DashboardHome() {
         {/* Cards de Métricas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total de Clientes */}
-          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300 h-full">
-            <CardContent className="p-6 h-full flex flex-col">
-              <div className="flex items-start justify-between h-full">
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600 mb-1">Total de Clientes</p>
                   <p className="text-3xl font-bold text-gray-900">{dashboardData.totalClients}</p>
                 </div>
-                <div className="p-3 bg-blue-100 rounded-full flex-shrink-0">
+                <div className="p-3 bg-blue-100 rounded-full">
                   <Users className="w-6 h-6 text-blue-600" />
                 </div>
               </div>
@@ -294,15 +294,15 @@ export default function DashboardHome() {
           </Card>
 
           {/* Agendamentos Hoje */}
-          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300 h-full">
-            <CardContent className="p-6 h-full flex flex-col">
-              <div className="flex items-start justify-between h-full">
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600 mb-1">Agendamentos</p>
                   <p className="text-xs text-gray-500 mb-1">Hoje</p>
                   <p className="text-3xl font-bold text-gray-900">{dashboardData.todayAppointments}</p>
                 </div>
-                <div className="p-3 bg-pink-100 rounded-full flex-shrink-0">
+                <div className="p-3 bg-pink-100 rounded-full">
                   <Calendar className="w-6 h-6 text-pink-600" />
                 </div>
               </div>
@@ -310,14 +310,14 @@ export default function DashboardHome() {
           </Card>
 
           {/* Total de Serviços */}
-          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300 h-full">
-            <CardContent className="p-6 h-full flex flex-col">
-              <div className="flex items-start justify-between h-full">
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600 mb-1">Serviços Realizados</p>
                   <p className="text-3xl font-bold text-gray-900">{dashboardData.totalServices}</p>
                 </div>
-                <div className="p-3 bg-green-100 rounded-full flex-shrink-0">
+                <div className="p-3 bg-green-100 rounded-full">
                   <Scissors className="w-6 h-6 text-green-600" />
                 </div>
               </div>
@@ -325,16 +325,16 @@ export default function DashboardHome() {
           </Card>
 
           {/* Valores Recebidos */}
-          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300 h-full">
-            <CardContent className="p-6 h-full flex flex-col">
-              <div className="flex items-start justify-between h-full">
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600 mb-1">Valores Recebidos</p>
                   <p className="text-3xl font-bold text-green-600">
                     {formatCurrencyFromCents(dashboardData.totalRevenue)}
                   </p>
                 </div>
-                <div className="p-3 bg-green-100 rounded-full flex-shrink-0">
+                <div className="p-3 bg-green-100 rounded-full">
                   <DollarSign className="w-6 h-6 text-green-600" />
                 </div>
               </div>

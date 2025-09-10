@@ -10,7 +10,7 @@ import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "fireb
 import { toast } from "react-toastify";
 import { currencyMask, celularMask, cpfMask, formatCurrencyFromCents } from "@/utils/maks/masks";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, Edit, Trash2, AlertTriangle, Image, Eye, X, Calendar, Clock, DollarSign, User, Phone, Mail, FileText } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, AlertTriangle, Image, Eye, X, Calendar, Clock, DollarSign, User, Phone, Mail, FileText, ZoomIn, ChevronLeft, ChevronRight } from "lucide-react";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatDateToBrazilian } from "@/utils/formater/date";
@@ -88,6 +88,9 @@ export default function ClientHistory() {
   const [clientImageCount, setClientImageCount] = useState(0);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentImageType, setCurrentImageType] = useState<'before' | 'after'>('before');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   const { user } = useAuthContext();
   const { planLimits, canAddImageToClient, getRemainingImagesForClient } = usePlanLimitations();
@@ -379,6 +382,32 @@ export default function ClientHistory() {
   const closeServiceModal = () => {
     setSelectedService(null);
     setIsServiceModalOpen(false);
+  };
+
+  const openFullscreen = () => {
+    setIsFullscreen(true);
+  };
+
+  const closeFullscreen = () => {
+    setIsFullscreen(false);
+  };
+
+  const nextImage = () => {
+    if (selectedService) {
+      const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
+      if (currentPhotos.length > 1) {
+        setCurrentImageIndex((prev) => (prev + 1) % currentPhotos.length);
+      }
+    }
+  };
+
+  const prevImage = () => {
+    if (selectedService) {
+      const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
+      if (currentPhotos.length > 1) {
+        setCurrentImageIndex((prev) => (prev - 1 + currentPhotos.length) % currentPhotos.length);
+      }
+    }
   };
   
   const isLoading = isLoadingClient || isLoadingServices;
@@ -772,62 +801,121 @@ export default function ClientHistory() {
                 </div>
               )}
 
-              {/* Fotos Antes e Depois */}
-              {(() => {
-                console.log('🔍 Verificando imagens:', {
-                  imagesBefore: selectedService.imagesBefore,
-                  imagesAfter: selectedService.imagesAfter,
-                  hasBefore: (selectedService.imagesBefore?.length ?? 0) > 0,
-                  hasAfter: (selectedService.imagesAfter?.length ?? 0) > 0
-                });
-                return null;
-              })()}
+              {/* Galeria de Fotos */}
               {((selectedService.imagesBefore?.length ?? 0) > 0 || (selectedService.imagesAfter?.length ?? 0) > 0) && (
-                <div className="bg-indigo-50 p-4 rounded-lg">
+                <div className="bg-pink-50 p-4 rounded-lg">
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <Image className="h-5 w-5" />
-                    Fotos do Serviço
+                    Galeria de Fotos
                   </h3>
                   
-                  {(selectedService.imagesBefore?.length ?? 0) > 0 && (
-                    <div className="mb-4">
-                      <h4 className="font-medium mb-2">Fotos Antes</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {selectedService.imagesBefore?.map((photo: string, index: number) => (
-                          <img 
-                            key={index} 
-                            src={photo} 
-                            alt={`Antes ${index + 1}`}
-                            className="w-full h-24 object-cover rounded border"
-                            onError={(e) => {
-                              console.error('Erro ao carregar imagem:', photo);
-                              e.currentTarget.style.display = 'none';
-                            }}
+                  {/* Seletor de tipo de foto */}
+                  <div className="flex gap-2 mb-4">
+                    <Button
+                      variant={currentImageType === 'before' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setCurrentImageType('before');
+                        setCurrentImageIndex(0);
+                      }}
+                    >
+                      Fotos Antes ({selectedService.imagesBefore?.length || 0})
+                    </Button>
+                    <Button
+                      variant={currentImageType === 'after' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setCurrentImageType('after');
+                        setCurrentImageIndex(0);
+                      }}
+                    >
+                      Fotos Depois ({selectedService.imagesAfter?.length || 0})
+                    </Button>
+                  </div>
+
+                  {/* Visualizador de imagens */}
+                  {(() => {
+                    const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
+                    return currentPhotos.length > 0 ? (
+                      <div className="space-y-4">
+                        <div className="relative bg-white rounded-lg overflow-hidden group">
+                          <img
+                            src={currentPhotos[currentImageIndex]}
+                            alt={`Foto ${currentImageType} ${currentImageIndex + 1}`}
+                            className="w-full h-80 object-cover cursor-pointer transition-transform duration-200 hover:scale-105"
+                            onClick={openFullscreen}
                           />
-                        ))}
+                          
+                          {/* Botão de tela cheia */}
+                          <button
+                            onClick={openFullscreen}
+                            className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                          >
+                            <ZoomIn className="w-4 h-4" />
+                          </button>
+                          
+                          {/* Navegação de imagens */}
+                          {currentPhotos.length > 1 && (
+                            <>
+                              <button
+                                onClick={prevImage}
+                                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={nextImage}
+                                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                              
+                              {/* Indicadores */}
+                              <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+                                {currentPhotos.map((_, index) => (
+                                  <button
+                                    key={index}
+                                    onClick={() => setCurrentImageIndex(index)}
+                                    className={`w-2 h-2 rounded-full transition-colors duration-200 ${
+                                      index === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50 hover:bg-opacity-75'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        
+                        {/* Miniaturas */}
+                        {currentPhotos.length > 1 && (
+                          <div className="flex space-x-2 overflow-x-auto pb-2">
+                            {currentPhotos.map((photo, index) => (
+                              <button
+                                key={index}
+                                onClick={() => setCurrentImageIndex(index)}
+                                className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                                  index === currentImageIndex 
+                                    ? 'border-pink-500 ring-2 ring-pink-200' 
+                                    : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                              >
+                                <img
+                                  src={photo}
+                                  alt={`Miniatura ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
-                  
-                  {(selectedService.imagesAfter?.length ?? 0) > 0 && (
-                    <div>
-                      <h4 className="font-medium mb-2">Fotos Depois</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {selectedService.imagesAfter?.map((photo: string, index: number) => (
-                          <img 
-                            key={index} 
-                            src={photo} 
-                            alt={`Depois ${index + 1}`}
-                            className="w-full h-24 object-cover rounded border"
-                            onError={(e) => {
-                              console.error('Erro ao carregar imagem:', photo);
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        ))}
+                    ) : (
+                      <div className="text-center py-8 bg-white rounded-lg">
+                        <Image className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-500">Nenhuma foto {currentImageType === 'before' ? 'antes' : 'depois'}</p>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               )}
 
@@ -848,6 +936,82 @@ export default function ClientHistory() {
             </div>
           )}
         </DialogContent>
+        
+        {/* Modal de tela cheia */}
+        {isFullscreen && selectedService && (
+          <div className="fixed inset-0 z-[60] bg-black bg-opacity-95 flex items-center justify-center">
+            <div className="relative w-full h-full flex items-center justify-center p-4">
+              {/* Botão fechar */}
+              <button
+                onClick={closeFullscreen}
+                className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              
+              {/* Imagem em tela cheia */}
+              {(() => {
+                const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
+                return currentPhotos.length > 0 ? (
+                  <img
+                    src={currentPhotos[currentImageIndex]}
+                    alt={`Foto ${currentImageType} ${currentImageIndex + 1}`}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                ) : null;
+              })()}
+              
+              {/* Navegação em tela cheia */}
+              {(() => {
+                const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
+                return currentPhotos.length > 1 ? (
+                  <>
+                    <button
+                      onClick={prevImage}
+                      className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-70"
+                    >
+                      <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <button
+                      onClick={nextImage}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-70"
+                    >
+                      <ChevronRight className="w-6 h-6" />
+                    </button>
+                    
+                    {/* Indicadores em tela cheia */}
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                      {(() => {
+                        const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
+                        return currentPhotos.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentImageIndex(index)}
+                            className={`w-3 h-3 rounded-full transition-colors duration-200 ${
+                              index === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50 hover:bg-opacity-75'
+                            }`}
+                          />
+                        ));
+                      })()}
+                    </div>
+                  </>
+                ) : null;
+              })()}
+              
+              {/* Informações da foto */}
+              <div className="absolute bottom-4 left-4 text-white">
+                {(() => {
+                  const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
+                  return currentPhotos.length > 0 ? (
+                    <p className="text-sm opacity-75">
+                      {currentImageType === 'before' ? 'Antes' : 'Depois'} - {currentImageIndex + 1} de {currentPhotos.length}
+                    </p>
+                  ) : null;
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
       </Dialog>
     </div>
   );
