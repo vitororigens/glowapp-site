@@ -21,16 +21,16 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, User, Phone, Mail, Clock, Calendar as CalendarIcon2, FileText, Plus, ArrowLeft, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ProceduresModal } from "@/components/ProceduresModal";
-import { ProfessionalsModal } from "@/components/ProfessionalsModal";
+import { CustomModalServices } from "@/components/CustomModalServices";
+import { CustomModalProfessionals } from "@/components/CustomModalProfessionals";
 import { CustomModalClients } from "@/components/CustomModalClients";
 import "@/styles/calendar.css";
 
 // Schema para dados do cliente
 const clientSchema = z.object({
   name: z.string().min(1, "Nome completo é obrigatório"),
-  phone: z.string().min(14, "Celular é obrigatório"),
-  email: z.string().email("Email inválido").min(1, "Email é obrigatório"),
+  phone: z.string().optional(),
+  email: z.string().email("Email inválido").optional().or(z.literal("")),
   cpf: z.string().min(14, "CPF é obrigatório"),
 });
 
@@ -80,7 +80,7 @@ export default function NewAppointment() {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [showProceduresModal, setShowProceduresModal] = useState(false);
+  const [showServicesModal, setShowServicesModal] = useState(false);
   const [showProfessionalsModal, setShowProfessionalsModal] = useState(false);
   const [showClientsModal, setShowClientsModal] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -323,21 +323,33 @@ export default function NewAppointment() {
 
 
 
-  const handleProcedureSelect = (procedure: Procedure) => {
-    setSelectedProcedure(procedure);
-    setShowProceduresModal(false);
-    
-    // Calcular horário de fim baseado no procedimento
-    const startTime = appointmentForm.getValues("startTime");
-    if (startTime) {
-      const endTime = calculateEndTime(startTime, { duration: procedure.duration } as Service);
-      appointmentForm.setValue("endTime", endTime);
+  const handleServiceSelect = (selectedServiceIds: string[]) => {
+    if (selectedServiceIds.length > 0) {
+      // Buscar o primeiro serviço selecionado
+      const selectedService = procedures.find(p => p.id === selectedServiceIds[0]);
+      if (selectedService) {
+        setSelectedProcedure(selectedService);
+        
+        // Calcular horário de fim baseado no procedimento
+        const startTime = appointmentForm.getValues("startTime");
+        if (startTime) {
+          const endTime = calculateEndTime(startTime, { duration: selectedService.duration } as Service);
+          appointmentForm.setValue("endTime", endTime);
+        }
+      }
     }
+    setShowServicesModal(false);
   };
 
-  const handleProfessionalSelect = (professional: Professional) => {
-    setSelectedProfessional(professional);
-    appointmentForm.setValue("contact", professional.name);
+  const handleProfessionalSelect = (selectedProfessionalIds: string[]) => {
+    if (selectedProfessionalIds.length > 0) {
+      // Buscar o primeiro profissional selecionado
+      const selectedProfessional = professionals.find(p => p.id === selectedProfessionalIds[0]);
+      if (selectedProfessional) {
+        setSelectedProfessional(selectedProfessional);
+        appointmentForm.setValue("contact", selectedProfessional.name);
+      }
+    }
     setShowProfessionalsModal(false);
   };
 
@@ -562,7 +574,7 @@ export default function NewAppointment() {
                 backgroundColor: 'white',
                 border: '1px solid #e5e7eb'
               }}
-              onClick={() => setShowProceduresModal(true)}
+              onClick={() => setShowServicesModal(true)}
             >
               <Plus className="h-3 w-3" />
             </Button>
@@ -780,18 +792,18 @@ export default function NewAppointment() {
         {currentStep === 3 && renderStep3()}
 
         {/* Modals */}
-        <ProceduresModal
-          isOpen={showProceduresModal}
-          onClose={() => setShowProceduresModal(false)}
-          procedures={procedures}
-          onSelect={handleProcedureSelect}
+        <CustomModalServices
+          visible={showServicesModal}
+          onClose={() => setShowServicesModal(false)}
+          onConfirm={handleServiceSelect}
+          title="Selecione o procedimento"
         />
         
-        <ProfessionalsModal
-          isOpen={showProfessionalsModal}
+        <CustomModalProfessionals
+          visible={showProfessionalsModal}
           onClose={() => setShowProfessionalsModal(false)}
-          professionals={professionals}
-          onSelect={handleProfessionalSelect}
+          onConfirm={handleProfessionalSelect}
+          title="Selecione o profissional"
         />
 
         <CustomModalClients

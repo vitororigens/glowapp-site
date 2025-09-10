@@ -88,7 +88,7 @@ interface DashboardData {
   totalServices: number;
   totalRevenue: number;
   todayAppointments: number;
-  recentProcedures: Array<{
+  recentServices: Array<{
     id: string;
     name: string;
     cpf?: string;
@@ -142,7 +142,7 @@ export default function DashboardHome() {
     totalServices: 0,
     totalRevenue: 0,
     todayAppointments: 0,
-    recentProcedures: [],
+    recentServices: [],
   });
 
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
@@ -181,8 +181,8 @@ export default function DashboardHome() {
       ? appointments.filter(appointment => appointment.appointment.date === today).length 
       : 0;
 
-    // Últimos procedimentos (todos os serviços, não apenas com fotos)
-    const recentProcedures = [...services]
+    // Últimos serviços (todos os serviços, não apenas com fotos)
+    const recentServices = [...services]
       .filter(service => {
         // Debug: verificar estrutura dos serviços
         if (!service.id) {
@@ -234,7 +234,7 @@ export default function DashboardHome() {
       totalServices,
       totalRevenue,
       todayAppointments,
-      recentProcedures,
+      recentServices,
     });
   }, [services, clients, appointments]);
 
@@ -279,14 +279,14 @@ export default function DashboardHome() {
         {/* Cards de Métricas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total de Clientes */}
-          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300 h-full">
+            <CardContent className="p-6 h-full flex flex-col">
+              <div className="flex items-start justify-between h-full">
+                <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600 mb-1">Total de Clientes</p>
                   <p className="text-3xl font-bold text-gray-900">{dashboardData.totalClients}</p>
                 </div>
-                <div className="p-3 bg-blue-100 rounded-full">
+                <div className="p-3 bg-blue-100 rounded-full flex-shrink-0">
                   <Users className="w-6 h-6 text-blue-600" />
                 </div>
               </div>
@@ -294,15 +294,15 @@ export default function DashboardHome() {
           </Card>
 
           {/* Agendamentos Hoje */}
-          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300 h-full">
+            <CardContent className="p-6 h-full flex flex-col">
+              <div className="flex items-start justify-between h-full">
+                <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600 mb-1">Agendamentos</p>
                   <p className="text-xs text-gray-500 mb-1">Hoje</p>
                   <p className="text-3xl font-bold text-gray-900">{dashboardData.todayAppointments}</p>
                 </div>
-                <div className="p-3 bg-pink-100 rounded-full">
+                <div className="p-3 bg-pink-100 rounded-full flex-shrink-0">
                   <Calendar className="w-6 h-6 text-pink-600" />
                 </div>
               </div>
@@ -310,14 +310,14 @@ export default function DashboardHome() {
           </Card>
 
           {/* Total de Serviços */}
-          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300 h-full">
+            <CardContent className="p-6 h-full flex flex-col">
+              <div className="flex items-start justify-between h-full">
+                <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600 mb-1">Serviços Realizados</p>
                   <p className="text-3xl font-bold text-gray-900">{dashboardData.totalServices}</p>
                 </div>
-                <div className="p-3 bg-green-100 rounded-full">
+                <div className="p-3 bg-green-100 rounded-full flex-shrink-0">
                   <Scissors className="w-6 h-6 text-green-600" />
                 </div>
               </div>
@@ -325,16 +325,16 @@ export default function DashboardHome() {
           </Card>
 
           {/* Valores Recebidos */}
-          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
+          <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300 h-full">
+            <CardContent className="p-6 h-full flex flex-col">
+              <div className="flex items-start justify-between h-full">
+                <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600 mb-1">Valores Recebidos</p>
                   <p className="text-3xl font-bold text-green-600">
                     {formatCurrencyFromCents(dashboardData.totalRevenue)}
                   </p>
                 </div>
-                <div className="p-3 bg-green-100 rounded-full">
+                <div className="p-3 bg-green-100 rounded-full flex-shrink-0">
                   <DollarSign className="w-6 h-6 text-green-600" />
                 </div>
               </div>
@@ -370,10 +370,10 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {/* Últimos Procedimentos */}
+        {/* Últimos Serviços */}
         <div>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Últimos Procedimentos</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Últimos Serviços</h2>
             <button
               onClick={() => router.push('/dashboard/servicos')}
               className="text-pink-600 hover:text-pink-700 text-sm font-medium flex items-center space-x-1"
@@ -383,14 +383,14 @@ export default function DashboardHome() {
             </button>
           </div>
           
-          {dashboardData.recentProcedures.length > 0 ? (
+          {dashboardData.recentServices.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {dashboardData.recentProcedures
-                .filter(procedure => procedure.id && typeof procedure.id === 'string')
-                .map((procedure) => (
+              {dashboardData.recentServices
+                .filter(service => service.id && typeof service.id === 'string')
+                .map((service) => (
                   <ProcedureCard 
-                    key={procedure.id} 
-                    service={procedure} 
+                    key={service.id} 
+                    service={service} 
                     onViewDetails={handleViewServiceDetails}
                   />
                 ))}
@@ -400,7 +400,7 @@ export default function DashboardHome() {
               <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                 <Scissors className="w-8 h-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum procedimento encontrado</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum serviço encontrado</h3>
               <p className="text-gray-500 mb-4">Comece criando seu primeiro serviço com fotos</p>
               <button
                 onClick={() => router.push('/dashboard/servicos/novo')}

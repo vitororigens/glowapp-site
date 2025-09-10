@@ -18,7 +18,10 @@ import {
   MapPin,
   CreditCard,
   Image as ImageIcon,
-  Eye
+  Eye,
+  ZoomIn,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { formatDateToBrazilian } from '@/utils/formater/date';
 import { formatCurrencyFromCents } from '@/utils/maks/masks';
@@ -72,6 +75,7 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
   const router = useRouter();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [currentImageType, setCurrentImageType] = useState<'before' | 'after'>('before');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   if (!service) return null;
 
@@ -97,6 +101,14 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
     if (currentPhotos.length > 1) {
       setCurrentImageIndex((prev) => (prev - 1 + currentPhotos.length) % currentPhotos.length);
     }
+  };
+
+  const openFullscreen = () => {
+    setIsFullscreen(true);
+  };
+
+  const closeFullscreen = () => {
+    setIsFullscreen(false);
   };
 
   const servicePrice = typeof service.price === 'number' 
@@ -347,36 +359,46 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
               {/* Visualizador de imagens */}
               {currentPhotos.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="relative bg-white rounded-lg overflow-hidden">
+                  <div className="relative bg-white rounded-lg overflow-hidden group">
                     <img
                       src={currentPhotos[currentImageIndex]?.url}
                       alt={`Foto ${currentImageType} ${currentImageIndex + 1}`}
-                      className="w-full h-96 object-cover"
+                      className="w-full h-80 object-cover cursor-pointer transition-transform duration-200 hover:scale-105"
+                      onClick={openFullscreen}
                     />
+                    
+                    {/* Botão de tela cheia */}
+                    <button
+                      onClick={openFullscreen}
+                      className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
                     
                     {/* Navegação de imagens */}
                     {currentPhotos.length > 1 && (
                       <>
                         <button
                           onClick={prevImage}
-                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70"
+                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                         >
-                          ←
+                          <ChevronLeft className="w-4 h-4" />
                         </button>
                         <button
                           onClick={nextImage}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70"
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                         >
-                          →
+                          <ChevronRight className="w-4 h-4" />
                         </button>
                         
                         {/* Indicadores */}
                         <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
                           {currentPhotos.map((_, index) => (
-                            <div
+                            <button
                               key={index}
-                              className={`w-2 h-2 rounded-full ${
-                                index === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'
+                              onClick={() => setCurrentImageIndex(index)}
+                              className={`w-2 h-2 rounded-full transition-colors duration-200 ${
+                                index === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50 hover:bg-opacity-75'
                               }`}
                             />
                           ))}
@@ -384,6 +406,29 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
                       </>
                     )}
                   </div>
+                  
+                  {/* Miniaturas */}
+                  {currentPhotos.length > 1 && (
+                    <div className="flex space-x-2 overflow-x-auto pb-2">
+                      {currentPhotos.map((photo, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentImageIndex(index)}
+                          className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                            index === currentImageIndex 
+                              ? 'border-pink-500 ring-2 ring-pink-200' 
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <img
+                            src={photo.url}
+                            alt={`Miniatura ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   
                   {/* Descrição da foto */}
                   {currentPhotos[currentImageIndex]?.description && (
@@ -403,6 +448,69 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
           )}
         </div>
       </DialogContent>
+      
+      {/* Modal de tela cheia */}
+      {isFullscreen && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-95 flex items-center justify-center">
+          <div className="relative w-full h-full flex items-center justify-center p-4">
+            {/* Botão fechar */}
+            <button
+              onClick={closeFullscreen}
+              className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            
+            {/* Imagem em tela cheia */}
+            <img
+              src={currentPhotos[currentImageIndex]?.url}
+              alt={`Foto ${currentImageType} ${currentImageIndex + 1}`}
+              className="max-w-full max-h-full object-contain"
+            />
+            
+            {/* Navegação em tela cheia */}
+            {currentPhotos.length > 1 && (
+              <>
+                <button
+                  onClick={prevImage}
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-70"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-70"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+                
+                {/* Indicadores em tela cheia */}
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                  {currentPhotos.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={`w-3 h-3 rounded-full transition-colors duration-200 ${
+                        index === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50 hover:bg-opacity-75'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+            
+            {/* Informações da foto */}
+            <div className="absolute bottom-4 left-4 text-white">
+              <p className="text-sm opacity-75">
+                {currentImageType === 'before' ? 'Antes' : 'Depois'} - {currentImageIndex + 1} de {currentPhotos.length}
+              </p>
+              {currentPhotos[currentImageIndex]?.description && (
+                <p className="text-sm mt-1">{currentPhotos[currentImageIndex]?.description}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 }
