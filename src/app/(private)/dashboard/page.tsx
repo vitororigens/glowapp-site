@@ -52,6 +52,7 @@ interface Service {
     date: string;
     installments?: number;
   }>;
+  createdAt?: string;
 }
 
 interface Contact {
@@ -181,7 +182,7 @@ export default function DashboardHome() {
       ? appointments.filter(appointment => appointment.appointment.date === today).length 
       : 0;
 
-    // Últimos serviços (todos os serviços, não apenas com fotos)
+    // Últimos serviços (ordenados por data de criação)
     const recentServices = [...services]
       .filter(service => {
         // Debug: verificar estrutura dos serviços
@@ -190,15 +191,12 @@ export default function DashboardHome() {
           return false;
         }
         
-        const hasPhotos = (service.beforePhotos && service.beforePhotos.length > 0) || (service.afterPhotos && service.afterPhotos.length > 0);
-        console.log('Service:', service.name, 'hasPhotos:', hasPhotos, 'beforePhotos:', service.beforePhotos, 'afterPhotos:', service.afterPhotos);
-        
-        // Mostrar todos os serviços, não apenas os com fotos
         return true;
       })
       .sort((a, b) => {
-        const dateA = new Date(a.date.split("/").reverse().join("-"));
-        const dateB = new Date(b.date.split("/").reverse().join("-"));
+        // Usar createdAt se disponível, senão usar a data do serviço
+        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(a.date.split("/").reverse().join("-"));
+        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(b.date.split("/").reverse().join("-"));
         return dateB.getTime() - dateA.getTime();
       })
       .slice(0, 6)

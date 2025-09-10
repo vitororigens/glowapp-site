@@ -1477,6 +1477,12 @@ export default function Agenda() {
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPaid / 100)}
                           </span>
                         </div>
+                        <div className="flex justify-between items-center">
+                          <span>Saldo pendente:</span>
+                          <span className="font-semibold text-orange-600">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((totalPrice / 100) - (totalPaid / 100))}
+                          </span>
+                        </div>
                       </div>
 
                       <div className="space-y-4 mb-4">
@@ -1585,7 +1591,7 @@ export default function Agenda() {
                                       : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
                                   </div>
                                   <div className="text-sm">
-                                    {payment.date} - {payment.value}
+                                    {formatDateToBrazilian(payment.date)} - {payment.value}
                                   </div>
                                 </div>
                                 <div className="flex space-x-2">

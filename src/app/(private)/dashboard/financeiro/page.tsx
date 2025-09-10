@@ -277,10 +277,10 @@ export default function Financeiro() {
                   <TableCell>{formatDateToBrazilian(transaction.date)}</TableCell>
                   <TableCell>
                     {transaction.type === "Serviço" ? 
-                      formatPrice(Number((transaction as any).originalPrice) * 100) 
-                      : formatPrice(Number(transaction.value) * 100)}
+                      formatPrice(Number((transaction as any).originalPrice)) 
+                      : formatPrice(Number(transaction.value))}
                   </TableCell>
-                  <TableCell className="text-green-600">{formatPrice(Number(transaction.value) * 100)}</TableCell>
+                  <TableCell className="text-green-600">{formatPrice(Number(transaction.value))}</TableCell>
                   <TableCell>
                     {transaction.type === "Serviço" && (transaction as any).payments && (transaction as any).payments.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
@@ -365,7 +365,7 @@ export default function Financeiro() {
                 <TableRow key={`${transaction.collection}-${transaction.id}`}>
                   <TableCell>{transaction.name}</TableCell>
                   <TableCell>{formatDateToBrazilian(transaction.date)}</TableCell>
-                  <TableCell className="text-red-600">{formatPrice(Number(transaction.value) * 100, true)}</TableCell>
+                  <TableCell className="text-red-600">{formatPrice(Number(transaction.value), true)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleEdit(transaction)}>Editar</Button>

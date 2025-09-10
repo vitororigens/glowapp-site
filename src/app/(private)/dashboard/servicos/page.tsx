@@ -84,8 +84,8 @@ export default function Services() {
             const value = typeof p.value === 'number' 
               ? p.value 
               : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-            // Os valores estão em centavos, então dividimos por 100 para obter reais
-            return sum + (value / 100);
+            // Os valores já estão em centavos, mantemos como estão
+            return sum + value;
           }, 0) || 0;
         return acc + paidAmount;
       }, 0);
@@ -142,7 +142,7 @@ export default function Services() {
               </div>
               <div className="bg-white p-4 rounded-lg shadow border">
                 <div className="text-sm text-gray-500 mb-1">Valores Recebidos</div>
-                <div className="text-2xl font-bold text-green-600">{formatCurrencyFromCents(totalPaid * 100)}</div>
+                <div className="text-2xl font-bold text-green-600">{formatCurrencyFromCents(totalPaid)}</div>
               </div>
             </div>
           </div>
@@ -168,8 +168,8 @@ export default function Services() {
                         const value = typeof p.value === 'number' 
                           ? p.value 
                           : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-                        // Os valores estão em centavos, então dividimos por 100 para obter reais
-                        return sum + (value / 100);
+                        // Os valores já estão em centavos, mantemos como estão
+                        return sum + value;
                       }, 0)
                     : 0;
                   const valorTotal = service.price;
@@ -179,8 +179,8 @@ export default function Services() {
                       <TableCell>{service.name}</TableCell>
                       <TableCell>{formatDateToBrazilian(service.date)}</TableCell>
                       <TableCell>{service.time}</TableCell>
-                      <TableCell>{formatCurrencyFromCents(valorTotal * 100)}</TableCell>
-                      <TableCell className="text-green-600">{formatCurrencyFromCents(paidAmount * 100)}</TableCell>
+                      <TableCell>{formatCurrencyFromCents(valorTotal)}</TableCell>
+                      <TableCell className="text-green-600">{formatCurrencyFromCents(paidAmount)}</TableCell>
                       <TableCell>
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${

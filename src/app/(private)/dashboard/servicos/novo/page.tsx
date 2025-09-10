@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
-import { currencyMask, cpfMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
+import { currencyMask, cpfMask, cpfUnMask, celularMask, celularUnMask, formatCurrencyFromCents } from "@/utils/maks/masks";
+import { formatDateToBrazilian } from "@/utils/formater/date";
 
 
 import { useAuthContext } from "@/context/AuthContext";
@@ -48,10 +49,34 @@ const formatCurrency = (value: number | string | undefined) => {
   
   if (numericValue === 0) return '';
   
-  // Se o valor for muito grande (provavelmente em centavos), divide por 100
+  // Para valores que vêm do banco em centavos, dividimos por 100
+  // Mas apenas se o valor for muito grande (indicando que está em centavos)
   if (numericValue > 100000) {
     numericValue = numericValue / 100;
   }
+  
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(numericValue);
+};
+
+// Função específica para formatar valores de pagamento do banco
+const formatPaymentValue = (value: number | string | undefined) => {
+  if (value === undefined || value === null || value === 0) return '';
+  
+  let numericValue: number;
+  
+  if (typeof value === 'number') {
+    numericValue = value;
+  } else {
+    numericValue = Number(String(value).replace(/\D/g, ''));
+  }
+  
+  if (numericValue === 0) return '';
+  
+  // Valores de pagamento do banco estão em centavos, então dividimos por 100
+  numericValue = numericValue / 100;
   
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -169,7 +194,7 @@ export default function NewService() {
   const beforePhotos = watch("beforePhotos") || [];
   const afterPhotos = watch("afterPhotos") || [];
   const payments = watch("payments") || [];
-  const totalPrice = watch("price") ? Number(watch("price").replace(/\D/g, '')) / 100 : 0;
+  const totalPrice = watch("price") ? Number(watch("price").replace(/\D/g, '')) : 0;
   
   // Debug para verificar o cálculo do totalPrice
   console.log("🔍 Debug totalPrice calculation:", {
@@ -201,7 +226,7 @@ export default function NewService() {
   }, [watch("price"), totalPrice]);
 
   const totalPaid = payments.reduce((acc, payment) => {
-    // Os valores dos pagamentos já estão formatados, então convertemos para número
+    // Os valores dos pagamentos já estão formatados em reais, então convertemos para número
     const paymentValue = Number(payment.value.replace(/\D/g, '')) / 100;
     console.log("💰 Debug pagamento:", {
       paymentValue: payment.value,
@@ -253,7 +278,7 @@ export default function NewService() {
                 data.date.split('/').reverse().join('-') : 
                 data.date) : new Date().toISOString().split('T')[0],
               time: data.time && data.time !== "0" && data.time !== "00:00" ? data.time : "",
-              price: formatCurrency(data.price),
+              price: formatCurrencyFromCents(data.price),
               priority: data.priority || "",
               duration: data.duration || "",
               observations: data.observations || "",
@@ -269,7 +294,7 @@ export default function NewService() {
               sendToFinance: data.sendToFinance || false,
               payments: data.payments ? data.payments.map((p: any) => ({
                 method: p.method,
-                value: formatCurrency(p.value),
+                value: formatPaymentValue(p.value),
                 date: p.date,
                 installments: p.installments || undefined
               })) : [],
@@ -496,7 +521,7 @@ export default function NewService() {
       
       const paidAmount = processedPayments.reduce((sum, payment) => sum + payment.value, 0);
       
-      const price = Number(data.price.replace(/\D/g, '')) / 100;
+      const price = Number(data.price.replace(/\D/g, ''));
       
       console.log("💰 Salvando preço:", {
         originalPrice: data.price,
@@ -769,19 +794,21 @@ export default function NewService() {
       value: newPayment.value
     });
     
+    const formattedValue = currencyMask(newPayment.value);
+    
     if (formatCurrencytPaymentIndex === -1) {
       setValue("payments", [
         ...payments, 
         {
           ...newPayment,
-          value: newPayment.value
+          value: formattedValue
         }
       ]);
     } else {
       const updatedPayments = [...payments];
       updatedPayments[formatCurrencytPaymentIndex] = {
         ...newPayment,
-        value: newPayment.value
+        value: formattedValue
       };
       setValue("payments", updatedPayments);
       setCurrentPaymentIndex(-1);
@@ -1025,12 +1052,21 @@ export default function NewService() {
               <span className="font-semibold">{new Intl.NumberFormat('pt-BR', {
                 style: 'currency',
                 currency: 'BRL'
-              }).format(totalPrice)}</span>
+              }).format(totalPrice / 100)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Total pago:</span>
               <span className="font-semibold text-green-600">
                 {currencyMask(totalPaid * 100)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span>Saldo pendente:</span>
+              <span className="font-semibold text-orange-600">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format((totalPrice / 100) - totalPaid)}
               </span>
             </div>
           </div>
@@ -1144,10 +1180,10 @@ export default function NewService() {
                           ? "PIX"
                           : payment.method === "boleto"
                           ? "Boleto"
-                          : `Cartão ${payment.installments ? `${currencyMask(payment.installments * 100)}x` : ""}`}
+                          : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
                       </div>
                       <div className="text-sm">
-                        {payment.date} - {payment.value}
+                        {formatDateToBrazilian(payment.date)} - {payment.value}
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -1193,7 +1229,7 @@ export default function NewService() {
                 id={service.id}
                 code={service.code}
                 name={service.name}
-                price={currencyMask(Number(service.price) * 100)} 
+                price={currencyMask(Number(service.price))} 
                 onRemove={handleRemoveService}
               />
             ))}
@@ -1449,7 +1485,7 @@ export default function NewService() {
 
               const total = updatedServices.reduce((sum, service) => {
                 const price = typeof service.price === 'string' 
-                  ? Number(service.price.replace(/\D/g, '')) / 100
+                  ? Number(service.price.replace(/\D/g, ''))
                   : Number(service.price);
                 return sum + price;
               }, 0);

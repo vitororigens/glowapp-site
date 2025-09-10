@@ -88,9 +88,7 @@ export default function ProcedureCard({ service, onViewDetails }: ProcedureCardP
     }
   };
 
-  const servicePrice = typeof service.price === 'number' 
-    ? service.price 
-    : Number(String(service.price).replace(/[^\d,-]/g, "").replace(",", "."));
+  const servicePrice = service.price;
 
   return (
     <div 
@@ -206,7 +204,7 @@ export default function ProcedureCard({ service, onViewDetails }: ProcedureCardP
 
         <div className="flex items-center justify-between">
           <span className="text-lg font-bold text-green-600">
-            {formatCurrencyFromCents(servicePrice)}
+            {formatCurrencyFromCents(Number(servicePrice))}
           </span>
           
           {service.observations && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -77,6 +77,20 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
   const [currentImageType, setCurrentImageType] = useState<'before' | 'after'>('before');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Fechar com ESC
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    if (isFullscreen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isFullscreen]);
+
   if (!service) return null;
 
   const handleEdit = () => {
@@ -111,9 +125,7 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
     setIsFullscreen(false);
   };
 
-  const servicePrice = typeof service.price === 'number' 
-    ? service.price 
-    : Number(String(service.price).replace(/[^\d,-]/g, "").replace(",", "."));
+  const servicePrice = service.price;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -321,6 +333,42 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
                   </div>
                 ))}
               </div>
+              
+              {/* Resumo de Pagamentos */}
+              <div className="mt-4 p-3 bg-white rounded border">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Valor Total</p>
+                    <p className="font-semibold text-lg">{formatCurrencyFromCents(servicePrice)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Total Pago</p>
+                    <p className="font-semibold text-lg text-green-600">
+                      {formatCurrencyFromCents(
+                        service.payments.reduce((sum, payment) => {
+                          const value = typeof payment.value === 'number' 
+                            ? payment.value 
+                            : Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", "."));
+                          return sum + value;
+                        }, 0)
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Saldo Pendente</p>
+                    <p className="font-semibold text-lg text-orange-600">
+                      {formatCurrencyFromCents(
+                        Number(servicePrice) - service.payments.reduce((sum, payment) => {
+                          const value = typeof payment.value === 'number' 
+                            ? payment.value 
+                            : Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", "."));
+                          return sum + value;
+                        }, 0)
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -451,8 +499,14 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
       
       {/* Modal de tela cheia */}
       {isFullscreen && (
-        <div className="fixed inset-0 z-[60] bg-black bg-opacity-95 flex items-center justify-center">
-          <div className="relative w-full h-full flex items-center justify-center p-4">
+        <div 
+          className="fixed inset-0 z-[60] bg-black bg-opacity-95 flex items-center justify-center"
+          onClick={closeFullscreen}
+        >
+          <div 
+            className="relative w-full h-full flex items-center justify-center p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Botão fechar */}
             <button
               onClick={closeFullscreen}
