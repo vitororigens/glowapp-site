@@ -9,6 +9,7 @@ import { usePlanContext } from "@/context/PlanContext";
 import UpgradeBanner from "@/components/UpgradeBanner";
 import ProcedureCard from "@/components/ProcedureCard";
 import ServiceViewModal from "@/components/ServiceViewModal";
+import TodayAppointments from "@/components/TodayAppointments";
 import { Users, Calendar, DollarSign, Scissors, Plus, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -367,6 +368,9 @@ export default function DashboardHome() {
             </button>
           </div>
         </div>
+
+        {/* Agendamentos de Hoje */}
+        <TodayAppointments />
 
         {/* Últimos Serviços */}
         <div>

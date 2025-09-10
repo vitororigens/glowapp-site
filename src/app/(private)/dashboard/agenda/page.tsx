@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthContext } from "@/context/AuthContext";
 import { database, storage } from "@/services/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -168,6 +168,7 @@ export default function Agenda() {
   const uid = user?.uid;
   const { planLimits, canAddImageToClient, getRemainingImagesForClient } = usePlanLimitations();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (uid) {
@@ -184,6 +185,19 @@ export default function Agenda() {
       console.log('❌ UID não disponível, não carregando dados');
     }
   }, [uid]);
+
+  // Detectar parâmetro convert na URL e abrir modal automaticamente
+  useEffect(() => {
+    const convertId = searchParams.get('convert');
+    if (convertId && appointments.length > 0) {
+      const appointmentToConvert = appointments.find(apt => apt.id === convertId);
+      if (appointmentToConvert) {
+        openConversionModal(appointmentToConvert);
+        // Limpar o parâmetro da URL
+        router.replace('/dashboard/agenda');
+      }
+    }
+  }, [searchParams, appointments, router]);
 
   const fetchAppointments = async () => {
     try {
@@ -406,8 +420,8 @@ export default function Agenda() {
     (appointmentToConvert.appointment?.servicePrice || appointmentToConvert.appointment?.procedurePrice || 0) : 0;
 
   const totalPaid = payments.reduce((acc, payment) => {
-    // Os valores dos pagamentos estão em centavos, então dividimos por 100 para obter reais
-    return acc + (Number(payment.value.replace(/\D/g, '')) / 100);
+    // Os valores dos pagamentos já estão em centavos (formato "R$ 200,00" = 20000 centavos)
+    return acc + Number(payment.value.replace(/\D/g, ''));
   }, 0);
 
   const handlePaymentMethodChange = (value: "dinheiro" | "pix" | "cartao" | "boleto") => {
