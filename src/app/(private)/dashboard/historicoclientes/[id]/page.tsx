@@ -16,27 +16,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatDateToBrazilian } from "@/utils/formater/date";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-// Função para carregar valores do banco de dados (valores em reais)
+// Função para carregar valores do banco de dados (valores em centavos)
 const loadCurrencyFromDB = (value: number | string | undefined) => {
   if (value === undefined || value === null || value === 0) return '';
   
-  // Se for número, assume que está em reais (valores salvos no banco)
-  if (typeof value === 'number') {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  }
-  
-  // Se for string, converte para número e formata
-  const numericValue = Number(String(value).replace(/\D/g, ''));
-  if (numericValue === 0) return '';
-  
-  // Assume que está em reais (valores salvos no banco)
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(numericValue);
+  // Usar formatCurrencyFromCents como na dashboard para consistência
+  return formatCurrencyFromCents(value);
 };
 
 interface Service {
