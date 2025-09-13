@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthContext } from "@/context/AuthContext";
+import { useUserData } from "@/hooks/useUserData";
 import { database } from "@/services/firebase";
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, where } from "firebase/firestore";
 import { z } from "zod";
@@ -87,6 +88,7 @@ export default function NewAppointment() {
   const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(null);
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const { user } = useAuthContext();
+  const { userData } = useUserData();
   const uid = user?.uid;
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -132,6 +134,32 @@ export default function NewAppointment() {
       loadAppointmentForEdit();
     }
   }, [appointmentId, uid, procedures, professionals]);
+
+  // Selecionar automaticamente o usuário logado como profissional
+  useEffect(() => {
+    if (!selectedProfessional) {
+      // Usar dados do userData se disponível, senão usar dados básicos do Firebase Auth
+      const userName = userData?.name || user?.displayName || user?.email?.split('@')[0] || 'Usuário';
+      const userEmail = userData?.email || user?.email || '';
+      
+      // Criar um objeto Professional com os dados do usuário logado
+      const currentUserAsProfessional: Professional = {
+        id: uid || '',
+        name: userName,
+        cpfCnpj: userData?.cpf || '',
+        phone: userData?.phone || '',
+        email: userEmail,
+        address: userData?.address || '',
+        observations: userData?.observations || '',
+        registrationNumber: userData?.registrationNumber || '',
+        specialty: userData?.specialty || '',
+        imageUrl: userData?.imageUrl || ''
+      };
+      
+      setSelectedProfessional(currentUserAsProfessional);
+      appointmentForm.setValue("contact", currentUserAsProfessional.name);
+    }
+  }, [userData, selectedProfessional, uid, user?.email, user?.displayName, appointmentForm]);
 
   const loadServices = async () => {
     try {
@@ -600,7 +628,7 @@ export default function NewAppointment() {
             </div>
             <Input
               value={selectedProfessional?.name || ""}
-              placeholder="Profissional"
+              placeholder="Profissional (você está selecionado automaticamente)"
               style={{ textIndent: '2.0rem', paddingRight: '40px' }}
               readOnly
             />
@@ -625,6 +653,12 @@ export default function NewAppointment() {
               <Plus className="h-3 w-3" />
             </Button>
           </div>
+          {selectedProfessional && (
+            <p className="text-xs text-green-600 mt-1 flex items-center">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Você está selecionado como profissional
+            </p>
+          )}
         </div>
 
         <div>
