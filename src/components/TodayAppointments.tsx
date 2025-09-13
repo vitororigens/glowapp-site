@@ -66,7 +66,11 @@ export default function TodayAppointments() {
       
       const appointmentsData = querySnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as Appointment))
-        .filter(appointment => appointment.appointment.date === today)
+        .filter(appointment => 
+          appointment.appointment && 
+          appointment.appointment.date && 
+          appointment.appointment.date === today
+        )
         .sort((a, b) => a.appointment.startTime.localeCompare(b.appointment.startTime));
 
       setAppointments(appointmentsData);

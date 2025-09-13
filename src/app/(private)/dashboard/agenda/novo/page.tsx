@@ -29,9 +29,9 @@ import "@/styles/calendar.css";
 // Schema para dados do cliente
 const clientSchema = z.object({
   name: z.string().min(1, "Nome completo é obrigatório"),
-  phone: z.string().optional(),
-  email: z.string().email("Email inválido").optional().or(z.literal("")),
-  cpf: z.string().min(14, "CPF é obrigatório"),
+  phone: z.string().min(11, "Telefone é obrigatório"),
+  email: z.string().optional(),
+  cpf: z.string().optional(),
 });
 
 // Schema para informações do agendamento
@@ -492,7 +492,13 @@ export default function NewAppointment() {
               {...clientForm.register("cpf")}
               placeholder="CPF"
               style={{ textIndent: '2.0rem' }}
-              onChange={(e) => clientForm.setValue("cpf", cpfMask(e.target.value))}
+              maxLength={14}
+              onChange={(e) => {
+                const maskedValue = cpfMask(e.target.value);
+                if (maskedValue.length <= 14) {
+                  clientForm.setValue("cpf", maskedValue);
+                }
+              }}
             />
           </div>
           {clientForm.formState.errors.cpf && (
@@ -509,7 +515,13 @@ export default function NewAppointment() {
               {...clientForm.register("phone")}
               placeholder="Celular"
               style={{ textIndent: '2.0rem' }}
-              onChange={(e) => clientForm.setValue("phone", phoneMask(e.target.value))}
+              maxLength={15}
+              onChange={(e) => {
+                const maskedValue = phoneMask(e.target.value);
+                if (maskedValue.length <= 15) {
+                  clientForm.setValue("phone", maskedValue);
+                }
+              }}
             />
           </div>
           {clientForm.formState.errors.phone && (

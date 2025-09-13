@@ -192,7 +192,11 @@ export default function DashboardHome() {
     // Calcular agendamentos de hoje
     const today = new Date().toISOString().split('T')[0];
     const todayAppointments = appointments 
-      ? appointments.filter(appointment => appointment.appointment.date === today).length 
+      ? appointments.filter(appointment => 
+          appointment.appointment && 
+          appointment.appointment.date && 
+          appointment.appointment.date === today
+        ).length 
       : 0;
 
     // Últimos serviços (ordenados por data de criação)
