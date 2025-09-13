@@ -25,6 +25,26 @@ const formSchema = z.object({
 
 type FormSchemaType = z.infer<typeof formSchema>;
 
+// Função para gerar código automático baseado no nome
+const generateCode = (name: string) => {
+  if (!name.trim()) return '';
+  
+  // Remove acentos e caracteres especiais
+  const normalizedName = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+  
+  // Pega as primeiras letras de cada palavra (máximo 3 palavras)
+  const words = normalizedName.split(' ').filter(word => word.length > 0).slice(0, 3);
+  const initials = words.map(word => word.charAt(0)).join('');
+  
+  // Adiciona timestamp para garantir unicidade (últimos 3 dígitos)
+  const timestamp = Date.now().toString().slice(-3);
+  
+  return `${initials}${timestamp}`;
+};
+
 export default function NewProcedure() {
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuthContext();
@@ -109,7 +129,17 @@ export default function NewProcedure() {
 
         <div>
           <Label>Código*</Label>
-          <Input {...register("code")} placeholder="Código do procedimento" />
+          <Input 
+            {...register("code")} 
+            placeholder="Código do procedimento (gerado automaticamente)"
+            readOnly={!procedureId}
+            className={!procedureId ? "bg-gray-50" : ""}
+          />
+          {!procedureId && (
+            <p className="text-xs text-blue-600 mt-1">
+              💡 Código gerado automaticamente baseado no nome
+            </p>
+          )}
           {errors.code && (
             <p className="text-red-500 text-sm">{errors.code.message}</p>
           )}
@@ -117,7 +147,18 @@ export default function NewProcedure() {
 
         <div>
           <Label>Nome*</Label>
-          <Input {...register("name")} placeholder="Nome do procedimento" />
+          <Input 
+            {...register("name")} 
+            placeholder="Nome do procedimento"
+            onChange={(e) => {
+              const name = e.target.value;
+              // Gerar código automaticamente quando o nome for digitado
+              if (name.trim() && !procedureId) {
+                const generatedCode = generateCode(name);
+                setValue("code", generatedCode);
+              }
+            }}
+          />
           {errors.name && (
             <p className="text-red-500 text-sm">{errors.name.message}</p>
           )}
