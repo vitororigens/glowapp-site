@@ -86,9 +86,9 @@ const formatPaymentValue = (value: number | string | undefined) => {
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
-  cpf: z.string().min(1, "CPF é obrigatório"),
+  cpf: z.string().optional(),
   phone: z.string().min(1, "Telefone é obrigatório"),
-  email: z.string().email("Email inválido").optional(),
+  email: z.string().optional(),
   date: z.string().min(1, "Data é obrigatória"),
   time: z.string().min(1, "Hora é obrigatória"),
   price: z.string().min(1, "Valor é obrigatório"),
