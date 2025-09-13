@@ -699,12 +699,18 @@ export default function Agenda() {
               toast.error(`Limite de ${planLimits.images} imagens por cliente atingido! Você pode adicionar mais ${remaining} imagens. Faça upgrade para adicionar mais imagens.`);
               return;
             }
+          } else {
+            // Se não há contactUid, verificar limite geral de imagens
+            if (totalNewImages > planLimits.images) {
+              toast.error(`Limite de ${planLimits.images} imagens por cliente atingido! Faça upgrade para adicionar mais imagens.`);
+              return;
+            }
           }
         }
       }
 
       // Encontrar o contato para obter o contactUid
-      let contactUid: string | undefined = undefined;
+      let contactUid: string | null = null;
       try {
         const contactsRef = collection(database, "Contacts");
         const cpfNumeric = (conversionData.clientCpf || '').replace(/\D/g, '');
@@ -720,6 +726,30 @@ export default function Agenda() {
         }
       } catch (e) {
         console.warn('Não foi possível identificar o contato para contactUid:', e);
+      }
+
+      // Se não encontrou o contato, criar um novo ou usar null
+      if (!contactUid) {
+        try {
+          // Tentar criar um novo contato
+          const newContactData = {
+            name: appointment.client?.name || '',
+            phone: appointment.client?.phone || '',
+            email: appointment.client?.email || '',
+            cpf: (conversionData.clientCpf || '').replace(/\D/g, ''),
+            uid: uid,
+            createdAt: new Date().toISOString()
+          };
+          
+          const contactsRef = collection(database, "Contacts");
+          const newContactRef = await addDoc(contactsRef, newContactData);
+          contactUid = newContactRef.id;
+          console.log('Novo contato criado:', contactUid);
+        } catch (e) {
+          console.warn('Não foi possível criar novo contato:', e);
+          // Se não conseguir criar, usar null em vez de undefined
+          contactUid = null;
+        }
       }
 
       // Preparar pagamentos no formato do serviço padrão (valor numérico)
@@ -767,7 +797,7 @@ export default function Agenda() {
         beforePhotos: conversionData.beforePhotos.map(p => ({ url: p.url, description: p.description ?? '' })),
         afterPhotos: conversionData.afterPhotos.map(p => ({ url: p.url, description: p.description ?? '' })),
         uid: uid,
-        contactUid: contactUid,
+        contactUid: contactUid || null,
         convertedFromAppointment: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
