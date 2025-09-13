@@ -395,7 +395,7 @@ export default function NewService() {
       console.log("Iniciando processamento...");
     
       const clientName = data.name.trim();
-      const clientCpf = cpfUnMask(data.cpf);
+      const clientCpf = cpfUnMask(data.cpf || "");
       const clientPhone = celularUnMask(data.phone);
       
       if (clientName && (clientCpf || clientPhone)) {
@@ -536,7 +536,7 @@ export default function NewService() {
         
         const updateData = {
           name: data.name,
-          cpf: cpfUnMask(data.cpf),
+          cpf: cpfUnMask(data.cpf || ""),
           phone: celularUnMask(data.phone),
           email: data.email || "",
           date: data.date,
@@ -593,7 +593,7 @@ export default function NewService() {
 
         const newServiceData = {
           name: data.name,
-          cpf: cpfUnMask(data.cpf),
+          cpf: cpfUnMask(data.cpf || ""),
           phone: celularUnMask(data.phone),
           email: data.email || "",
           date: data.date,
