@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
-import { currencyMask } from "@/utils/maks/masks";
+import { currencyMask, formatCurrencyFromCents } from "@/utils/maks/masks";
 import { database } from "@/services/firebase";
 import { deleteDoc, doc } from "firebase/firestore";
 import { toast } from "react-toastify";
@@ -140,7 +140,8 @@ export default function Financeiro() {
 
   const formatPrice = (price: string | number | undefined, isExpense: boolean = false) => {
     if (!price) return "R$ 0,00";
-    const formattedValue = currencyMask(String(price));
+    // Os valores do banco já estão em centavos, então usamos formatCurrencyFromCents
+    const formattedValue = formatCurrencyFromCents(String(price));
     return isExpense ? `- ${formattedValue}` : formattedValue;
   };
 
@@ -192,6 +193,7 @@ export default function Financeiro() {
           : 0 
       }))
   ].reduce((acc, curr) => {
+    // Os valores do banco já estão em centavos, então não precisamos dividir por 100
     const value = typeof curr.value === 'number' ? curr.value : parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
     return acc + value;
   }, 0);
@@ -199,6 +201,7 @@ export default function Financeiro() {
   const totalPending = 0;
 
   const totalExpense = (expenses || []).reduce((acc, curr) => {
+    // Os valores do banco já estão em centavos, então não precisamos dividir por 100
     const value = parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
     return acc + value;
   }, 0);
@@ -230,24 +233,15 @@ export default function Financeiro() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10 w-full max-w-5xl">
           <Card className="p-4">
             <h3 className="text-sm font-bold text-gray-500">Receitas</h3>
-            <p className="text-2xl font-bold text-green-600">{new Intl.NumberFormat('pt-BR', {
-              style: 'currency',
-              currency: 'BRL'
-            }).format(totalRevenue)}</p>
+            <p className="text-2xl font-bold text-green-600">{formatCurrencyFromCents(totalRevenue)}</p>
           </Card>
           <Card className="p-4">
             <h3 className="text-sm font-bold text-gray-500">Despesas</h3>
-            <p className="text-2xl font-bold text-red-600">{new Intl.NumberFormat('pt-BR', {
-              style: 'currency',
-              currency: 'BRL'
-            }).format(totalExpense)}</p>
+            <p className="text-2xl font-bold text-red-600">{formatCurrencyFromCents(totalExpense)}</p>
           </Card>
           <Card className="p-4">
             <h3 className="text-sm font-bold text-gray-500">Saldo</h3>
-            <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{new Intl.NumberFormat('pt-BR', {
-              style: 'currency',
-              currency: 'BRL'
-            }).format(balance)}</p>
+            <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrencyFromCents(balance)}</p>
           </Card>
         </div>
       </div>

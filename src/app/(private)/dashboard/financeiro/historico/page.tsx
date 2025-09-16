@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import useFirestoreCollection from '@/hooks/useFirestoreCollection';
 import { Button } from '@/components/ui/button';
-import { currencyMask } from '@/utils/maks/masks';
+import { currencyMask, formatCurrencyFromCents } from '@/utils/maks/masks';
 import { toast } from "react-toastify";;
 import { deleteDoc, doc } from 'firebase/firestore';
 import { database } from "@/services/firebase";
@@ -98,10 +98,7 @@ export default function Historico() {
                 <TableRow key={transaction.id}>
                   <TableCell>{transaction.name}</TableCell>
                   <TableCell>{formatDateToBrazilian(transaction.date)}</TableCell>
-                  <TableCell className={transaction.type === 'Serviço' ? 'text-green-600' : 'text-green-600'}>{new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL'
-                  }).format(Number(transaction.value) / 100)}</TableCell>
+                  <TableCell className={transaction.type === 'Serviço' ? 'text-green-600' : 'text-green-600'}>{formatCurrencyFromCents(Number(transaction.value))}</TableCell>
                   <TableCell>{transaction.category}</TableCell>
                   <TableCell>{transaction.description}</TableCell>
                   {tipo === 'receita' && 'payments' in transaction && Array.isArray(transaction.payments) && (
@@ -127,10 +124,7 @@ export default function Historico() {
                                 : payment.method === "boleto"
                                 ? "Boleto"
                                 : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
-                              &nbsp;({new Intl.NumberFormat('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL'
-                              }).format(Number(payment.value) / 100)})
+                              &nbsp;({formatCurrencyFromCents(Number(payment.value))})
                             </span>
                           </div>
                         ))}
@@ -144,10 +138,7 @@ export default function Historico() {
                       </div>
                     </TableCell>
                   )}
-                  {tipo === 'receita' && 'pendingValue' in transaction && typeof transaction.pendingValue === 'number' && <TableCell className="text-orange-500">{new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL'
-                  }).format(transaction.pendingValue / 100)}</TableCell>}
+                  {tipo === 'receita' && 'pendingValue' in transaction && typeof transaction.pendingValue === 'number' && <TableCell className="text-orange-500">{formatCurrencyFromCents(transaction.pendingValue)}</TableCell>}
                 </TableRow>
               ))}
             </TableBody>
