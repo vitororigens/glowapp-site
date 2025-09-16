@@ -1,37 +1,137 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter, useSearchParams } from "next/navigation";
-import { currencyMask, cpfMask, cpfUnMask, celularMask, celularUnMask, formatCurrencyFromCents } from "@/utils/maks/masks";
-import { formatDateToBrazilian } from "@/utils/formater/date";
-
-
-import { useAuthContext } from "@/context/AuthContext";
-import { database } from "@/services/firebase";
-import { doc, getDoc, setDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
-import { z } from "zod";
-import { toast } from "react-toastify";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuthContext } from "@/context/AuthContext";
+import { usePlanLimitations } from "@/hooks/usePlanLimitations";
+import { database } from "@/services/firebase";
+import { collection, getDocs, query, where, addDoc, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/services/firebase";
+import { toast } from "react-toastify";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { formatDateToBrazilian } from "@/utils/formater/date";
+import { ArrowLeft, User, Phone, Mail, FileText, DollarSign, Clock, CalendarIcon, CreditCard, Upload, Paperclip, Plus, Trash2 } from "lucide-react";
 import { CustomModalServices } from "@/components/CustomModalServices";
 import { CustomModalProfessionals } from "@/components/CustomModalProfessionals";
 import { CustomModalClients } from "@/components/CustomModalClients";
-import { ItemService } from "@/components/ItemService";
-import { ItemProfessional } from "@/components/ItemProfessional";
-import { FileIcon } from "@/components/icons/FileIcon";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/services/firebase";
-import { Plus, Trash2, AlertTriangle } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { usePlanLimitations } from "@/hooks/usePlanLimitations";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { dataMask, dataUnMask, horaMask, horaUnMask, phoneMask, cpfMask, formatCurrencyFromCents, currencyMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
+import { z } from "zod";
+
+// Schemas de validação
+const clientSchema = z.object({
+  name: z.string().min(1, "Nome completo é obrigatório"),
+  phone: z.string().min(11, "Telefone é obrigatório"),
+  email: z.string().optional(),
+  cpf: z.string().optional(),
+});
+
+const procedureSchema = z.object({
+  procedureName: z.string().optional(),
+  professionalName: z.string().optional(),
+  date: z.date({ required_error: "Data é obrigatória" }).optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  price: z.string().optional(),
+  observations: z.string().optional(),
+});
+
+const paymentSchema = z.object({
+  paymentType: z.enum(["total", "partial"], { required_error: "Tipo de pagamento é obrigatório" }),
+  paymentMethod: z.string().min(1, "Método de pagamento é obrigatório"),
+  totalValue: z.string().min(1, "Valor total é obrigatório"),
+  paidValue: z.string().optional(),
+});
+
+const observationsSchema = z.object({
+  observations: z.string().optional(),
+  beforePhotos: z.array(z.object({
+    url: z.string(),
+    description: z.string().optional()
+  })).optional(),
+  afterPhotos: z.array(z.object({
+    url: z.string(),
+    description: z.string().optional()
+  })).optional(),
+  documents: z.array(z.object({
+    url: z.string(),
+    description: z.string().optional()
+  })).optional(),
+});
+
+// Interfaces
+interface ClientData {
+  name: string;
+  phone: string;
+  email: string;
+  cpf: string;
+}
+
+interface ProcedureData {
+  procedureName: string;
+  professionalName: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  price: string;
+  observations: string;
+}
+
+interface PaymentData {
+  paymentType: "total" | "partial";
+  paymentMethod: string;
+  totalValue: string;
+  paidValue: string;
+}
+
+interface ObservationsData {
+  observations: string;
+  beforePhotos: Array<{ url: string; description?: string }>;
+  afterPhotos: Array<{ url: string; description?: string }>;
+  documents: Array<{ url: string; description?: string }>;
+}
+
+interface Service {
+  id: string;
+  name: string;
+  price: number;
+  duration: number;
+  description?: string;
+}
+
+interface Procedure {
+  id: string;
+  name: string;
+  price: number;
+  duration: number;
+  description?: string;
+}
+
+interface Professional {
+  id: string;
+  name: string;
+  cpfCnpj: string;
+  phone: string;
+  email: string;
+  address: string;
+  observations: string;
+  registrationNumber: string;
+  specialty: string;
+  imageUrl?: string;
+}
+
+type ServiceType = "budget" | "complete";
 
 // Função para carregar valores do banco para campos de formulário
 const formatCurrency = (value: number | string | undefined) => {
@@ -84,147 +184,711 @@ const formatPaymentValue = (value: number | string | undefined) => {
   }).format(numericValue);
 };
 
-const formSchema = z.object({
-  name: z.string().min(1, "Nome é obrigatório"),
-  cpf: z.string().optional(),
-  phone: z.string().min(1, "Telefone é obrigatório"),
-  email: z.string().optional(),
-  date: z.string().min(1, "Data é obrigatória"),
-  time: z.string().min(1, "Hora é obrigatória"),
-  price: z.string().min(1, "Valor é obrigatório"),
-  priority: z.string().optional(),
-  duration: z.string().optional(),
-  observations: z.string().optional(),
-  services: z.array(z.object({
-    id: z.string(),
-    code: z.string(),
-    name: z.string(),
-    price: z.string(),
-    date: z.string().optional(),
-  })).optional(),
-  professionals: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    specialty: z.string(),
-  })).optional(),
-  budget: z.boolean().default(false),
-  sendToFinance: z.boolean().default(false),
-  payments: z.array(z.object({
-    method: z.enum(["dinheiro", "pix", "cartao", "boleto"]),
-    value: z.string().min(1, "Valor é obrigatório"),
-    date: z.string().min(1, "Data é obrigatória"),
-    installments: z.number().optional(),
-  })).default([]),
-  documents: z.array(z.object({
-    name: z.string(),
-    url: z.string(),
-  })).optional(),
-  beforePhotos: z.array(z.object({
-    url: z.string(),
-    description: z.string().optional(),
-  })).optional(),
-  afterPhotos: z.array(z.object({
-    url: z.string(),
-    description: z.string().optional(),
-  })).optional(),
-});
-
-type FormSchemaType = z.infer<typeof formSchema>;
-
 export default function NewService() {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [serviceType, setServiceType] = useState<ServiceType>("budget");
   const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [showClientsModal, setShowClientsModal] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [showInstallmentsModal, setShowInstallmentsModal] = useState(false);
-  const [formatCurrencytPaymentIndex, setCurrentPaymentIndex] = useState(-1);
-  const { user } = useAuthContext();
-  const uid = user?.uid;
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const serviceId = searchParams?.get('id') || null;
-  const contactId = searchParams?.get('contactId') || null;
+  const [services, setServices] = useState<Service[]>([]);
+  const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [showServicesModal, setShowServicesModal] = useState(false);
   const [showProfessionalsModal, setShowProfessionalsModal] = useState(false);
-  const [uploadType, setUploadType] = useState<'document' | 'before' | 'after' | null>(null);
+  const [showClientsModal, setShowClientsModal] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(null);
+  const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
+  const [payments, setPayments] = useState<Array<{
+    method: "dinheiro" | "pix" | "cartao" | "boleto";
+    value: string;
+    date: string;
+    installments?: number;
+  }>>([]);
+  const [currentPaymentIndex, setCurrentPaymentIndex] = useState(-1);
   const [newPayment, setNewPayment] = useState({
     method: "dinheiro" as "dinheiro" | "pix" | "cartao" | "boleto",
     value: "",
-    date: new Date().toISOString().split('T')[0],
-    installments: 1 as number | undefined,
+    date: new Date().toISOString().split('T')[0], // Mantido para compatibilidade com o banco
+    installments: undefined as number | undefined,
   });
-  const { planLimits, canAddImageToClient, getRemainingImagesForClient, loading: planLoading } = usePlanLimitations();
-  const [clientImageCount, setClientImageCount] = useState(0);
+  const [paymentType, setPaymentType] = useState<"total" | "partial">("total");
+  const [showInstallmentsModal, setShowInstallmentsModal] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [contactId, setContactId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadType, setUploadType] = useState<'document' | 'before' | 'after' | null>(null);
+  const [clientImageInfo, setClientImageInfo] = useState<{
+    existing: number;
+    remaining: number;
+    limit: number;
+  } | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-    reset,
-    watch,
-  } = useForm<FormSchemaType>({
-    resolver: zodResolver(formSchema),
+  const { user } = useAuthContext();
+  const { planLimits, canAddImageToClient, getRemainingImagesForClient } = usePlanLimitations();
+  const uid = user?.uid;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const serviceId = searchParams.get('id');
+  const contactIdParam = searchParams.get('contactId');
+
+  // Formulários
+  const clientForm = useForm<ClientData>({
+    resolver: zodResolver(clientSchema),
     defaultValues: {
       name: "",
-      cpf: "",
       phone: "",
       email: "",
-      date: new Date().toISOString().split('T')[0],
-      time: "",
-      price: "",
-      priority: "",
-      duration: "",
-      observations: "",
-      services: [],
-      professionals: [],
-      budget: false,
-      sendToFinance: false,
-      payments: [],
-      documents: [],
-      beforePhotos: [],
-      afterPhotos: [],
+      cpf: "",
     },
   });
 
-  const budget = watch("budget");
-  const services = watch("services") || [];
-  const professionals = watch("professionals") || [];
-  const documents = watch("documents") || [];
-  const beforePhotos = watch("beforePhotos") || [];
-  const afterPhotos = watch("afterPhotos") || [];
-  const payments = watch("payments") || [];
-  const totalPrice = watch("price") ? Number(watch("price").replace(/\D/g, '')) : 0;
-  
-  // Debug para verificar o cálculo do totalPrice
-  console.log("🔍 Debug totalPrice calculation:", {
-    priceField: watch("price"),
-    totalPrice: totalPrice,
-    expectedDisplay: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)
+  const procedureForm = useForm<ProcedureData>({
+    resolver: zodResolver(procedureSchema),
+    defaultValues: {
+      procedureName: "",
+      professionalName: "",
+      date: new Date(),
+      startTime: "",
+      endTime: "",
+      price: "",
+      observations: "",
+    },
   });
-  
-  // Debug para verificar o cálculo do totalPrice
-  useEffect(() => {
-    const formatCurrencytPrice = watch("price");
-    console.log("🔍 Debug totalPrice:", {
-      priceField: formatCurrencytPrice,
-      totalPrice: totalPrice,
-      priceFieldType: typeof formatCurrencytPrice,
-      numericValue: formatCurrencytPrice ? Number(formatCurrencytPrice.replace(/\D/g, '')) : 0,
-      expectedValue: formatCurrencytPrice ? Number(formatCurrencytPrice.replace(/\D/g, '')) : 0
-    });
-  }, [watch("price"), totalPrice]);
-  
-  // Debug logs para verificar valores
-  useEffect(() => {
-    const formatCurrencytPrice = watch("price");
-    console.log("🔍 Debug preço:", {
-      priceField: formatCurrencytPrice,
-      totalPrice: totalPrice,
-      priceFieldType: typeof formatCurrencytPrice
-    });
-  }, [watch("price"), totalPrice]);
 
+  const paymentForm = useForm<PaymentData>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: {
+      paymentType: "total",
+      paymentMethod: "",
+      totalValue: "",
+      paidValue: "",
+    },
+  });
+
+  const observationsForm = useForm<ObservationsData>({
+    resolver: zodResolver(observationsSchema),
+    defaultValues: {
+      observations: "",
+      beforePhotos: [],
+      afterPhotos: [],
+      documents: [],
+    },
+  });
+
+  // Carregar dados
+  useEffect(() => {
+    if (uid) {
+      loadServices();
+      loadProcedures();
+      loadProfessionals();
+    }
+  }, [uid]);
+
+  // Carregar dados do serviço se estiver editando
+  useEffect(() => {
+    if (serviceId && uid) {
+      loadServiceData();
+    }
+  }, [serviceId, uid]);
+
+  // Definir contactId se vier da URL
+  useEffect(() => {
+    if (contactIdParam) {
+      setContactId(contactIdParam);
+      setSelectedClientId(contactIdParam);
+    }
+  }, [contactIdParam]);
+
+  // Definir pagamento total como padrão quando entrar na terceira etapa
+  useEffect(() => {
+    if (currentStep === 3 && serviceType === "complete") {
+      const totalPrice = parseFloat(procedureForm.getValues('price')?.replace(/[^\d,]/g, '').replace(',', '.') || '0');
+      if (totalPrice > 0) {
+        setPaymentType("total");
+        setNewPayment(prev => ({
+          ...prev,
+          value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100)
+        }));
+      }
+    }
+  }, [currentStep, serviceType, procedureForm]);
+
+  // Carregar procedimento e profissional selecionados quando os arrays estiverem disponíveis
+  useEffect(() => {
+    if (serviceId && procedures.length > 0 && professionals.length > 0) {
+      const loadSelectedItems = async () => {
+        try {
+          const docRef = doc(database, "Services", serviceId);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            // Carregar procedimento selecionado
+            if (data.services?.[0]) {
+              const selectedProc = procedures.find(p => p.id === data.services[0].id);
+              if (selectedProc) {
+                setSelectedProcedure(selectedProc);
+                procedureForm.setValue("procedureName", selectedProc.name);
+                procedureForm.setValue("price", formatCurrencyFromCents(selectedProc.price));
+              }
+            }
+            
+            // Carregar profissional selecionado
+            if (data.professionals?.[0]) {
+              const selectedProf = professionals.find(p => p.id === data.professionals[0].id);
+              if (selectedProf) {
+                setSelectedProfessional(selectedProf);
+                procedureForm.setValue("professionalName", selectedProf.name);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao carregar itens selecionados:", error);
+        }
+      };
+      
+      loadSelectedItems();
+    }
+  }, [serviceId, procedures, professionals, procedureForm]);
+
+  const loadServices = async () => {
+    try {
+      const servicesRef = collection(database, "Services");
+      const q = query(servicesRef, where("uid", "==", uid));
+      const querySnapshot = await getDocs(q);
+      const servicesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Service[];
+      setServices(servicesData);
+    } catch (error) {
+      console.error("Erro ao carregar serviços:", error);
+    }
+  };
+
+  const loadProcedures = async () => {
+    try {
+      const proceduresRef = collection(database, "Procedures");
+      const q = query(proceduresRef, where("uid", "==", uid));
+      const querySnapshot = await getDocs(q);
+      const proceduresData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Procedure[];
+      setProcedures(proceduresData);
+    } catch (error) {
+      console.error("Erro ao carregar procedimentos:", error);
+    }
+  };
+
+  const loadProfessionals = async () => {
+    try {
+      console.log("Carregando profissionais para UID:", uid);
+      // Tentar diferentes nomes de coleção
+      const collections = ["Profissionals", "Professionals", "professionals", "Profissionais"];
+      
+      for (const collectionName of collections) {
+        try {
+          const professionalsRef = collection(database, collectionName);
+          const q = query(professionalsRef, where("uid", "==", uid));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            const professionalsData = querySnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+            })) as Professional[];
+            console.log(`Profissionais carregados da coleção ${collectionName}:`, professionalsData);
+            setProfessionals(professionalsData);
+            return; // Se encontrou dados, para de tentar outras coleções
+          }
+        } catch (error) {
+          console.log(`Erro ao tentar coleção ${collectionName}:`, error);
+        }
+      }
+      
+      console.log('Nenhum profissional encontrado em nenhuma coleção');
+    } catch (error) {
+      console.error("Erro ao carregar profissionais:", error);
+    }
+  };
+
+  const loadServiceData = async () => {
+    if (!serviceId || !uid) return;
+    
+    try {
+      const docRef = doc(database, "Services", serviceId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        console.log("Dados carregados do serviço:", data);
+        
+        // Carregar dados do cliente
+        clientForm.reset({
+          name: data.name || "",
+          cpf: cpfMask(data.cpf || ""),
+          phone: celularMask(data.phone || ""),
+          email: data.email || "",
+        });
+        
+        // Carregar dados do procedimento
+        let procedureDate = new Date();
+        if (data.date) {
+          if (data.date.includes('/')) {
+            // Formato DD/MM/YYYY
+            const [day, month, year] = data.date.split('/');
+            procedureDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          } else if (data.date.includes('T')) {
+            // Formato ISO
+            procedureDate = new Date(data.date);
+          } else {
+            // Formato YYYY-MM-DD
+            procedureDate = new Date(data.date + 'T00:00:00');
+          }
+        }
+          
+        procedureForm.reset({
+          procedureName: data.services?.[0]?.name || "",
+          professionalName: data.professionals?.[0]?.name || "",
+          date: procedureDate,
+          startTime: data.time || "",
+          endTime: "",
+          price: data.price ? formatCurrencyFromCents(data.price) : "",
+          observations: data.observations || "",
+        });
+        
+        // Carregar pagamentos
+        if (data.payments && data.payments.length > 0) {
+          const formattedPayments = data.payments.map((p: any) => ({
+            method: p.method,
+            value: formatPaymentValue(p.value),
+            date: p.date,
+            installments: p.installments || undefined
+          }));
+          setPayments(formattedPayments);
+        }
+        
+        // Carregar observações
+        observationsForm.reset({
+          observations: data.observations || "",
+          beforePhotos: data.beforePhotos || [],
+          afterPhotos: data.afterPhotos || [],
+          documents: data.documents || [],
+        });
+        
+        // Os procedimentos e profissionais serão carregados pelo useEffect separado
+        
+        setSelectedClientId(data.contactUid || null);
+        setContactId(data.contactUid || null);
+        
+        // Definir tipo de serviço
+        setServiceType(data.budget ? "budget" : "complete");
+        
+        console.log("Formulário resetado com os dados carregados.");
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados do serviço:", error);
+      toast.error("Erro ao carregar dados do serviço!");
+    }
+  };
+
+  const createOrUpdateClient = async (clientName: string, clientCpf: string, clientPhone: string, clientEmail: string) => {
+    if (!uid) return;
+    
+    try {
+      const contactsRef = collection(database, "Contacts");
+      
+      let clientExists = false;
+      let existingClientId = null;
+      
+      // Verificar se cliente já existe pelo CPF
+      if (clientCpf) {
+        const cpfQuery = query(contactsRef, where("cpf", "==", clientCpf));
+        const cpfSnapshot = await getDocs(cpfQuery);
+        
+        if (!cpfSnapshot.empty) {
+          clientExists = true;
+          existingClientId = cpfSnapshot.docs[0].id;
+          console.log("Cliente encontrado pelo CPF");
+        }
+      }
+      
+      // Verificar se cliente já existe pelo telefone
+      if (!clientExists && clientPhone) {
+        const phoneQuery = query(contactsRef, where("phone", "==", clientPhone));
+        const phoneSnapshot = await getDocs(phoneQuery);
+        
+        if (!phoneSnapshot.empty) {
+          clientExists = true;
+          existingClientId = phoneSnapshot.docs[0].id;
+          console.log("Cliente encontrado pelo telefone");
+        }
+      }
+      
+      // Verificar se cliente já existe pelo nome
+      if (!clientExists && clientName) {
+        const nameQuery = query(contactsRef, where("name", "==", clientName));
+        const nameSnapshot = await getDocs(nameQuery);
+        
+        if (!nameSnapshot.empty) {
+          clientExists = true;
+          existingClientId = nameSnapshot.docs[0].id;
+          console.log("Cliente encontrado pelo nome");
+          
+          // Atualizar dados do cliente existente
+          const existingClientDoc = nameSnapshot.docs[0];
+          const existingClientData = existingClientDoc.data();
+          let needsUpdate = false;
+          
+          if (clientCpf && !existingClientData.cpf) {
+            needsUpdate = true;
+          }
+          
+          if (clientPhone && !existingClientData.phone) {
+            needsUpdate = true;
+          }
+          
+          if (clientEmail && !existingClientData.email) {
+            needsUpdate = true;
+          }
+          
+          if (needsUpdate) {
+            try {
+              await updateDoc(existingClientDoc.ref, {
+                cpf: clientCpf || existingClientData.cpf || "",
+                phone: clientPhone || existingClientData.phone || "",
+                email: clientEmail || existingClientData.email || "",
+                updatedAt: new Date().toISOString()
+              });
+              console.log("Dados do cliente atualizados");
+              toast.info("Dados do cliente atualizados", {
+                position: "top-center",
+                autoClose: 2000,
+              });
+            } catch (error) {
+              console.error("Erro ao atualizar dados do cliente:", error);
+            }
+          }
+        }
+      }
+      
+      // Criar novo cliente se não existir
+      if (!clientExists) {
+        console.log("Cliente não encontrado. Criando novo cliente...");
+        const newContactRef = doc(collection(database, "Contacts"));
+        
+        const newContactData = {
+          name: clientName,
+          cpf: clientCpf,
+          phone: clientPhone,
+          email: clientEmail || "",
+          uid,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        try {
+          await setDoc(newContactRef, newContactData);
+          console.log("Novo cliente criado com ID:", newContactRef.id);
+          setSelectedClientId(newContactRef.id);
+          toast.info("Novo cliente adicionado ao sistema", {
+            position: "top-center",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        } catch (error: any) {
+          console.error("Erro ao criar cliente:", error);
+          toast.error("Não foi possível adicionar o cliente automaticamente, mas o serviço será salvo", {
+            position: "top-center",
+            autoClose: 5000,
+          });
+        }
+      } else {
+        console.log("Cliente já existe, não é necessário criar.");
+        if (existingClientId) {
+          setSelectedClientId(existingClientId);
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao processar cliente:", error);
+    }
+  };
+
+  // Handlers
+  const handleClientSubmit = (data: ClientData) => {
+    setCurrentStep(2);
+  };
+
+  const handleProcedureSubmit = (data: ProcedureData) => {
+    console.log("Dados do procedimento:", data);
+    console.log("Profissional selecionado:", selectedProfessional);
+    console.log("Procedimento selecionado:", selectedProcedure);
+    console.log("Erros do formulário:", procedureForm.formState.errors);
+    
+    // Validação customizada
+    if (!selectedProcedure) {
+      toast.error("Selecione um procedimento");
+      return;
+    }
+    
+    if (!selectedProfessional) {
+      toast.error("Selecione um profissional");
+      return;
+    }
+    
+    if (serviceType === "budget") {
+      setCurrentStep(3); // Revisão do orçamento
+    } else {
+      setCurrentStep(3); // Pagamento e Financeiro
+    }
+  };
+
+  const handlePaymentSubmit = (data: PaymentData) => {
+    setCurrentStep(4); // Observações e Anexo
+  };
+
+  const handleObservationsSubmit = (data: ObservationsData) => {
+    setCurrentStep(5); // Revisão e Confirmação
+  };
+
+  // Função para verificar limite de imagens do cliente
+  const checkClientImageLimit = async (contactId: string, newImagesToAdd: number): Promise<boolean> => {
+    if (!uid || !planLimits) return true;
+    
+    try {
+      // Buscar serviços existentes do cliente
+      const servicesRef = collection(database, "Services");
+      const q = query(
+        servicesRef,
+        where("uid", "==", uid),
+        where("contactUid", "==", contactId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      let existingImages = 0;
+      
+      querySnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const beforeCount = data.beforePhotos?.length || 0;
+        const afterCount = data.afterPhotos?.length || 0;
+        existingImages += beforeCount + afterCount;
+      });
+
+      // Se estamos editando um serviço existente, não contar as imagens desse serviço
+      if (serviceId) {
+        const currentServiceRef = doc(database, "Services", serviceId);
+        const currentServiceDoc = await getDoc(currentServiceRef);
+        if (currentServiceDoc.exists()) {
+          const currentServiceData = currentServiceDoc.data();
+          const currentServiceImages = (currentServiceData.beforePhotos?.length || 0) + 
+                                     (currentServiceData.afterPhotos?.length || 0);
+          existingImages -= currentServiceImages;
+        }
+      }
+      
+      const totalAfterAdding = existingImages + newImagesToAdd;
+      
+      if (totalAfterAdding > planLimits.images) {
+        const remaining = Math.max(0, planLimits.images - existingImages);
+        toast.error(`Limite de ${planLimits.images} imagens por cliente atingido! Este cliente já tem ${existingImages} imagens. Você pode adicionar mais ${remaining} imagens. Faça upgrade para adicionar mais imagens.`);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao verificar limite de imagens:', error);
+      return true; // Em caso de erro, permitir upload
+    }
+  };
+
+  // Função para upload de arquivos
+  const handleFileUpload = async (files: FileList | null, type: 'before' | 'after' | 'document') => {
+    if (!files || files.length === 0 || !uid) return;
+    
+    // Verificar limite apenas para imagens (before e after), não para documentos
+    if ((type === 'before' || type === 'after') && contactId) {
+      const canUpload = await checkClientImageLimit(contactId, files.length);
+      if (!canUpload) {
+        return;
+      }
+    }
+    
+    setIsUploading(true);
+    try {
+      const uploadedFiles: { url: string; description?: string }[] = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const timestamp = Date.now() + i; // Adiciona i para evitar conflitos de timestamp
+        const storageRef = ref(storage, `services/${uid}/${timestamp}_${file.name}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        
+        uploadedFiles.push({
+          url: downloadURL,
+          description: ''
+        });
+      }
+      
+      if (type === 'before') {
+        observationsForm.setValue('beforePhotos', [
+          ...(observationsForm.getValues('beforePhotos') || []),
+          ...uploadedFiles
+        ]);
+      } else if (type === 'after') {
+        observationsForm.setValue('afterPhotos', [
+          ...(observationsForm.getValues('afterPhotos') || []),
+          ...uploadedFiles
+        ]);
+      } else if (type === 'document') {
+        observationsForm.setValue('documents', [
+          ...(observationsForm.getValues('documents') || []),
+          ...uploadedFiles
+        ]);
+      }
+      
+      toast.success(`${uploadedFiles.length} arquivo(s) enviado(s) com sucesso!`);
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      toast.error('Erro ao fazer upload dos arquivos!');
+    } finally {
+      setIsUploading(false);
+      setUploadType(null);
+    }
+  };
+
+  // Função para remover arquivos
+  const handleRemoveFile = (type: 'before' | 'after' | 'document', index: number) => {
+    if (type === 'before') {
+      const currentPhotos = observationsForm.getValues('beforePhotos') || [];
+      observationsForm.setValue('beforePhotos', currentPhotos.filter((_, i) => i !== index));
+    } else if (type === 'after') {
+      const currentPhotos = observationsForm.getValues('afterPhotos') || [];
+      observationsForm.setValue('afterPhotos', currentPhotos.filter((_, i) => i !== index));
+    } else if (type === 'document') {
+      const currentDocs = observationsForm.getValues('documents') || [];
+      observationsForm.setValue('documents', currentDocs.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleServiceSelect = (selectedServiceIds: string[]) => {
+    if (selectedServiceIds.length > 0) {
+      const selectedService = procedures.find(p => p.id === selectedServiceIds[0]);
+      if (selectedService) {
+        setSelectedProcedure(selectedService);
+        procedureForm.setValue("procedureName", selectedService.name);
+        procedureForm.setValue("price", String(selectedService.price));
+        // Trigger validation
+        procedureForm.trigger();
+      }
+    }
+    setShowServicesModal(false);
+  };
+
+  const handleProfessionalSelect = (selectedProfessionalIds: string[]) => {
+    console.log("IDs selecionados:", selectedProfessionalIds);
+    console.log("Lista de profissionais:", professionals);
+    
+    if (selectedProfessionalIds.length > 0) {
+      const selectedProfessional = professionals.find(p => p.id === selectedProfessionalIds[0]);
+      console.log("Profissional encontrado:", selectedProfessional);
+      
+      if (selectedProfessional) {
+        setSelectedProfessional(selectedProfessional);
+        procedureForm.setValue("professionalName", selectedProfessional.name);
+        console.log("Valor definido no formulário:", selectedProfessional.name);
+        // Trigger validation
+        procedureForm.trigger();
+      } else {
+        console.error("Profissional não encontrado com ID:", selectedProfessionalIds[0]);
+      }
+    }
+    setShowProfessionalsModal(false);
+  };
+
+  const handleClientSelect = async (client: any) => {
+    // Implementar seleção de cliente existente
+    clientForm.setValue("name", client.name);
+    clientForm.setValue("phone", client.phone);
+    clientForm.setValue("email", client.email);
+    clientForm.setValue("cpf", client.cpf);
+    setSelectedClientId(client.id);
+    setContactId(client.id);
+    setShowClientsModal(false);
+    
+    // Verificar e mostrar status de imagens do cliente
+    if (planLimits && client.id) {
+      try {
+        const servicesRef = collection(database, "Services");
+        const q = query(
+          servicesRef,
+          where("uid", "==", uid),
+          where("contactUid", "==", client.id)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        let existingImages = 0;
+        
+        querySnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const beforeCount = data.beforePhotos?.length || 0;
+          const afterCount = data.afterPhotos?.length || 0;
+          existingImages += beforeCount + afterCount;
+        });
+
+        const remaining = Math.max(0, planLimits.images - existingImages);
+        
+        // Armazenar informações do cliente
+        setClientImageInfo({
+          existing: existingImages,
+          remaining: remaining,
+          limit: planLimits.images
+        });
+        
+        if (existingImages >= planLimits.images) {
+          toast.warning(`⚠️ Cliente ${client.name} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
+        } else if (remaining <= 2) {
+          toast.info(`ℹ️ Cliente ${client.name} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
+        } else {
+          toast.success(`✅ Cliente ${client.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar imagens do cliente:', error);
+      }
+    }
+  };
+
+  const goBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    } else {
+      router.back();
+    }
+  };
+
+  const resetAllForms = () => {
+    clientForm.reset();
+    procedureForm.reset();
+    paymentForm.reset();
+    observationsForm.reset();
+    setSelectedProcedure(null);
+    setSelectedProfessional(null);
+    setPayments([]);
+    setCurrentPaymentIndex(-1);
+    setNewPayment({
+      method: "dinheiro",
+      value: "",
+      date: new Date().toISOString().split('T')[0], // Mantido para compatibilidade
+      installments: undefined,
+    });
+  };
+
+  // Funções de pagamento baseadas no código antigo
+  const totalPrice = selectedProcedure?.price || 0;
   const totalPaid = payments.reduce((acc, payment) => {
     // Os valores dos pagamentos já estão formatados em reais, então convertemos para número
     const paymentValue = Number(payment.value.replace(/\D/g, '')) / 100;
@@ -241,487 +905,6 @@ export default function NewService() {
     totalPaid: totalPaid,
     payments: payments.map(p => ({ value: p.value, numeric: Number(p.value.replace(/\D/g, '')) }))
   });
-
-  const remainingAmount = totalPrice - totalPaid;
-
-  useEffect(() => {
-    if (contactId && !selectedClientId) {
-      setSelectedClientId(contactId);
-    }
-  }, [contactId, selectedClientId]);
-
-  useEffect(() => {
-    if (serviceId) {
-      const docRef = doc(database, "Services", serviceId);
-      getDoc(docRef).then((docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          console.log("Dados carregados do serviço:", data);
-          console.log("💰 Preço original do banco:", data.price, "Tipo:", typeof data.price);
-          console.log("📸 Imagens antes:", data.beforePhotos, "Tipo:", typeof data.beforePhotos);
-          console.log("📸 Imagens depois:", data.afterPhotos, "Tipo:", typeof data.afterPhotos);
-          console.log("📸 Images Before:", data.imagesBefore, "Tipo:", typeof data.imagesBefore);
-          console.log("📸 Images After:", data.imagesAfter, "Tipo:", typeof data.imagesAfter);
-          
-          // Verificar se imagesBefore é um array de strings ou objetos
-          if (data.imagesBefore && Array.isArray(data.imagesBefore)) {
-            console.log("📸 ImagesBefore primeiro item:", data.imagesBefore[0], "Tipo:", typeof data.imagesBefore[0]);
-          }
-          if (data) {
-            console.log("Pagamentos carregados:", data.payments);
-            reset({
-              name: data.name || "",
-              cpf: cpfMask(data.cpf || ""),
-              phone: celularMask(data.phone || ""),
-              email: data.email || "",
-              date: data.date ? (data.date.includes('/') ? 
-                data.date.split('/').reverse().join('-') : 
-                data.date) : new Date().toISOString().split('T')[0],
-              time: data.time && data.time !== "0" && data.time !== "00:00" ? data.time : "",
-              price: formatCurrencyFromCents(data.price),
-              priority: data.priority || "",
-              duration: data.duration || "",
-              observations: data.observations || "",
-              services: data.services ? data.services.map((service: any) => ({
-                ...service,
-                price: service.price ? new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format(service.price / 100) : service.price
-              })) : [],
-              professionals: data.professionals || [],
-              budget: data.budget || false,
-              sendToFinance: data.sendToFinance || false,
-              payments: data.payments ? data.payments.map((p: any) => ({
-                method: p.method,
-                value: formatPaymentValue(p.value),
-                date: p.date,
-                installments: p.installments || undefined
-              })) : [],
-              documents: data.documents || [],
-              beforePhotos: data.imagesBefore ? 
-                data.imagesBefore.map((url: string) => ({ url, description: '' })) : 
-                data.beforePhotos || [],
-              afterPhotos: data.imagesAfter ? 
-                data.imagesAfter.map((url: string) => ({ url, description: '' })) : 
-                data.afterPhotos || [],
-            });
-            console.log("Formulário resetado com os dados carregados.");
-            console.log("💰 Preço original do banco:", data.price, "Tipo:", typeof data.price);
-            console.log("💰 Preço após formatCurrency:", formatCurrency(data.price));
-            console.log("💰 Preço após currencyMask:", currencyMask(String(data.price || 0)));
-            console.log("💰 Teste: 3000 / 100 =", 3000 / 100);
-            console.log("📸 BeforePhotos carregadas:", data.imagesBefore || data.beforePhotos);
-            console.log("📸 AfterPhotos carregadas:", data.imagesAfter || data.afterPhotos);
-            
-            // Log das imagens mapeadas
-            const mappedBeforePhotos = data.imagesBefore ? 
-              data.imagesBefore.map((url: string) => ({ url, description: '' })) : 
-              data.beforePhotos || [];
-            const mappedAfterPhotos = data.imagesAfter ? 
-              data.imagesAfter.map((url: string) => ({ url, description: '' })) : 
-              data.afterPhotos || [];
-            
-            console.log("📸 BeforePhotos mapeadas:", mappedBeforePhotos);
-            console.log("📸 AfterPhotos mapeadas:", mappedAfterPhotos);
-            setSelectedClientId((data as any).contactUid || null);
-          }
-        }
-      });
-    }
-  }, [serviceId, reset]);
-
-  useEffect(() => {
-    if (contactId && uid) {
-      fetchClientImageCount();
-    }
-  }, [contactId, uid]);
-
-  const fetchClientImageCount = async () => {
-    if (!contactId || !uid) return;
-
-    try {
-      // Buscar todos os serviços do cliente
-      const servicesRef = collection(database, "Services");
-      const q = query(
-        servicesRef,
-        where("uid", "==", uid),
-        where("contactUid", "==", contactId)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      let totalImages = 0;
-      
-      querySnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        const beforeCount = data.beforePhotos?.length || 0;
-        const afterCount = data.afterPhotos?.length || 0;
-        totalImages += beforeCount + afterCount;
-      });
-      
-      setClientImageCount(totalImages);
-    } catch (error) {
-      console.error('Erro ao buscar contagem de imagens do cliente:', error);
-      setClientImageCount(0);
-    }
-  };
-
-  const onSubmit = async (data: FormSchemaType) => {
-    console.log("onSubmit function called", data);
-    if (!uid) {
-      console.error("UID não encontrado");
-      return;
-    }
-
-    // Verificar limitação de imagens por cliente antes de processar
-    if (contactId && planLimits) {
-      const currentBeforePhotos = data.beforePhotos || [];
-      const currentAfterPhotos = data.afterPhotos || [];
-      const currentServiceImages = currentBeforePhotos.length + currentAfterPhotos.length;
-      
-      // Se há imagens no serviço atual, verificar se excede o limite
-      if (currentServiceImages > 0) {
-        if (clientImageCount > planLimits.images) {
-          const remaining = Math.max(0, planLimits.images - (clientImageCount - currentServiceImages));
-          toast.error(`Limite de ${planLimits.images} imagens por cliente atingido! Você pode adicionar mais ${remaining} imagens. Faça upgrade para adicionar mais imagens.`);
-          return;
-        }
-      }
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      console.log("Iniciando processamento...");
-    
-      const clientName = data.name.trim();
-      const clientCpf = cpfUnMask(data.cpf || "");
-      const clientPhone = celularUnMask(data.phone);
-      
-      if (clientName && (clientCpf || clientPhone)) {
-        const contactsRef = collection(database, "Contacts");
-        
-        let clientExists = false;
-        
-        if (clientCpf) {
-          const cpfQuery = query(contactsRef, where("cpf", "==", clientCpf));
-          const cpfSnapshot = await getDocs(cpfQuery);
-          
-          if (!cpfSnapshot.empty) {
-            clientExists = true;
-            console.log("Cliente encontrado pelo CPF");
-          }
-        }
-        
-        if (!clientExists && clientPhone) {
-          const phoneQuery = query(contactsRef, where("phone", "==", clientPhone));
-          const phoneSnapshot = await getDocs(phoneQuery);
-          
-          if (!phoneSnapshot.empty) {
-            clientExists = true;
-            console.log("Cliente encontrado pelo telefone");
-          }
-        }
-        
-        if (!clientExists && clientName) {
-          const nameQuery = query(contactsRef, where("name", "==", clientName));
-          const nameSnapshot = await getDocs(nameQuery);
-          
-          if (!nameSnapshot.empty) {
-            clientExists = true;
-            console.log("Cliente encontrado pelo nome");
-            
-            const existingClientDoc = nameSnapshot.docs[0];
-            const existingClientData = existingClientDoc.data();
-            let needsUpdate = false;
-            
-            if (clientCpf && !existingClientData.cpf) {
-              needsUpdate = true;
-            }
-            
-            if (clientPhone && !existingClientData.phone) {
-              needsUpdate = true;
-            }
-            
-            if (data.email && !existingClientData.email) {
-              needsUpdate = true;
-            }
-            
-            if (needsUpdate) {
-              try {
-                await updateDoc(existingClientDoc.ref, {
-                  cpf: clientCpf || existingClientData.cpf || "",
-                  phone: clientPhone || existingClientData.phone || "",
-                  email: data.email || existingClientData.email || "",
-                  updatedAt: new Date().toISOString()
-                });
-                console.log("Dados do cliente atualizados");
-                toast.info("Dados do cliente atualizados", {
-                  position: "top-center",
-                  autoClose: 2000,
-                });
-              } catch (error) {
-                console.error("Erro ao atualizar dados do cliente:", error);
-              }
-            }
-          }
-        }
-        
-        if (!clientExists) {
-          console.log("Cliente não encontrado. Criando novo cliente...");
-          const newContactRef = doc(collection(database, "Contacts"));
-          
-          const newContactData = {
-            name: clientName,
-            cpf: clientCpf,
-            phone: clientPhone,
-            email: data.email || "",
-            uid,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          
-          try {
-            await setDoc(newContactRef, newContactData);
-            console.log("Novo cliente criado com ID:", newContactRef.id);
-            toast.info("Novo cliente adicionado ao sistema", {
-              position: "top-center",
-              autoClose: 3000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-            });
-          } catch (error: any) {
-            console.error("Erro ao criar cliente:", error);
-            toast.error("Não foi possível adicionar o cliente automaticamente, mas o serviço será salvo", {
-              position: "top-center",
-              autoClose: 5000,
-            });
-          }
-        } else {
-          console.log("Cliente já existe, não é necessário criar.");
-        }
-      }
-      
-      const processedPayments = data.payments ? data.payments.map(payment => {
-        const numericValue = typeof payment.value === 'string' 
-          ? Number(payment.value.replace(/\D/g, ''))
-          : Number(payment.value);
-        
-        return {
-          method: payment.method,
-          value: numericValue,
-          date: payment.date,
-          installments: payment.installments || null,
-        };
-      }) : [];
-
-      console.log("Pagamentos processados:", processedPayments);
-      
-      const paidAmount = processedPayments.reduce((sum, payment) => sum + payment.value, 0);
-      
-      const price = Number(data.price.replace(/\D/g, ''));
-      
-      console.log("💰 Salvando preço:", {
-        originalPrice: data.price,
-        numericPrice: price,
-        expectedPrice: 3000
-      });
-      
-      if (serviceId) {
-        console.log("Editando serviço existente:", serviceId);
-        
-        const serviceRef = doc(database, "Services", serviceId);
-        
-        const updateData = {
-          name: data.name,
-          cpf: cpfUnMask(data.cpf || ""),
-          phone: celularUnMask(data.phone),
-          email: data.email || "",
-          date: data.date,
-          time: data.time,
-          price: price,
-          paidAmount: paidAmount,
-          priority: data.priority || "",
-          duration: data.duration || "",
-          observations: data.observations || "",
-          services: data.services || [],
-          professionals: data.professionals || [],
-          budget: data.budget || false,
-          sendToFinance: data.sendToFinance || false,
-          payments: processedPayments,
-          documents: data.documents || [],
-          beforePhotos: data.beforePhotos || [],
-          afterPhotos: data.afterPhotos || [],
-          contactUid: selectedClientId || contactId,
-          updatedAt: new Date().toISOString()
-        };
-        
-        console.log("Dados completos para atualização:", updateData);
-        
-        try {
-          await updateDoc(serviceRef, updateData);
-          console.log("Atualização concluída com sucesso");
-          toast.success("Serviço atualizado com sucesso!", {
-            position: "top-center",
-            autoClose: 3000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
-          
-          setTimeout(() => {
-            console.log("Redirecionando...");
-            router.back();
-          }, 2000);
-        } catch (error: any) {
-          console.error("Erro específico na atualização:", error);
-          toast.error("Erro ao atualizar: " + (error.message || "Desconhecido"), {
-            position: "top-center",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
-          setIsLoading(false);
-        }
-      } else {
-        console.log("Criando novo serviço");
-
-        const newServiceData = {
-          name: data.name,
-          cpf: cpfUnMask(data.cpf || ""),
-          phone: celularUnMask(data.phone),
-          email: data.email || "",
-          date: data.date,
-          time: data.time,
-          price: price,
-          paidAmount: paidAmount,
-          priority: data.priority || "",
-          duration: data.duration || "",
-          observations: data.observations || "",
-          services: data.services || [],
-          professionals: data.professionals || [],
-          budget: data.budget || false,
-          sendToFinance: data.sendToFinance || false,
-          payments: processedPayments,
-          documents: data.documents || [],
-          beforePhotos: data.beforePhotos || [],
-          afterPhotos: data.afterPhotos || [],
-          uid,
-          contactUid: selectedClientId || contactId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        
-        const newServiceRef = doc(collection(database, "Services"));
-        await setDoc(newServiceRef, newServiceData);
-        
-        toast.success("Serviço adicionado!");
-        setTimeout(() => router.back(), 1000);
-      }
-    } catch (error: any) {
-      console.error("Erro ao processar:", error);
-      toast.error("Erro: " + (error.message || "Desconhecido"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRemoveService = (id: string) => {
-    const updatedServices = services.filter(item => item.id !== id);
-    setValue("services", updatedServices);
-    
-    const total = updatedServices.reduce((sum, service) => {
-      const servicePrice = typeof service.price === 'string' 
-        ? Number(service.price.replace(/\D/g, '')) / 100
-        : Number(service.price);
-      return sum + servicePrice;
-    }, 0);
-    
-    setValue("price", currencyMask(total.toString()));
-    
-    const formatCurrencytTotalPaid = payments.reduce((acc, payment) => {
-      return acc + Number(payment.value.replace(/\D/g, ''));
-    }, 0);
-
-    if (formatCurrencytTotalPaid > total && payments.length > 0) {
-      toast.warning('O valor total foi reduzido. Verifique as formas de pagamento.');
-    }
-  };
-
-  const handleRemoveProfessional = (id: string) => {
-    const updatedProfessionals = professionals.filter(item => item.id !== id);
-    setValue("professionals", updatedProfessionals);
-  };
-
-  const handleFileUpload = async (files: FileList | null, type: 'document' | 'before' | 'after') => {
-    if (!files || !uid) return;
-
-    // Verificar limitação de imagens por cliente (bloqueio silencioso)
-    if ((type === 'before' || type === 'after') && contactId && planLimits) {
-      const currentBeforePhotos = watch("beforePhotos") || [];
-      const currentAfterPhotos = watch("afterPhotos") || [];
-      const currentServiceImages = currentBeforePhotos.length + currentAfterPhotos.length;
-      const totalClientImages = clientImageCount - currentServiceImages; // Remove imagens do serviço atual
-      const newImagesCount = files.length;
-      const totalAfterUpload = totalClientImages + currentServiceImages + newImagesCount;
-      
-      if (totalAfterUpload > planLimits.images) {
-        const remaining = Math.max(0, planLimits.images - (totalClientImages + currentServiceImages));
-        toast.error(`Limite de ${planLimits.images} imagens por cliente atingido! Você pode adicionar mais ${remaining} imagens.`);
-        return;
-      }
-    }
-
-    setIsUploading(true);
-    try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        const storageRef = ref(storage, `${uid}/services/${serviceId || 'new'}/${type}/${file.name}`);
-        await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-        return {
-          url,
-          name: file.name,
-          description: type === 'document' ? file.name : '',
-        };
-      });
-
-      const uploadedFiles = await Promise.all(uploadPromises);
-
-      if (type === 'document') {
-        setValue('documents', [...documents, ...uploadedFiles]);
-      } else if (type === 'before') {
-        setValue('beforePhotos', [...beforePhotos, ...uploadedFiles]);
-      } else if (type === 'after') {
-        setValue('afterPhotos', [...afterPhotos, ...uploadedFiles]);
-      }
-
-      toast.success('Arquivos enviados com sucesso!');
-    } catch (error) {
-      console.error('Erro ao fazer upload:', error);
-      toast.error('Erro ao enviar arquivos!');
-    } finally {
-      setIsUploading(false);
-      setUploadType(null);
-    }
-  };
-
-  const handleRemoveFile = (type: 'document' | 'before' | 'after', index: number) => {
-    if (type === 'document') {
-      const newDocuments = documents.filter((_, i) => i !== index);
-      setValue('documents', newDocuments);
-    } else if (type === 'before') {
-      const newPhotos = beforePhotos.filter((_, i) => i !== index);
-      setValue('beforePhotos', newPhotos);
-    } else if (type === 'after') {
-      const newPhotos = afterPhotos.filter((_, i) => i !== index);
-      setValue('afterPhotos', newPhotos);
-    }
-  };
 
   const handlePaymentMethodChange = (value: "dinheiro" | "pix" | "cartao" | "boleto") => {
     setNewPayment({
@@ -745,23 +928,19 @@ export default function NewService() {
 
   const handleEditPayment = (index: number) => {
     const payment = payments[index];
-    console.log("Editando pagamento:", payment);
-    
     setNewPayment({
       method: payment.method,
       value: payment.value,
       date: payment.date,
-      installments: payment.installments || 1
+      installments: payment.installments || (payment.method === "cartao" ? 1 : undefined)
     });
-    
-    console.log("NewPayment definido para edição:", {
-      method: payment.method,
-      value: payment.value,
-      date: payment.date,
-      installments: payment.installments || 1
-    });
-    
     setCurrentPaymentIndex(index);
+  };
+
+  const handleRemovePayment = (index: number) => {
+    const updatedPayments = [...payments];
+    updatedPayments.splice(index, 1);
+    setPayments(updatedPayments);
   };
 
   const handleAddPayment = () => {
@@ -779,13 +958,13 @@ export default function NewService() {
 
     let adjustedTotalPaid = totalPaid;
     
-    if (formatCurrencytPaymentIndex !== -1) {
-      const oldPaymentValue = Number(payments[formatCurrencytPaymentIndex].value.replace(/\D/g, ''));
+    if (currentPaymentIndex !== -1) {
+      const oldPaymentValue = Number(payments[currentPaymentIndex].value.replace(/\D/g, '')) / 100;
       adjustedTotalPaid = adjustedTotalPaid - oldPaymentValue;
     }
     
-    if (adjustedTotalPaid + value > totalPrice) {
-      toast.error(`O valor total dos pagamentos (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((adjustedTotalPaid + value) / 100)}) não pode exceder o valor do serviço (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)})`);
+    if (adjustedTotalPaid + (value / 100) > (totalPrice / 100)) {
+      toast.error(`O valor total dos pagamentos (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(adjustedTotalPaid + (value / 100))}) não pode exceder o valor do serviço (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100)})`);
       return;
     }
 
@@ -796,8 +975,8 @@ export default function NewService() {
     
     const formattedValue = currencyMask(newPayment.value);
     
-    if (formatCurrencytPaymentIndex === -1) {
-      setValue("payments", [
+    if (currentPaymentIndex === -1) {
+      setPayments([
         ...payments, 
         {
           ...newPayment,
@@ -806,248 +985,676 @@ export default function NewService() {
       ]);
     } else {
       const updatedPayments = [...payments];
-      updatedPayments[formatCurrencytPaymentIndex] = {
+      updatedPayments[currentPaymentIndex] = {
         ...newPayment,
         value: formattedValue
       };
-      setValue("payments", updatedPayments);
+      setPayments(updatedPayments);
       setCurrentPaymentIndex(-1);
     }
 
     setNewPayment({
       method: "dinheiro",
       value: "",
-      date: new Date().toISOString().split('T')[0],
-      installments: 1 as number | undefined
+      date: new Date().toISOString().split('T')[0], // Mantido para compatibilidade
+      installments: undefined as number | undefined
     });
   };
 
-  const handleRemovePayment = (index: number) => {
-    const updatedPayments = [...payments];
-    updatedPayments.splice(index, 1);
-    setValue("payments", updatedPayments);
+  const getMaxSteps = () => {
+    return serviceType === "budget" ? 3 : 5;
   };
 
-  useEffect(() => {
-    if (totalPrice > 0 && totalPaid > totalPrice) {
-      toast.warning('O valor dos pagamentos excede o valor total do serviço. Por favor, ajuste os valores.');
-      
-      if (payments.length > 1) {
-        toast.info(`Valor total do serviço: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)}, Total já registrado em pagamentos: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPaid)}`);
+  const getStepTitle = () => {
+    if (serviceType === "budget") {
+      switch (currentStep) {
+        case 1: return "Dados do Cliente";
+        case 2: return "Procedimento e Valor";
+        case 3: return "Revisão do Orçamento";
+        default: return "";
+      }
+    } else {
+      switch (currentStep) {
+        case 1: return "Dados do Cliente";
+        case 2: return "Informações do Procedimento";
+        case 3: return "Pagamento e Financeiro";
+        case 4: return "Observações e Anexo";
+        case 5: return "Revisão e Confirmação";
+        default: return "";
       }
     }
-  }, [totalPrice, totalPaid, payments.length]);
-
-  const validatePayments = () => {
-    if (totalPaid > totalPrice && payments.length > 0) {
-      if (window.confirm('Os pagamentos registrados excedem o valor total do serviço. Deseja limpar todos os pagamentos?')) {
-        setValue('payments', []);
-        toast.success('Pagamentos limpos. Você pode registrar novos pagamentos agora.');
-      }
-    }
   };
 
-  const renderPaymentWarning = () => {
-    if (totalPaid > totalPrice && payments.length > 0) {
-      return (
-        <div className="flex items-center justify-between bg-yellow-50 p-3 rounded-md border border-yellow-200 mt-2">
-          <p className="text-sm text-yellow-700">
-            Pagamentos excedem o valor total do serviço.
-          </p>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={validatePayments}
-            className="text-yellow-700 border-yellow-300 hover:bg-yellow-100"
-          >
-            Limpar Pagamentos
-          </Button>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  // Aguardar carregamento do plano antes de renderizar
-  if (planLoading) {
+  const renderProgressDots = () => {
+    const maxSteps = getMaxSteps();
     return (
-      <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
-        <div className="flex items-center justify-center min-h-[300px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p>Carregando...</p>
-          </div>
-        </div>
+      <div className="flex justify-center space-x-2 mb-6">
+        {Array.from({ length: maxSteps }, (_, i) => i + 1).map((step) => (
+          <div
+            key={step}
+            className={cn(
+              "w-3 h-3 rounded-full",
+              step <= currentStep ? "bg-pink-500" : "bg-gray-300"
+            )}
+          />
+        ))}
       </div>
     );
-  }
+  };
 
-  return (
-    <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
-      <h2 className="text-xl font-bold mb-4">
-        {serviceId ? "Editar" : "Novo"} Serviço
+  // Renderizar Etapa 1: Dados do Cliente (igual para ambos)
+  const renderStep1 = () => (
+    <div className="max-w-md mx-auto">
+      <h2 className="text-2xl font-bold text-pink-500 text-center mb-6">
+        Dados do Cliente
       </h2>
-
-      <form 
-        onSubmit={handleSubmit(onSubmit)} 
-        className="space-y-4"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Nome Completo</Label>
-            <div className="relative">
-              <Input
-                {...register("name")}
-                placeholder="Nome completo"
-                className={errors.name ? "border-red-500" : ""}
-                style={{ paddingRight: '40px' }}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                style={{ 
-                  position: 'absolute', 
-                  right: '8px', 
-                  top: '50%', 
-                  transform: 'translateY(-50%)',
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '6px',
-                  padding: '0',
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb'
-                }}
-                onClick={() => setShowClientsModal(true)}
-              >
-                <Plus className="h-3 w-3" />
-              </Button>
+      
+      <form onSubmit={clientForm.handleSubmit(handleClientSubmit)} className="space-y-4">
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <User className="h-5 w-5 text-gray-400" />
             </div>
-            {errors.name && (
-              <span className="text-sm text-red-500">{errors.name.message}</span>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>CPF</Label>
             <Input
-              {...register("cpf")}
+              {...clientForm.register("name")}
+              placeholder="Nome completo do cliente"
+              style={{ textIndent: '2.0rem' }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              style={{ 
+                position: 'absolute', 
+                right: '8px', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                padding: '0',
+                backgroundColor: 'white',
+                border: '1px solid #e5e7eb'
+              }}
+              onClick={() => setShowClientsModal(true)}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+          {clientForm.formState.errors.name && (
+            <p className="text-red-500 text-sm mt-1">{clientForm.formState.errors.name.message}</p>
+          )}
+        </div>
+
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <User className="h-5 w-5 text-gray-400" />
+            </div>
+            <Input
+              {...clientForm.register("cpf")}
               placeholder="CPF"
-              className={errors.cpf ? "border-red-500" : ""}
+              style={{ textIndent: '2.0rem' }}
+              maxLength={14}
               onChange={(e) => {
-                const value = e.target.value;
-                setValue("cpf", cpfMask(value));
+                const maskedValue = cpfMask(e.target.value);
+                if (maskedValue.length <= 14) {
+                  clientForm.setValue("cpf", maskedValue);
+                }
               }}
             />
-            {errors.cpf && (
-              <span className="text-sm text-red-500">{errors.cpf.message}</span>
-            )}
           </div>
+          {clientForm.formState.errors.cpf && (
+            <p className="text-red-500 text-sm mt-1">{clientForm.formState.errors.cpf.message}</p>
+          )}
+        </div>
 
-          <div className="space-y-2">
-            <Label>Telefone</Label>
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <Phone className="h-5 w-5 text-gray-400" />
+            </div>
             <Input
-              {...register("phone")}
-              placeholder="Telefone"
-              className={errors.phone ? "border-red-500" : ""}
+              {...clientForm.register("phone")}
+              placeholder="Celular"
+              style={{ textIndent: '2.0rem' }}
+              maxLength={15}
               onChange={(e) => {
-                const value = e.target.value;
-                setValue("phone", celularMask(value));
+                const maskedValue = phoneMask(e.target.value);
+                if (maskedValue.length <= 15) {
+                  clientForm.setValue("phone", maskedValue);
+                }
               }}
             />
-            {errors.phone && (
-              <span className="text-sm text-red-500">{errors.phone.message}</span>
-            )}
           </div>
+          {clientForm.formState.errors.phone && (
+            <p className="text-red-500 text-sm mt-1">{clientForm.formState.errors.phone.message}</p>
+          )}
+        </div>
 
-          <div className="space-y-2">
-            <Label>Email</Label>
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <Mail className="h-5 w-5 text-gray-400" />
+            </div>
             <Input
-              {...register("email")}
-              placeholder="Email"
-              className={errors.email ? "border-red-500" : ""}
+              {...clientForm.register("email")}
+              placeholder="E-mail"
+              style={{ textIndent: '2.0rem' }}
             />
-            {errors.email && (
-              <span className="text-sm text-red-500">{errors.email.message}</span>
+          </div>
+          {clientForm.formState.errors.email && (
+            <p className="text-red-500 text-sm mt-1">{clientForm.formState.errors.email.message}</p>
+          )}
+        </div>
+
+        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
+          Próximo
+        </Button>
+      </form>
+      
+      {/* Indicador de Status do Cliente */}
+      {clientImageInfo && contactId && (
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span className="font-semibold text-blue-800">Status do Cliente</span>
+            </div>
+            <span className="text-sm text-blue-600">
+              {clientImageInfo.existing}/{clientImageInfo.limit} imagens
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+            <div 
+              className={`h-2 rounded-full ${
+                clientImageInfo.existing / clientImageInfo.limit > 0.9 ? 'bg-red-500' :
+                clientImageInfo.existing / clientImageInfo.limit > 0.8 ? 'bg-orange-500' : 'bg-green-500'
+              }`}
+              style={{ width: `${Math.min((clientImageInfo.existing / clientImageInfo.limit) * 100, 100)}%` }}
+            ></div>
+          </div>
+          <div className="text-sm text-blue-700">
+            {clientImageInfo.remaining === 0 ? (
+              <span className="text-red-600 font-medium">
+                ⚠️ Limite atingido! Não é possível adicionar mais imagens.
+              </span>
+            ) : clientImageInfo.remaining <= 2 ? (
+              <span className="text-orange-600 font-medium">
+                ⚠️ Limite próximo! Restam apenas {clientImageInfo.remaining} imagens disponíveis.
+              </span>
+            ) : (
+              <span className="text-green-600">
+                ✅ Restam {clientImageInfo.remaining} imagens disponíveis para este cliente.
+              </span>
             )}
           </div>
+        </div>
+      )}
+    </div>
+  );
 
-          <div>
-            <Label>Data*</Label>
-            <Input type="date" {...register("date")} />
-            {errors.date && (
-              <p className="text-red-500 text-sm">{errors.date.message}</p>
-            )}
-          </div>
+  // Renderizar Etapa 2: Procedimento e Valor (Orçamento) ou Informações do Procedimento (Serviço Completo)
+  const renderStep2 = () => {
+    if (serviceType === "budget") {
+      return renderBudgetStep2();
+    } else {
+      return renderCompleteServiceStep2();
+    }
+  };
 
-          <div>
-            <Label>Hora*</Label>
-            <Input type="time" {...register("time")} />
-            {errors.time && (
-              <p className="text-red-500 text-sm">{errors.time.message}</p>
-            )}
-          </div>
-
-          <div>
-            <Label>Valor Total*</Label>
-            <Input 
-              {...register("price")} 
-              placeholder="Valor"
-              onChange={(e) => setValue("price", currencyMask(e.target.value))}
+  const renderBudgetStep2 = () => (
+    <div className="max-w-md mx-auto">
+      <h2 className="text-2xl font-bold text-pink-500 text-center mb-6">
+        Procedimento e Valor
+      </h2>
+      
+      <form onSubmit={procedureForm.handleSubmit(handleProcedureSubmit)} className="space-y-4">
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <FileText className="h-5 w-5 text-gray-400" />
+            </div>
+            <Input
+              value={selectedProcedure?.name || ""}
+              placeholder="Adicionar serviço"
+              style={{ textIndent: '2.0rem', paddingRight: '40px' }}
+              readOnly
             />
-            {errors.price && (
-              <p className="text-red-500 text-sm">{errors.price.message}</p>
-            )}
-          </div>
-
-          <div>
-            <Label>Duração</Label>
-            <Input 
-              type="time"
-              {...register("duration")} 
-              placeholder="Duração do serviço"
-            />
-            {errors.duration && (
-              <p className="text-red-500 text-sm">{errors.duration.message}</p>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              style={{ 
+                position: 'absolute', 
+                right: '8px', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                padding: '0',
+                backgroundColor: 'white',
+                border: '1px solid #e5e7eb'
+              }}
+              onClick={() => setShowServicesModal(true)}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
           </div>
         </div>
 
         <div>
-          <Label>Observações</Label>
-          <Textarea 
-            {...register("observations")} 
-            placeholder="Observações sobre o serviço"
-            className="min-h-[80px] sm:min-h-[100px]"
-          />
-          {errors.observations && (
-            <p className="text-red-500 text-sm">{errors.observations.message}</p>
-          )}
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <User className="h-5 w-5 text-gray-400" />
+            </div>
+            <Input
+              value={selectedProfessional?.name || ""}
+              placeholder="Profissional Responsável"
+              style={{ textIndent: '2.0rem', paddingRight: '40px' }}
+              readOnly
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              style={{ 
+                position: 'absolute', 
+                right: '8px', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                padding: '0',
+                backgroundColor: 'white',
+                border: '1px solid #e5e7eb'
+              }}
+              onClick={() => setShowProfessionalsModal(true)}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="budget"
-            checked={budget}
-            onCheckedChange={(checked) => setValue("budget", checked)}
-          />
-          <Label htmlFor="budget">Orçamento</Label>
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <DollarSign className="h-5 w-5 text-gray-400" />
+            </div>
+            <Input
+              value={selectedProcedure?.price ? formatCurrencyFromCents(selectedProcedure.price) : ""}
+              placeholder="Valor Total"
+              style={{ textIndent: '2.0rem' }}
+              readOnly
+            />
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="sendToFinance"
-            checked={watch("sendToFinance")}
-            onCheckedChange={(checked) => setValue("sendToFinance", checked)}
-          />
-          <Label htmlFor="sendToFinance">Enviar para o Financeiro</Label>
+        <div className="flex space-x-4">
+          <Button
+            type="button"
+            onClick={goBack}
+            className="flex-1 bg-gray-500 hover:bg-gray-600"
+          >
+            Voltar
+          </Button>
+          <Button
+            type="submit"
+            className="flex-1 bg-blue-600 hover:bg-blue-700"
+          >
+            Próximo
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+
+  const renderCompleteServiceStep2 = () => (
+    <div className="max-w-md mx-auto">
+      <h2 className="text-2xl font-bold text-pink-500 text-center mb-6">
+        Informações do Procedimento
+      </h2>
+      
+      <form onSubmit={procedureForm.handleSubmit(handleProcedureSubmit)} className="space-y-4">
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <FileText className="h-5 w-5 text-gray-400" />
+            </div>
+            <Input
+              value={selectedProcedure?.name || ""}
+              placeholder="Adicionar serviço"
+              style={{ textIndent: '2.0rem', paddingRight: '40px' }}
+              readOnly
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              style={{ 
+                position: 'absolute', 
+                right: '8px', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                padding: '0',
+                backgroundColor: 'white',
+                border: '1px solid #e5e7eb'
+              }}
+              onClick={() => setShowServicesModal(true)}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
 
-        <Card className="p-4">
-          <h3 className="text-lg font-medium mb-2">Formas de Pagamento</h3>
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <User className="h-5 w-5 text-gray-400" />
+            </div>
+            <Input
+              value={selectedProfessional?.name || ""}
+              placeholder="Profissional Responsável"
+              style={{ textIndent: '2.0rem', paddingRight: '40px' }}
+              readOnly
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              style={{ 
+                position: 'absolute', 
+                right: '8px', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                padding: '0',
+                backgroundColor: 'white',
+                border: '1px solid #e5e7eb'
+              }}
+              onClick={() => setShowProfessionalsModal(true)}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <Clock className="h-5 w-5 text-gray-400" />
+            </div>
+            <Input
+              {...procedureForm.register("startTime")}
+              placeholder="Horário de início"
+              style={{ textIndent: '2.0rem' }}
+              onChange={(e) => {
+                const value = e.target.value;
+                const maskedValue = horaMask(value);
+                procedureForm.setValue("startTime", maskedValue);
+              }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <CalendarIcon className="h-5 w-5 text-gray-400" />
+            </div>
+            <Popover open={showCalendar} onOpenChange={setShowCalendar}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal pl-12",
+                    !procedureForm.watch("date") && "text-muted-foreground"
+                  )}
+                  style={{ textIndent: '1.5rem' }}
+                >
+                  {procedureForm.watch("date") ? (
+                    format(procedureForm.watch("date"), "dd/MM/yyyy", { locale: ptBR })
+                  ) : (
+                    "Selecione a data"
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={procedureForm.watch("date")}
+                  onSelect={(date) => {
+                    if (date) {
+                      procedureForm.setValue("date", date);
+                      setShowCalendar(false);
+                    }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+
+        <div>
+          <div className="relative">
+            <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <DollarSign className="h-5 w-5 text-gray-400" />
+            </div>
+            <Input
+              value={selectedProcedure?.price ? formatCurrencyFromCents(selectedProcedure.price) : ""}
+              placeholder="Valor Total"
+              style={{ textIndent: '2.0rem' }}
+              readOnly
+            />
+          </div>
+        </div>
+
+        <div className="flex space-x-4">
+          <Button
+            type="button"
+            onClick={goBack}
+            className="flex-1 bg-gray-500 hover:bg-gray-600"
+          >
+            Voltar
+          </Button>
+          <Button
+            type="submit"
+            className="flex-1 bg-blue-600 hover:bg-blue-700"
+          >
+            Próximo
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+
+  // Renderizar Etapa 3: Revisão do Orçamento (Orçamento) ou Pagamento e Financeiro (Serviço Completo)
+  const renderStep3 = () => {
+    if (serviceType === "budget") {
+      return renderBudgetReview();
+    } else {
+      return renderPaymentStep();
+    }
+  };
+
+  const renderBudgetReview = () => {
+    const clientData = clientForm.getValues();
+    const procedureData = procedureForm.getValues();
+    
+    return (
+      <div className="max-w-md mx-auto">
+        <h2 className="text-2xl font-bold text-pink-500 text-center mb-6">
+          Revisão do Orçamento
+        </h2>
+        
+        <div className="space-y-6">
+          <div>
+            <h3 className="font-semibold text-pink-500 flex items-center gap-2 mb-3">
+              <FileText className="h-6 w-6" />
+              Dados do Cliente
+            </h3>
+            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+              <p className="text-sm text-gray-700">Nome: {clientData.name}</p>
+              <p className="text-sm text-gray-700">Celular: {clientData.phone}</p>
+              <p className="text-sm text-gray-700">Email: {clientData.email}</p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-pink-500 flex items-center gap-2 mb-3">
+              <CalendarIcon className="h-6 w-6" />
+              Informações do Orçamento
+            </h3>
+            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+              <p className="text-sm text-gray-700">Profissional: {selectedProfessional?.name || "Não selecionado"}</p>
+              <div>
+                <p className="text-sm font-semibold text-gray-700">Procedimento:</p>
+                <ul className="list-disc list-inside">
+                  <li className="text-sm text-gray-700">{selectedProcedure?.name || "Não selecionado"} - {selectedProcedure?.price ? formatCurrencyFromCents(selectedProcedure.price) : "R$ 0,00"}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex space-x-4">
+            <Button
+              onClick={goBack}
+              className="flex-1 bg-pink-500 hover:bg-pink-600"
+            >
+              Voltar
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  setIsLoading(true);
+                  const clientData = clientForm.getValues();
+                  const procedureData = procedureForm.getValues();
+                  
+                  // Processar dados do cliente
+                  const clientName = clientData.name.trim();
+                  const clientCpf = cpfUnMask(clientData.cpf || "");
+                  const clientPhone = celularUnMask(clientData.phone);
+                  
+                  // Criar ou atualizar cliente
+                  if (clientName && (clientCpf || clientPhone)) {
+                    await createOrUpdateClient(clientName, clientCpf, clientPhone, clientData.email);
+                  }
+                  
+                  const budgetData = {
+                    name: clientData.name,
+                    cpf: clientCpf,
+                    phone: clientPhone,
+                    email: clientData.email || "",
+                    date: new Date().toISOString().split('T')[0],
+                    time: "",
+                    price: selectedProcedure?.price || 0,
+                    paidAmount: 0,
+                    priority: "",
+                    duration: "",
+                    observations: "",
+                    services: selectedProcedure ? [{
+                      id: selectedProcedure.id,
+                      code: "",
+                      name: selectedProcedure.name,
+                      price: String(selectedProcedure.price),
+                      date: new Date().toISOString().split('T')[0]
+                    }] : [],
+                    professionals: selectedProfessional ? [{
+                      id: selectedProfessional.id,
+                      name: selectedProfessional.name,
+                      specialty: selectedProfessional.specialty || ""
+                    }] : [],
+                    budget: true,
+                    sendToFinance: false,
+                    payments: [],
+                    documents: [],
+                    beforePhotos: [],
+                    afterPhotos: [],
+                    uid: uid,
+                    contactUid: selectedClientId || contactId,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  };
+
+                  if (serviceId) {
+                    // Atualizar serviço existente
+                    const serviceRef = doc(database, "Services", serviceId);
+                    await updateDoc(serviceRef, {
+                      ...budgetData,
+                      updatedAt: new Date().toISOString()
+                    });
+                    toast.success("Orçamento atualizado com sucesso!");
+                  } else {
+                    // Criar novo orçamento
+                    await addDoc(collection(database, "Services"), budgetData);
+                    toast.success("Orçamento criado com sucesso!");
+                  }
+                  
+                  router.push("/dashboard/servicos");
+                } catch (error) {
+                  console.error("Erro ao criar/atualizar orçamento:", error);
+                  toast.error("Erro ao criar/atualizar orçamento!");
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              disabled={isLoading}
+            >
+              {isLoading ? "Criando..." : "Criar Orçamento"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPaymentStep = () => (
+    <div className="max-w-2xl mx-auto">
+      <h2 className="text-2xl font-bold text-pink-500 text-center mb-6">
+        Pagamento e Financeiro
+      </h2>
+      
+      <div className="space-y-6">
+        {/* Métodos de Pagamento */}
+        <div className="space-y-4">
+          <h3 className="font-semibold text-pink-500">Métodos de pagamento</h3>
           
-          <div className="bg-gray-50 p-3 rounded-md mb-4">
-            <div className="flex justify-between items-center mb-2">
+          {/* Tipo de Pagamento */}
+          <div className="flex justify-center space-x-6">
+            <Button
+              variant={paymentType === "total" ? "default" : "outline"}
+              onClick={() => {
+                setPaymentType("total");
+                setNewPayment({...newPayment, value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100)});
+              }}
+              className={paymentType === "total" ? "bg-green-600 hover:bg-green-700 text-white" : "border-gray-300 text-black hover:bg-gray-50"}
+            >
+              Pagamento Total
+            </Button>
+            <Button
+              variant={paymentType === "partial" ? "default" : "outline"}
+              onClick={() => {
+                setPaymentType("partial");
+                setNewPayment({...newPayment, value: ""});
+              }}
+              className={paymentType === "partial" ? "bg-green-600 hover:bg-green-700 text-white" : "border-gray-300 text-black hover:bg-gray-50"}
+            >
+              Pagamento Parcial
+            </Button>
+          </div>
+
+          {/* Resumo Financeiro */}
+          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div className="flex justify-between items-center">
               <span>Valor total do serviço:</span>
               <span className="font-semibold">{new Intl.NumberFormat('pt-BR', {
                 style: 'currency',
@@ -1071,119 +1678,158 @@ export default function NewService() {
             </div>
           </div>
 
-          <div className="space-y-4 mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Método de Pagamento</Label>
-                <RadioGroup
-                  value={newPayment.method}
-                  onValueChange={(value) => handlePaymentMethodChange(value as "dinheiro" | "pix" | "cartao" | "boleto")}
-                  className="flex space-x-4 mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="dinheiro" id="method-dinheiro" />
-                    <Label htmlFor="method-dinheiro">Dinheiro</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="pix" id="method-pix" />
-                    <Label htmlFor="method-pix">PIX</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cartao" id="method-cartao" />
-                    <Label htmlFor="method-cartao">Cartão</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="boleto" id="method-boleto" />
-                    <Label htmlFor="method-boleto">Boleto</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div>
-                <Label>Data do Pagamento</Label>
-                <Input
-                  type="date"
-                  value={newPayment.date}
-                  onChange={(e) => setNewPayment({...newPayment, date: e.target.value})}
-                  className="mt-2"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Tipo de Pagamento</Label>
-                <RadioGroup
-                  value={newPayment.value === totalPrice.toString() ? "full" : "partial"}
-                  onValueChange={(value) => {
-                    if (value === "full") {
-                      setNewPayment({...newPayment, value: totalPrice.toString()});
-                    } else {
-                      setNewPayment({...newPayment, value: ""});
-                    }
-                  }}
-                  className="flex space-x-4 mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="full" id="payment-full" />
-                    <Label htmlFor="payment-full">Valor Inteiro</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="partial" id="payment-partial" />
-                    <Label htmlFor="payment-partial">Valor Parcial</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div>
-                <Label>Valor</Label>
-                <Input
-                  placeholder="Valor do pagamento"
-                  value={newPayment.value}
-                  onChange={(e) => setNewPayment({...newPayment, value: currencyMask(e.target.value)})}
-                  className="mt-2"
-                  disabled={newPayment.value === totalPrice.toString()}
-                />
-              </div>
-            </div>
-
-            {newPayment.method === "cartao" && newPayment.installments && (
-              <div className="mt-2 text-sm text-gray-600">
-                Parcelado em {newPayment.installments}x
-              </div>
-            )}
-
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                onClick={handleAddPayment}
-                disabled={!newPayment.value || Number(newPayment.value.replace(/\D/g, '')) <= 0}
+          {/* Métodos de Pagamento */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-2">
+              <div 
+                className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                  newPayment.method === "dinheiro" ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"
+                }`}
+                onClick={() => handlePaymentMethodChange("dinheiro")}
               >
-                {formatCurrencytPaymentIndex === -1 ? "Adicionar Pagamento" : "Atualizar Pagamento"}
-              </Button>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-green-600 font-bold text-lg">💵</span>
+                  </div>
+                  <span className="font-medium">Dinheiro</span>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  newPayment.method === "dinheiro" ? "border-green-500 bg-green-500" : "border-gray-300"
+                }`}>
+                  {newPayment.method === "dinheiro" && (
+                    <span className="text-white text-xs font-bold">✓</span>
+                  )}
+                </div>
+              </div>
+
+              <div 
+                className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                  newPayment.method === "pix" ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"
+                }`}
+                onClick={() => handlePaymentMethodChange("pix")}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                    <span className="text-purple-600 font-bold text-lg">📱</span>
+                  </div>
+                  <span className="font-medium">PIX</span>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  newPayment.method === "pix" ? "border-green-500 bg-green-500" : "border-gray-300"
+                }`}>
+                  {newPayment.method === "pix" && (
+                    <span className="text-white text-xs font-bold">✓</span>
+                  )}
+                </div>
+              </div>
+
+              <div 
+                className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                  newPayment.method === "cartao" ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"
+                }`}
+                onClick={() => handlePaymentMethodChange("cartao")}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-bold text-lg">💳</span>
+                  </div>
+                  <span className="font-medium">Cartão</span>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  newPayment.method === "cartao" ? "border-green-500 bg-green-500" : "border-gray-300"
+                }`}>
+                  {newPayment.method === "cartao" && (
+                    <span className="text-white text-xs font-bold">✓</span>
+                  )}
+                </div>
+              </div>
+
+              <div 
+                className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                  newPayment.method === "boleto" ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"
+                }`}
+                onClick={() => handlePaymentMethodChange("boleto")}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                    <span className="text-orange-600 font-bold text-lg">📄</span>
+                  </div>
+                  <span className="font-medium">Boleto</span>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  newPayment.method === "boleto" ? "border-green-500 bg-green-500" : "border-gray-300"
+                }`}>
+                  {newPayment.method === "boleto" && (
+                    <span className="text-white text-xs font-bold">✓</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="border-t pt-4">
-            <h4 className="font-medium mb-2">Pagamentos Registrados</h4>
-            {payments.length === 0 ? (
-              <p className="text-gray-500 italic">Nenhum pagamento registrado</p>
-            ) : (
-              <div className="space-y-2">
-                {payments.map((payment, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-md bg-green-50 border-green-100 border">
-                    <div>
-                      <div className="font-medium">
-                        {payment.method === "dinheiro" 
-                          ? "Dinheiro" 
-                          : payment.method === "pix" 
-                          ? "PIX"
-                          : payment.method === "boleto"
-                          ? "Boleto"
-                          : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
-                      </div>
-                      <div className="text-sm">
-                        {formatDateToBrazilian(payment.date)} - {payment.value}
+          {/* Campo de Valor (apenas para pagamento parcial) */}
+          {newPayment.value !== new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100) && (
+            <div>
+              <Label>Valor do Pagamento</Label>
+              <Input
+                placeholder="Digite o valor"
+                value={newPayment.value}
+                onChange={(e) => setNewPayment({...newPayment, value: currencyMask(e.target.value)})}
+                className="mt-2"
+              />
+            </div>
+          )}
+
+          {/* Parcelas (apenas para cartão) */}
+          {newPayment.method === "cartao" && newPayment.installments && (
+            <div className="mt-2 text-sm text-gray-600">
+              Parcelado em {newPayment.installments}x
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              onClick={handleAddPayment}
+              disabled={!newPayment.value || Number(newPayment.value.replace(/\D/g, '')) <= 0}
+              className="bg-pink-500 hover:bg-pink-600"
+            >
+              {currentPaymentIndex === -1 ? "Adicionar Pagamento" : "Atualizar Pagamento"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Pagamentos Realizados */}
+        <div className="border rounded-lg p-4">
+          <h4 className="font-medium mb-4">Pagamentos Realizados</h4>
+          {payments.length === 0 ? (
+            <p className="text-gray-500 italic">Nenhum pagamento registrado</p>
+          ) : (
+            <div className="space-y-3">
+              {payments.map((payment, index) => {
+                const paymentValue = Number(payment.value.replace(/\D/g, '')) / 100;
+                const isPaid = paymentValue > 0;
+                
+                return (
+                  <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-3 h-3 rounded-full ${isPaid ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                      <div>
+                        <div className="font-medium">
+                          {payment.method === "dinheiro" 
+                            ? "Dinheiro" 
+                            : payment.method === "pix" 
+                            ? "PIX"
+                            : payment.method === "boleto"
+                            ? "Boleto"
+                            : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
+                        </div>
+                        <div className="text-sm font-semibold">
+                          {payment.value}
+                        </div>
+                        <div className={`text-xs ${isPaid ? 'text-green-600' : 'text-orange-600'}`}>
+                          {isPaid ? 'Pago' : 'Pendente'}
+                        </div>
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -1192,6 +1838,7 @@ export default function NewService() {
                         variant="outline" 
                         size="sm" 
                         onClick={() => handleEditPayment(index)}
+                        className="text-xs px-2 py-1"
                       >
                         Editar
                       </Button>
@@ -1200,156 +1847,123 @@ export default function NewService() {
                         variant="destructive" 
                         size="sm" 
                         onClick={() => handleRemovePayment(index)}
+                        className="text-xs px-2 py-1"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        Remover
                       </Button>
                     </div>
                   </div>
-                ))}
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="flex space-x-4">
+          <Button
+            type="button"
+            onClick={goBack}
+            className="flex-1 bg-gray-500 hover:bg-gray-600"
+          >
+            Voltar
+          </Button>
+          <Button
+            onClick={() => handlePaymentSubmit(paymentForm.getValues())}
+            className="flex-1 bg-blue-600 hover:bg-blue-700"
+            disabled={totalPaid === 0}
+          >
+            Próximo
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Renderizar Etapa 4: Observações e Anexo (apenas Serviço Completo)
+  const renderStep4 = () => (
+    <div className="max-w-4xl mx-auto">
+      <h2 className="text-2xl font-bold text-pink-500 text-center mb-6">
+        Observações e Anexos
+      </h2>
+      
+      <form onSubmit={observationsForm.handleSubmit(handleObservationsSubmit)} className="space-y-6">
+        <div>
+          <Label htmlFor="observations">Observações</Label>
+          <Textarea
+            {...observationsForm.register("observations")}
+            placeholder="Adicione observações sobre o procedimento..."
+            className="mt-1"
+            rows={4}
+          />
+        </div>
+
+        <div className="space-y-6">
+          {/* Fotos Antes */}
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium">Fotos Antes</h3>
+              {planLimits && contactId && clientImageInfo && (
+                <div className="text-sm text-gray-600">
+                  {(() => {
+                    const beforePhotos = observationsForm.watch('beforePhotos') || [];
+                    const afterPhotos = observationsForm.watch('afterPhotos') || [];
+                    const serviceImages = beforePhotos.length + afterPhotos.length;
+                    const totalImages = clientImageInfo.existing + serviceImages;
+                    const remaining = Math.max(0, planLimits.images - totalImages);
+                    return (
+                      <span className={remaining === 0 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                        {totalImages}/{planLimits.images} imagens
+                        {remaining > 0 && ` (${remaining} restantes)`}
+                      </span>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setUploadType('before')}
+                  disabled={isUploading || (() => {
+                    if (!planLimits || !contactId || !clientImageInfo) return false;
+                    
+                    const beforePhotos = observationsForm.watch('beforePhotos') || [];
+                    const afterPhotos = observationsForm.watch('afterPhotos') || [];
+                    const serviceImages = beforePhotos.length + afterPhotos.length;
+                    const totalImages = clientImageInfo.existing + serviceImages;
+                    
+                    return totalImages >= planLimits.images;
+                  })()}
+                >
+                  Adicionar Fotos Antes
+                </Button>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleFileUpload(e.target.files, 'before')}
+                  ref={(el) => {
+                    if (el && uploadType === 'before') {
+                      el.click();
+                    }
+                  }}
+                />
               </div>
-            )}
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium">Procedimentos Selecionados</h3>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowServicesModal(true)}
-            >
-              Adicionar Serviço
-            </Button>
-          </div>
-          <ScrollArea className="h-[150px] sm:h-[200px]">
-            {services.map((service) => (
-              <ItemService
-                key={service.id}
-                id={service.id}
-                code={service.code}
-                name={service.name}
-                price={currencyMask(Number(service.price))} 
-                onRemove={handleRemoveService}
-              />
-            ))}
-          </ScrollArea>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium">Profissionais Responsáveis</h3>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowProfessionalsModal(true)}
-            >
-              Adicionar Profissional
-            </Button>
-          </div>
-          <ScrollArea className="h-[150px] sm:h-[200px]">
-            {professionals.map((professional) => (
-              <ItemProfessional
-                key={professional.id}
-                id={professional.id}
-                name={professional.name}
-                specialty={professional.specialty}
-                onRemove={handleRemoveProfessional}
-              />
-            ))}
-          </ScrollArea>
-        </Card>
-
-        <Card className="p-4 mt-4">
-          <h3 className="text-lg font-medium mb-4">Documentos</h3>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setUploadType('document')}
-                disabled={isUploading}
-              >
-                Adicionar Documentos
-              </Button>
-              <input
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx"
-                className="hidden"
-                onChange={(e) => handleFileUpload(e.target.files, 'document')}
-                ref={(el) => {
-                  if (el && uploadType === 'document') {
-                    el.click();
-                  }
-                }}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {documents.map((doc, index) => (
-                <div key={index} className="flex items-center justify-between p-2 border rounded">
-                  <div className="flex items-center space-x-2">
-                    <FileIcon className="h-5 w-5" />
-                    <span>{doc.name}</span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(!observationsForm.watch('beforePhotos') || observationsForm.watch('beforePhotos')?.length === 0) ? (
+                  <div className="col-span-3 text-center py-8 text-gray-500">
+                    Nenhuma foto adicionada
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleRemoveFile('document', index)}
-                  >
-                    Remover
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 mt-4">
-          <h3 className="text-lg font-medium mb-4">Fotos Antes</h3>
-          
-
-          
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setUploadType('before')}
-                disabled={isUploading}
-              >
-                Adicionar Fotos Antes
-              </Button>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleFileUpload(e.target.files, 'before')}
-                ref={(el) => {
-                  if (el && uploadType === 'before') {
-                    el.click();
-                  }
-                }}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {beforePhotos.length === 0 ? (
-                <div className="col-span-3 text-center py-8 text-gray-500">
-                  Nenhuma foto adicionada
-                </div>
-              ) : (
-                beforePhotos.map((photo, index) => {
-                  console.log("📸 Renderizando foto antes:", photo);
-                  return (
+                ) : (
+                  observationsForm.watch('beforePhotos')?.map((photo, index) => (
                     <div key={index} className="relative">
                       <img
                         src={photo.url}
                         alt={`Foto antes ${index + 1}`}
                         className="w-full h-48 object-cover rounded"
-                        onError={(e) => {
-                          console.error("❌ Erro ao carregar imagem:", photo.url, e);
-                        }}
                       />
                       <Button
                         variant="destructive"
@@ -1357,58 +1971,81 @@ export default function NewService() {
                         onClick={() => handleRemoveFile('before', index)}
                         className="absolute top-2 right-2 h-8 w-8 bg-red-600 hover:bg-red-700"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-6 w-6" />
                       </Button>
                     </div>
-                  );
-                })
+                  ))
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* Fotos Depois */}
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium">Fotos Depois</h3>
+              {planLimits && contactId && clientImageInfo && (
+                <div className="text-sm text-gray-600">
+                  {(() => {
+                    const beforePhotos = observationsForm.watch('beforePhotos') || [];
+                    const afterPhotos = observationsForm.watch('afterPhotos') || [];
+                    const serviceImages = beforePhotos.length + afterPhotos.length;
+                    const totalImages = clientImageInfo.existing + serviceImages;
+                    const remaining = Math.max(0, planLimits.images - totalImages);
+                    return (
+                      <span className={remaining === 0 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                        {totalImages}/{planLimits.images} imagens
+                        {remaining > 0 && ` (${remaining} restantes)`}
+                      </span>
+                    );
+                  })()}
+                </div>
               )}
             </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 mt-4">
-          <h3 className="text-lg font-medium mb-4">Fotos Depois</h3>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setUploadType('after')}
-                disabled={isUploading}
-              >
-                Adicionar Fotos Depois
-              </Button>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleFileUpload(e.target.files, 'after')}
-                ref={(el) => {
-                  if (el && uploadType === 'after') {
-                    el.click();
-                  }
-                }}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {afterPhotos.length === 0 ? (
-                <div className="col-span-3 text-center py-8 text-gray-500">
-                  Nenhuma foto adicionada
-                </div>
-              ) : (
-                afterPhotos.map((photo, index) => {
-                  console.log("📸 Renderizando foto depois:", photo);
-                  return (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setUploadType('after')}
+                  disabled={isUploading || (() => {
+                    if (!planLimits || !contactId || !clientImageInfo) return false;
+                    
+                    const beforePhotos = observationsForm.watch('beforePhotos') || [];
+                    const afterPhotos = observationsForm.watch('afterPhotos') || [];
+                    const serviceImages = beforePhotos.length + afterPhotos.length;
+                    const totalImages = clientImageInfo.existing + serviceImages;
+                    
+                    return totalImages >= planLimits.images;
+                  })()}
+                >
+                  Adicionar Fotos Depois
+                </Button>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleFileUpload(e.target.files, 'after')}
+                  ref={(el) => {
+                    if (el && uploadType === 'after') {
+                      el.click();
+                    }
+                  }}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(!observationsForm.watch('afterPhotos') || observationsForm.watch('afterPhotos')?.length === 0) ? (
+                  <div className="col-span-3 text-center py-8 text-gray-500">
+                    Nenhuma foto adicionada
+                  </div>
+                ) : (
+                  observationsForm.watch('afterPhotos')?.map((photo, index) => (
                     <div key={index} className="relative">
                       <img
                         src={photo.url}
                         alt={`Foto depois ${index + 1}`}
                         className="w-full h-48 object-cover rounded"
-                        onError={(e) => {
-                          console.error("❌ Erro ao carregar imagem:", photo.url, e);
-                        }}
                       />
                       <Button
                         variant="destructive"
@@ -1416,173 +2053,412 @@ export default function NewService() {
                         onClick={() => handleRemoveFile('after', index)}
                         className="absolute top-2 right-2 h-8 w-8 bg-red-600 hover:bg-red-700"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-6 w-6" />
                       </Button>
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </Card>
-
-        <div className="flex flex-row justify-between align-center">
-          <Button 
-            type="submit" 
-            disabled={isLoading}
-            className={isLoading ? "bg-gray-400" : ""}
-          >
-            {isLoading ? (
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Salvando...
+                  ))
+                )}
               </div>
-            ) : (
-              "Salvar"
-            )}
-          </Button>
-          <Button 
-            type="button" 
-            onClick={(e) => {
-              e.preventDefault();
-              router.back();
-            }} 
-            variant="outline"
-            disabled={isLoading}
+            </div>
+          </Card>
+
+          {/* Documentos */}
+          <Card className="p-4">
+            <h3 className="text-lg font-medium mb-4">Documentos</h3>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setUploadType('document')}
+                  disabled={isUploading}
+                >
+                  Adicionar Documentos
+                </Button>
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  className="hidden"
+                  onChange={(e) => handleFileUpload(e.target.files, 'document')}
+                  ref={(el) => {
+                    if (el && uploadType === 'document') {
+                      el.click();
+                    }
+                  }}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(!observationsForm.watch('documents') || observationsForm.watch('documents')?.length === 0) ? (
+                  <div className="col-span-3 text-center py-8 text-gray-500">
+                    Nenhum documento adicionado
+                  </div>
+                ) : (
+                  observationsForm.watch('documents')?.map((doc, index) => (
+                    <div key={index} className="relative border rounded-lg p-4">
+                      <div className="flex items-center space-x-2">
+                        <Paperclip className="h-5 w-5 text-gray-400" />
+                        <span className="text-sm text-gray-700 truncate">
+                          Documento {index + 1}
+                        </span>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleRemoveFile('document', index)}
+                        className="absolute top-2 right-2 h-6 w-6 bg-red-600 hover:bg-red-700"
+                      >
+                        <Trash2 className="h-6 w-6" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        <div className="flex space-x-4">
+          <Button
+            type="button"
+            onClick={goBack}
+            className="flex-1 bg-gray-500 hover:bg-gray-600"
           >
             Voltar
           </Button>
+          <Button
+            type="submit"
+            className="flex-1 bg-blue-600 hover:bg-blue-700"
+          >
+            Próximo
+          </Button>
         </div>
       </form>
-
-      <CustomModalServices
-        visible={showServicesModal}
-        onClose={() => setShowServicesModal(false)}
-        onConfirm={(selectedItems) => {
-          const formatCurrencytServices = services || [];
-          const existingIds = formatCurrencytServices.map(s => s.id);
-          const newServices = selectedItems.filter(id => !existingIds.includes(id));
-          
-          const fetchSelectedServices = async () => {
-            try {
-              const servicesRef = collection(database, "Procedures");
-              const selectedDocs = await Promise.all(
-                newServices.map(id => getDoc(doc(servicesRef, id)))
-              );
-              
-              const selectedServices = selectedDocs
-                .filter(doc => doc.exists())
-                .map(doc => ({
-                  id: doc.id,
-                  name: doc.data().name,
-                  code: doc.data().code,
-                  price: doc.data().price,
-                  date: doc.data().date
-                }));
-
-              const updatedServices = [...formatCurrencytServices, ...selectedServices];
-              setValue("services", updatedServices);
-
-              const total = updatedServices.reduce((sum, service) => {
-                const price = typeof service.price === 'string' 
-                  ? Number(service.price.replace(/\D/g, ''))
-                  : Number(service.price);
-                return sum + price;
-              }, 0);
-
-              setValue("price", currencyMask(total.toString()));
-              
-              if (total < totalPaid && payments.length > 0) {
-                toast.warning('O valor total foi atualizado, mas os pagamentos registrados excedem o novo valor.');
-              }
-            } catch (error) {
-              console.error("Erro ao buscar serviços selecionados:", error);
-              toast.error("Erro ao adicionar serviços!");
-            }
-          };
-
-          fetchSelectedServices();
-          setShowServicesModal(false);
-        }}
-        title="Selecione os procedimentos"
-      />
-
-      <CustomModalProfessionals
-        visible={showProfessionalsModal}
-        onClose={() => setShowProfessionalsModal(false)}
-        onConfirm={(selectedItems) => {
-          const formatCurrencytProfessionals = professionals || [];
-          const existingIds = formatCurrencytProfessionals.map(p => p.id);
-          const newProfessionals = selectedItems.filter(id => !existingIds.includes(id));
-          
-          const fetchSelectedProfessionals = async () => {
-            try {
-              const professionalsRef = collection(database, "Profissionals");
-              const selectedDocs = await Promise.all(
-                newProfessionals.map(id => getDoc(doc(professionalsRef, id)))
-              );
-              
-              const selectedProfessionals = selectedDocs
-                .filter(doc => doc.exists())
-                .map(doc => ({
-                  id: doc.id,
-                  name: doc.data().name,
-                  specialty: doc.data().specialty
-                }));
-
-              setValue("professionals", [...formatCurrencytProfessionals, ...selectedProfessionals]);
-            } catch (error) {
-              console.error("Erro ao buscar profissionais selecionados:", error);
-              toast.error("Erro ao adicionar profissionais!");
-            }
-          };
-
-          fetchSelectedProfessionals();
-          setShowProfessionalsModal(false);
-        }}
-        title="Selecione os profissionais"
-      />
-
-      <CustomModalClients
-        visible={showClientsModal}
-        onClose={() => setShowClientsModal(false)}
-        onSelect={(client) => {
-          setValue("name", client.name);
-          setValue("cpf", cpfMask(client.cpf));
-          setValue("phone", celularMask(client.phone));
-          if (client.email) {
-            setValue("email", client.email);
-          }
-          setSelectedClientId(client.id);
-          setShowClientsModal(false);
-        }}
-        title="Selecionar Cliente"
-      />
-
-      {showInstallmentsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Selecione o número de parcelas</h2>
-              <Button variant="ghost" onClick={() => setShowInstallmentsModal(false)}>
-                Fechar
-              </Button>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
-                <Button 
-                  key={num} 
-                  variant="outline" 
-                  onClick={() => handleInstallmentsSelect(num)}
-                  className="p-4"
-                >
-                  {num}x
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
-} 
+
+  // Renderizar Etapa 5: Revisão e Confirmação (apenas Serviço Completo)
+  const renderStep5 = () => {
+    const clientData = clientForm.getValues();
+    const procedureData = procedureForm.getValues();
+    const paymentData = paymentForm.getValues();
+    const observationsData = observationsForm.getValues();
+    
+    return (
+      <div className="max-w-md mx-auto">
+        <h2 className="text-2xl font-bold text-pink-500 text-center mb-6">
+          Revisão e Confirmação
+        </h2>
+        
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-base font-semibold text-pink-500 flex items-center gap-2 mb-3">
+              <FileText className="h-6 w-6" />
+              Dados do Cliente
+            </h3>
+            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+              <p className="text-sm text-gray-700">Nome: {clientData.name}</p>
+              <p className="text-sm text-gray-700">Celular: {clientData.phone}</p>
+              <p className="text-sm text-gray-700">Email: {clientData.email}</p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-base font-semibold text-pink-500 flex items-center gap-2 mb-3">
+              <CalendarIcon className="h-6 w-6" />
+              Informações do Procedimento
+            </h3>
+            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+              <p className="text-sm text-gray-700">Profissional: {selectedProfessional?.name || "Não selecionado"}</p>
+              <p className="text-sm text-gray-700">Data: {format(procedureData.date, "dd/MM/yyyy", { locale: ptBR })}</p>
+              <p className="text-sm text-gray-700">Horário: {procedureData.startTime}</p>
+              <div>
+                <p className="text-sm font-semibold text-gray-700">Procedimento:</p>
+                <ul className="list-disc list-inside">
+                  <li className="text-sm text-gray-700">{selectedProcedure?.name || "Não selecionado"} - {selectedProcedure?.price ? formatCurrencyFromCents(selectedProcedure.price) : "R$ 0,00"}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-base font-semibold text-pink-500 flex items-center gap-2 mb-3">
+              <CreditCard className="h-6 w-6" />
+              Pagamento
+            </h3>
+            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+              {payments.length > 0 ? (
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Pagamentos Realizados:</p>
+                  {payments.map((payment, index) => (
+                    <div key={index} className="flex justify-between items-center py-1">
+                      <span className="text-sm text-gray-600">
+                        {payment.method === "dinheiro" ? "Dinheiro" : payment.method === "pix" ? "PIX" : payment.method === "cartao" ? "Cartão" : "Boleto"}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-700">{payment.value}</span>
+                    </div>
+                  ))}
+                  
+                  {/* Mostrar saldo pendente se houver */}
+                  {totalPaid < (totalPrice / 100) && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-semibold text-orange-600">Saldo Pendente:</span>
+                        <span className="text-sm font-semibold text-orange-600">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((totalPrice / 100) - totalPaid)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Mostrar se está pago integralmente */}
+                  {totalPaid >= (totalPrice / 100) && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-sm font-semibold text-green-600 text-center">
+                        ✅ Serviço Pago Integralmente
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-gray-700">Tipo: {paymentType === "total" ? "Pagamento Total" : "Pagamento Parcial"}</p>
+                  <p className="text-sm text-gray-700">Método: {newPayment.method === "dinheiro" ? "Dinheiro" : newPayment.method === "pix" ? "PIX" : newPayment.method === "cartao" ? "Cartão" : "Boleto"}</p>
+                  <p className="text-sm text-gray-500 italic">Nenhum pagamento registrado ainda</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex space-x-4">
+            <Button
+              onClick={goBack}
+              className="flex-1 bg-pink-500 hover:bg-pink-600"
+            >
+              Voltar
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  setIsLoading(true);
+                  const clientData = clientForm.getValues();
+                  const procedureData = procedureForm.getValues();
+                  const paymentData = paymentForm.getValues();
+                  const observationsData = observationsForm.getValues();
+                  
+                  // Processar dados do cliente
+                  const clientName = clientData.name.trim();
+                  const clientCpf = cpfUnMask(clientData.cpf || "");
+                  const clientPhone = celularUnMask(clientData.phone);
+                  
+                  // Criar ou atualizar cliente
+                  if (clientName && (clientCpf || clientPhone)) {
+                    await createOrUpdateClient(clientName, clientCpf, clientPhone, clientData.email);
+                  }
+                  
+                  const processedPayments = payments.map(payment => {
+                    const numericValue = typeof payment.value === 'string' 
+                      ? Number(payment.value.replace(/\D/g, ''))
+                      : Number(payment.value);
+                    
+                    return {
+                      method: payment.method,
+                      value: numericValue,
+                      date: payment.date,
+                      installments: payment.installments || null,
+                    };
+                  });
+
+                  const paidAmount = processedPayments.reduce((sum, payment) => sum + payment.value, 0);
+                  
+                  // Verificar limite de imagens antes de criar o serviço
+                  if (contactId && planLimits) {
+                    const beforePhotos = observationsData.beforePhotos || [];
+                    const afterPhotos = observationsData.afterPhotos || [];
+                    const newImagesCount = beforePhotos.length + afterPhotos.length;
+                    
+                    if (newImagesCount > 0) {
+                      const canCreate = await checkClientImageLimit(contactId, newImagesCount);
+                      if (!canCreate) {
+                        return; // Parar a criação se exceder o limite
+                      }
+                    }
+                  }
+
+                  const serviceData = {
+                    name: clientData.name,
+                    cpf: clientCpf,
+                    phone: clientPhone,
+                    email: clientData.email || "",
+                    date: procedureData.date ? format(procedureData.date, 'yyyy-MM-dd') : new Date().toISOString().split('T')[0],
+                    time: procedureData.startTime || "",
+                    price: selectedProcedure?.price || 0,
+                    paidAmount: paidAmount,
+                    priority: "",
+                    duration: procedureData.endTime ? `${procedureData.startTime} - ${procedureData.endTime}` : "",
+                    observations: observationsData.observations || "",
+                    services: selectedProcedure ? [{
+                      id: selectedProcedure.id,
+                      code: "",
+                      name: selectedProcedure.name,
+                      price: String(selectedProcedure.price),
+                      date: procedureData.date ? format(procedureData.date, 'yyyy-MM-dd') : new Date().toISOString().split('T')[0]
+                    }] : [],
+                    professionals: selectedProfessional ? [{
+                      id: selectedProfessional.id,
+                      name: selectedProfessional.name,
+                      specialty: selectedProfessional.specialty || ""
+                    }] : [],
+                    budget: false,
+                    sendToFinance: false,
+                    payments: processedPayments,
+                    documents: observationsData.documents || [],
+                    beforePhotos: observationsData.beforePhotos || [],
+                    afterPhotos: observationsData.afterPhotos || [],
+                    uid: uid,
+                    contactUid: selectedClientId || contactId,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  };
+
+                  if (serviceId) {
+                    // Atualizar serviço existente
+                    const serviceRef = doc(database, "Services", serviceId);
+                    await updateDoc(serviceRef, {
+                      ...serviceData,
+                      updatedAt: new Date().toISOString()
+                    });
+                    toast.success("Serviço atualizado com sucesso!");
+                  } else {
+                    // Criar novo serviço
+                    await addDoc(collection(database, "Services"), serviceData);
+                    toast.success("Serviço criado com sucesso!");
+                  }
+                  
+                  router.push("/dashboard/servicos");
+                } catch (error) {
+                  console.error("Erro ao criar/atualizar serviço:", error);
+                  toast.error("Erro ao criar/atualizar serviço!");
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              disabled={isLoading}
+            >
+              {isLoading ? (serviceId ? "Atualizando..." : "Criando...") : (serviceId ? "Atualizar Serviço" : "Criar Serviço")}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-lg mx-auto bg-white rounded-lg shadow-lg p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={goBack}
+            className="text-gray-600"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <span className="text-sm font-medium text-pink-500 underline">
+            {serviceId ? "Editando Serviço" : "Novo Serviço"} - {getStepTitle()}
+          </span>
+        </div>
+
+        {/* Service Type Toggle */}
+        <div className="flex justify-center mb-6">
+          <div className="flex bg-gray-100 rounded-lg p-1 gap-3">
+            <Button
+              variant={serviceType === "budget" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => {
+                setServiceType("budget");
+                resetAllForms();
+                setCurrentStep(1);
+              }}
+              className={serviceType === "budget" ? "bg-pink-500 text-white" : "text-gray-600"}
+            >
+              Orçamento
+            </Button>
+            <Button
+              variant={serviceType === "complete" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => {
+                setServiceType("complete");
+                resetAllForms();
+                setCurrentStep(1);
+              }}
+              className={serviceType === "complete" ? "bg-pink-500 text-white" : "text-gray-600"}
+            >
+              Serviço Completo
+            </Button>
+          </div>
+        </div>
+
+        {/* Progress Dots */}
+        {renderProgressDots()}
+
+        {/* Step Content */}
+        {currentStep === 1 && renderStep1()}
+        {currentStep === 2 && renderStep2()}
+        {currentStep === 3 && renderStep3()}
+        {currentStep === 4 && renderStep4()}
+        {currentStep === 5 && renderStep5()}
+
+        {/* Modals */}
+        <CustomModalServices
+          visible={showServicesModal}
+          onClose={() => setShowServicesModal(false)}
+          onConfirm={handleServiceSelect}
+          title="Selecione o procedimento"
+        />
+        
+        <CustomModalProfessionals
+          visible={showProfessionalsModal}
+          onClose={() => setShowProfessionalsModal(false)}
+          onConfirm={handleProfessionalSelect}
+          title="Selecione o profissional"
+        />
+
+        <CustomModalClients
+          visible={showClientsModal}
+          onClose={() => setShowClientsModal(false)}
+          onSelect={handleClientSelect}
+          title="Selecione o cliente"
+        />
+
+        {showInstallmentsModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Selecione o número de parcelas</h2>
+                <Button variant="ghost" onClick={() => setShowInstallmentsModal(false)}>
+                  Fechar
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
+                  <Button 
+                    key={num} 
+                    variant="outline" 
+                    onClick={() => handleInstallmentsSelect(num)}
+                    className="p-4"
+                  >
+                    {num}x
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

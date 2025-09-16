@@ -86,6 +86,8 @@ interface Service {
   time: string;
   price: number;
   budget: boolean;
+  beforePhotos?: Array<{ url: string; description?: string }>;
+  afterPhotos?: Array<{ url: string; description?: string }>;
 }
 
 interface Transaction {
@@ -2573,6 +2575,110 @@ export default function Agenda() {
                         />
                       </div>
                     </div>
+                    
+                    {/* Status do Cliente */}
+                    {planLimits && appointmentToConvert && (
+                      <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                            <span className="font-semibold text-blue-800">Status do Cliente</span>
+                          </div>
+                          <span className="text-sm text-blue-600">
+                            {(() => {
+                              // Calcular imagens existentes do cliente
+                              const clientName = appointmentToConvert.client?.name;
+                              if (!clientName) return "0/0 imagens";
+                              
+                              // Buscar imagens existentes do cliente
+                              const existingImages = services
+                                .filter(service => service.name === clientName)
+                                .reduce((total, service) => {
+                                  const beforeCount = service.beforePhotos?.length || 0;
+                                  const afterCount = service.afterPhotos?.length || 0;
+                                  return total + beforeCount + afterCount;
+                                }, 0);
+                              
+                              return `${existingImages}/${planLimits.images} imagens`;
+                            })()}
+                          </span>
+                        </div>
+                        <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+                          <div 
+                            className={`h-2 rounded-full ${
+                              (() => {
+                                const clientName = appointmentToConvert.client?.name;
+                                if (!clientName) return 'bg-gray-500';
+                                
+                                const existingImages = services
+                                  .filter(service => service.name === clientName)
+                                  .reduce((total, service) => {
+                                    const beforeCount = service.beforePhotos?.length || 0;
+                                    const afterCount = service.afterPhotos?.length || 0;
+                                    return total + beforeCount + afterCount;
+                                  }, 0);
+                                
+                                const ratio = existingImages / planLimits.images;
+                                return ratio > 0.9 ? 'bg-red-500' :
+                                       ratio > 0.8 ? 'bg-orange-500' : 'bg-green-500';
+                              })()
+                            }`}
+                            style={{ 
+                              width: `${Math.min((() => {
+                                const clientName = appointmentToConvert.client?.name;
+                                if (!clientName) return 0;
+                                
+                                const existingImages = services
+                                  .filter(service => service.name === clientName)
+                                  .reduce((total, service) => {
+                                    const beforeCount = service.beforePhotos?.length || 0;
+                                    const afterCount = service.afterPhotos?.length || 0;
+                                    return total + beforeCount + afterCount;
+                                  }, 0);
+                                
+                                return (existingImages / planLimits.images) * 100;
+                              })(), 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                        <div className="text-sm text-blue-700">
+                          {(() => {
+                            const clientName = appointmentToConvert.client?.name;
+                            if (!clientName) return "Cliente não identificado";
+                            
+                            const existingImages = services
+                              .filter(service => service.name === clientName)
+                              .reduce((total, service) => {
+                                const beforeCount = service.beforePhotos?.length || 0;
+                                const afterCount = service.afterPhotos?.length || 0;
+                                return total + beforeCount + afterCount;
+                              }, 0);
+                            
+                            const remaining = Math.max(0, planLimits.images - existingImages);
+                            
+                            if (remaining === 0) {
+                              return (
+                                <span className="text-red-600 font-medium">
+                                  ⚠️ Limite atingido! Não é possível adicionar mais imagens.
+                                </span>
+                              );
+                            } else if (remaining <= 2) {
+                              return (
+                                <span className="text-orange-600 font-medium">
+                                  ⚠️ Limite próximo! Restam apenas {remaining} imagens disponíveis.
+                                </span>
+                              );
+                            } else {
+                              return (
+                                <span className="text-green-600">
+                                  ✅ Restam {remaining} imagens disponíveis para este cliente.
+                                </span>
+                              );
+                            }
+                          })()}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2806,14 +2912,65 @@ export default function Agenda() {
 
                       {/* Fotos Antes */}
                       <Card className="p-4">
-                        <h3 className="text-lg font-medium mb-4">Fotos Antes</h3>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-medium">Fotos Antes</h3>
+                          {planLimits && appointmentToConvert && (
+                            <div className="text-sm text-gray-600">
+                              {(() => {
+                                const clientName = appointmentToConvert.client?.name;
+                                if (!clientName) return "0/0 imagens";
+                                
+                                const existingImages = services
+                                  .filter(service => service.name === clientName)
+                                  .reduce((total, service) => {
+                                    const beforeCount = service.beforePhotos?.length || 0;
+                                    const afterCount = service.afterPhotos?.length || 0;
+                                    return total + beforeCount + afterCount;
+                                  }, 0);
+                                
+                                const beforePhotos = conversionData.beforePhotos.length;
+                                const afterPhotos = conversionData.afterPhotos.length;
+                                const serviceImages = beforePhotos + afterPhotos;
+                                const totalImages = existingImages + serviceImages;
+                                const remaining = Math.max(0, planLimits.images - totalImages);
+                                
+                                return (
+                                  <span className={remaining === 0 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                                    {totalImages}/{planLimits.images} imagens
+                                    {remaining > 0 && ` (${remaining} restantes)`}
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
                         <div className="space-y-4">
                           <div className="flex items-center space-x-2">
                             <Button
                               type="button"
                               variant="outline"
                               onClick={() => setUploadType('before')}
-                              disabled={isUploading}
+                              disabled={isUploading || (() => {
+                                if (!planLimits || !appointmentToConvert) return false;
+                                
+                                const clientName = appointmentToConvert.client?.name;
+                                if (!clientName) return false;
+                                
+                                const existingImages = services
+                                  .filter(service => service.name === clientName)
+                                  .reduce((total, service) => {
+                                    const beforeCount = service.beforePhotos?.length || 0;
+                                    const afterCount = service.afterPhotos?.length || 0;
+                                    return total + beforeCount + afterCount;
+                                  }, 0);
+                                
+                                const beforePhotos = conversionData.beforePhotos.length;
+                                const afterPhotos = conversionData.afterPhotos.length;
+                                const serviceImages = beforePhotos + afterPhotos;
+                                const totalImages = existingImages + serviceImages;
+                                
+                                return totalImages >= planLimits.images;
+                              })()}
                             >
                               Adicionar Fotos Antes
                             </Button>
@@ -2860,14 +3017,65 @@ export default function Agenda() {
 
                       {/* Fotos Depois */}
                       <Card className="p-4">
-                        <h3 className="text-lg font-medium mb-4">Fotos Depois</h3>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-medium">Fotos Depois</h3>
+                          {planLimits && appointmentToConvert && (
+                            <div className="text-sm text-gray-600">
+                              {(() => {
+                                const clientName = appointmentToConvert.client?.name;
+                                if (!clientName) return "0/0 imagens";
+                                
+                                const existingImages = services
+                                  .filter(service => service.name === clientName)
+                                  .reduce((total, service) => {
+                                    const beforeCount = service.beforePhotos?.length || 0;
+                                    const afterCount = service.afterPhotos?.length || 0;
+                                    return total + beforeCount + afterCount;
+                                  }, 0);
+                                
+                                const beforePhotos = conversionData.beforePhotos.length;
+                                const afterPhotos = conversionData.afterPhotos.length;
+                                const serviceImages = beforePhotos + afterPhotos;
+                                const totalImages = existingImages + serviceImages;
+                                const remaining = Math.max(0, planLimits.images - totalImages);
+                                
+                                return (
+                                  <span className={remaining === 0 ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                                    {totalImages}/{planLimits.images} imagens
+                                    {remaining > 0 && ` (${remaining} restantes)`}
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
                         <div className="space-y-4">
                           <div className="flex items-center space-x-2">
                             <Button
                               type="button"
                               variant="outline"
                               onClick={() => setUploadType('after')}
-                              disabled={isUploading}
+                              disabled={isUploading || (() => {
+                                if (!planLimits || !appointmentToConvert) return false;
+                                
+                                const clientName = appointmentToConvert.client?.name;
+                                if (!clientName) return false;
+                                
+                                const existingImages = services
+                                  .filter(service => service.name === clientName)
+                                  .reduce((total, service) => {
+                                    const beforeCount = service.beforePhotos?.length || 0;
+                                    const afterCount = service.afterPhotos?.length || 0;
+                                    return total + beforeCount + afterCount;
+                                  }, 0);
+                                
+                                const beforePhotos = conversionData.beforePhotos.length;
+                                const afterPhotos = conversionData.afterPhotos.length;
+                                const serviceImages = beforePhotos + afterPhotos;
+                                const totalImages = existingImages + serviceImages;
+                                
+                                return totalImages >= planLimits.images;
+                              })()}
                             >
                               Adicionar Fotos Depois
                             </Button>

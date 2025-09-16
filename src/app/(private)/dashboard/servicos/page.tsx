@@ -16,6 +16,8 @@ import {
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 import { formatDateToBrazilian } from "@/utils/formater/date";
 import { formatCurrencyFromCents } from "@/utils/maks/masks";
+import ServiceViewModal from "@/components/ServiceViewModal";
+import { useState } from "react";
 
 interface Service {
   id: string;
@@ -54,6 +56,8 @@ interface Service {
 export default function Services() {
   const { data: services, loading } = useFirestoreCollection<Service>("Services");
   const router = useRouter();
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const calculateTotals = () => {
     if (!services || services.length === 0) {
@@ -111,6 +115,16 @@ export default function Services() {
     }
   };
 
+  const handleViewService = (service: Service) => {
+    setSelectedService(service);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedService(null);
+  };
+
   const handleEdit = (id: string) => {
     router.push(`/dashboard/servicos/novo?id=${id}`);
   };
@@ -154,11 +168,11 @@ export default function Services() {
                   <TableHead>Cliente</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Hora</TableHead>
-                  <TableHead>Valor Total</TableHead>
                   <TableHead>Valor Pago</TableHead>
+                  <TableHead>Valor Pendente</TableHead>
+                  <TableHead>Valor Total</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Formas de Pagamento</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -175,12 +189,19 @@ export default function Services() {
                   const valorTotal = service.price;
                   console.log(valorTotal);
                   return (
-                    <TableRow key={service.id}>
+                    <TableRow 
+                      key={service.id} 
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleViewService(service)}
+                    >
                       <TableCell>{service.name}</TableCell>
                       <TableCell>{formatDateToBrazilian(service.date)}</TableCell>
                       <TableCell>{service.time}</TableCell>
-                      <TableCell>{formatCurrencyFromCents(valorTotal)}</TableCell>
                       <TableCell className="text-green-600">{formatCurrencyFromCents(paidAmount)}</TableCell>
+                      <TableCell className={service.budget ? "text-gray-400" : (paidAmount < valorTotal ? "text-orange-600 font-semibold" : "text-gray-500")}>
+                        {service.budget ? "N/A" : (paidAmount < valorTotal ? formatCurrencyFromCents(valorTotal - paidAmount) : "R$ 0,00")}
+                      </TableCell>
+                      <TableCell>{formatCurrencyFromCents(valorTotal)}</TableCell>
                       <TableCell>
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
@@ -255,16 +276,6 @@ export default function Services() {
                           <span className="text-gray-500">Sem pagamentos</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
-                          <Button variant="outline" size="sm" onClick={() => handleEdit(service.id)}>
-                            Editar
-                          </Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleDelete(service.id)}>
-                            Excluir
-                          </Button>
-                        </div>
-                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -273,6 +284,13 @@ export default function Services() {
           </div>
         </>
       )}
+
+      {/* Modal de detalhes do serviço */}
+      <ServiceViewModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        service={selectedService}
+      />
     </div>
   );
 }

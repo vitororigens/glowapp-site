@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   X, 
   Edit, 
+  Trash2,
   Calendar, 
   Clock, 
   DollarSign, 
@@ -98,6 +99,24 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
     onClose();
   };
 
+  const handleDelete = async () => {
+    if (window.confirm("Tem certeza que deseja excluir este serviço?")) {
+      try {
+        const { deleteDoc, doc } = await import('firebase/firestore');
+        const { database } = await import('@/services/firebase');
+        const { toast } = await import('react-toastify');
+        
+        await deleteDoc(doc(database, "Services", service.id));
+        toast.success("Serviço excluído com sucesso!");
+        onClose();
+      } catch (error) {
+        console.error("Erro ao excluir serviço:", error);
+        const { toast } = await import('react-toastify');
+        toast.error("Erro ao excluir serviço!");
+      }
+    }
+  };
+
   const allPhotos = [
     ...(service.beforePhotos || []).map(photo => ({ ...photo, type: 'before' as const })),
     ...(service.afterPhotos || []).map(photo => ({ ...photo, type: 'after' as const }))
@@ -135,26 +154,15 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
             <FileText className="h-5 w-5" />
             Detalhes Completos do Serviço
           </DialogTitle>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleEdit}
-              className="flex items-center gap-2"
-            >
-              <Edit className="h-4 w-4" />
-              Editar
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="flex items-center gap-2"
-            >
-              <X className="h-4 w-4" />
-              Fechar
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="flex items-center gap-2"
+          >
+            <X className="h-4 w-4" />
+            Fechar
+          </Button>
         </DialogHeader>
         
         <div className="space-y-6">
@@ -494,6 +502,26 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
               )}
             </div>
           )}
+        </div>
+
+        {/* Botões de ação no final do modal */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <Button
+            variant="outline"
+            onClick={handleEdit}
+            className="flex items-center gap-2"
+          >
+            <Edit className="h-4 w-4" />
+            Editar
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            className="flex items-center gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Excluir
+          </Button>
         </div>
       </DialogContent>
       

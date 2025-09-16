@@ -199,7 +199,7 @@ export default function DashboardHome() {
         ).length 
       : 0;
 
-    // Últimos serviços (ordenados por data de criação)
+    // Últimos serviços (ordenados por data de criação) - APENAS SERVIÇOS, NÃO ORÇAMENTOS
     const recentServices = [...services]
       .filter(service => {
         // Debug: verificar estrutura dos serviços
@@ -208,7 +208,8 @@ export default function DashboardHome() {
           return false;
         }
         
-        return true;
+        // Filtrar apenas serviços (não orçamentos)
+        return !service.budget;
       })
       .sort((a, b) => {
         // Usar createdAt se disponível, senão usar a data do serviço

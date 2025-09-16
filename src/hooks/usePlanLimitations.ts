@@ -98,7 +98,7 @@ export function usePlanLimitations() {
   };
 
   const canAddImageToClient = (clientCurrentImages: number): boolean => {
-    return planLimits.isActive && clientCurrentImages <= planLimits.images;
+    return planLimits.isActive && clientCurrentImages < planLimits.images;
   };
 
   const getRemainingClients = (currentClientCount: number): number => {
