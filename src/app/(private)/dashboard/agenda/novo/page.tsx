@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthContext } from "@/context/AuthContext";
 import { useUserData } from "@/hooks/useUserData";
+import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { database } from "@/services/firebase";
-import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, where, updateDoc } from "firebase/firestore";
 import { z } from "zod";
 import { toast } from "react-toastify";
 import { Textarea } from "@/components/ui/textarea";
@@ -87,8 +88,16 @@ export default function NewAppointment() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(null);
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
+  const [clientImageInfo, setClientImageInfo] = useState<{
+    existing: number;
+    remaining: number;
+    limit: number;
+  } | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [contactId, setContactId] = useState<string | null>(null);
   const { user } = useAuthContext();
   const { userData } = useUserData();
+  const { planLimits } = usePlanLimitations();
   const uid = user?.uid;
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -135,11 +144,30 @@ export default function NewAppointment() {
     }
   }, [appointmentId, uid, procedures, professionals]);
 
+  // Função para extrair apenas o nome (sem especialidade)
+  const extractNameOnly = (fullName: string): string => {
+    if (!fullName) return '';
+    
+    // Se o nome contém a especialidade, tentar separar
+    // Assumindo que a especialidade vem depois do nome
+    const words = fullName.trim().split(' ');
+    
+    // Se tem mais de 2 palavras, provavelmente a última é a especialidade
+    if (words.length > 2) {
+      // Remover a última palavra (especialidade) e juntar o resto
+      return words.slice(0, -1).join(' ');
+    }
+    
+    // Se tem 2 palavras ou menos, retornar o nome completo
+    return fullName;
+  };
+
   // Selecionar automaticamente o usuário logado como profissional
   useEffect(() => {
     if (!selectedProfessional) {
       // Usar dados do userData se disponível, senão usar dados básicos do Firebase Auth
-      const userName = userData?.name || user?.displayName || user?.email?.split('@')[0] || 'Usuário';
+      const fullUserName = userData?.name || user?.displayName || user?.email?.split('@')[0] || 'Usuário';
+      const userName = extractNameOnly(fullUserName);
       const userEmail = userData?.email || user?.email || '';
       
       // Criar um objeto Professional com os dados do usuário logado
@@ -339,7 +367,64 @@ export default function NewAppointment() {
   };
 
   // Handlers
-  const handleClientSubmit = (data: ClientData) => {
+  const handleClientSubmit = async (data: ClientData) => {
+    // Criar ou atualizar cliente automaticamente
+    if (data.name && (data.cpf || data.phone)) {
+      const contactUid = await createOrUpdateClientWithLimitations(
+        data.name, 
+        data.cpf || "", 
+        data.phone, 
+        data.email || ""
+      );
+      
+      // Definir o contactId para aplicar limitações de imagens
+      if (contactUid) {
+        setSelectedClientId(contactUid);
+        setContactId(contactUid);
+        
+        // Verificar e mostrar status de imagens do cliente criado
+        if (planLimits) {
+          try {
+            const servicesRef = collection(database, "Services");
+            const q = query(
+              servicesRef,
+              where("uid", "==", uid),
+              where("contactUid", "==", contactUid)
+            );
+            
+            const querySnapshot = await getDocs(q);
+            let existingImages = 0;
+            
+            querySnapshot.docs.forEach(doc => {
+              const data = doc.data();
+              const beforeCount = data.beforePhotos?.length || 0;
+              const afterCount = data.afterPhotos?.length || 0;
+              existingImages += beforeCount + afterCount;
+            });
+
+            const remaining = Math.max(0, planLimits.images - existingImages);
+            
+            // Armazenar informações do cliente
+            setClientImageInfo({
+              existing: existingImages,
+              remaining: remaining,
+              limit: planLimits.images
+            });
+            
+            if (existingImages >= planLimits.images) {
+              toast.warning(`Cliente ${data.name} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
+            } else if (remaining <= 2) {
+              toast.info(`Cliente ${data.name} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
+            } else {
+              toast.success(`Cliente ${data.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
+            }
+          } catch (error) {
+            console.error('Erro ao verificar imagens do cliente:', error);
+          }
+        }
+      }
+    }
+    
     setCurrentStep(2);
   };
 
@@ -389,6 +474,136 @@ export default function NewAppointment() {
     }
   };
 
+  // Função para criar ou atualizar cliente com verificação de limitações
+  const createOrUpdateClientWithLimitations = async (clientName: string, clientCpf: string, clientPhone: string, clientEmail: string): Promise<string | null> => {
+    if (!uid) return null;
+    
+    try {
+      const contactsRef = collection(database, "Contacts");
+      
+      let clientExists = false;
+      let existingClientId = null;
+      
+      // Verificar se cliente já existe pelo CPF
+      if (clientCpf) {
+        const cpfQuery = query(contactsRef, where("cpf", "==", clientCpf));
+        const cpfSnapshot = await getDocs(cpfQuery);
+        
+        if (!cpfSnapshot.empty) {
+          clientExists = true;
+          existingClientId = cpfSnapshot.docs[0].id;
+          console.log("Cliente encontrado pelo CPF");
+        }
+      }
+      
+      // Verificar se cliente já existe pelo telefone
+      if (!clientExists && clientPhone) {
+        const phoneQuery = query(contactsRef, where("phone", "==", clientPhone));
+        const phoneSnapshot = await getDocs(phoneQuery);
+        
+        if (!phoneSnapshot.empty) {
+          clientExists = true;
+          existingClientId = phoneSnapshot.docs[0].id;
+          console.log("Cliente encontrado pelo telefone");
+        }
+      }
+      
+      // Verificar se cliente já existe pelo nome
+      if (!clientExists && clientName) {
+        const nameQuery = query(contactsRef, where("name", "==", clientName));
+        const nameSnapshot = await getDocs(nameQuery);
+        
+        if (!nameSnapshot.empty) {
+          clientExists = true;
+          existingClientId = nameSnapshot.docs[0].id;
+          console.log("Cliente encontrado pelo nome");
+          
+          // Atualizar dados do cliente existente
+          const existingClientDoc = nameSnapshot.docs[0];
+          const existingClientData = existingClientDoc.data();
+          let needsUpdate = false;
+          
+          if (clientCpf && !existingClientData.cpf) {
+            needsUpdate = true;
+          }
+          
+          if (clientPhone && !existingClientData.phone) {
+            needsUpdate = true;
+          }
+          
+          if (clientEmail && !existingClientData.email) {
+            needsUpdate = true;
+          }
+          
+          if (needsUpdate) {
+            try {
+              await updateDoc(existingClientDoc.ref, {
+                cpf: clientCpf || existingClientData.cpf || "",
+                phone: clientPhone || existingClientData.phone || "",
+                email: clientEmail || existingClientData.email || "",
+                updatedAt: new Date().toISOString()
+              });
+              console.log("Dados do cliente atualizados");
+              toast.info("Dados do cliente atualizados", {
+                position: "top-center",
+                autoClose: 2000,
+              });
+            } catch (error) {
+              console.error("Erro ao atualizar dados do cliente:", error);
+            }
+          }
+        }
+      }
+      
+      // Criar novo cliente se não existir
+      if (!clientExists) {
+        console.log("Cliente não encontrado. Criando novo cliente...");
+        
+        // Nota: Não bloqueamos a criação automática de clientes aqui
+        // As limitações de imagens serão aplicadas quando o cliente for usado
+        
+        const newContactRef = doc(collection(database, "Contacts"));
+        
+        const newContactData = {
+          name: clientName,
+          cpf: clientCpf,
+          phone: clientPhone,
+          email: clientEmail || "",
+          uid,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        try {
+          await setDoc(newContactRef, newContactData);
+          console.log("Novo cliente criado com ID:", newContactRef.id);
+          toast.info("Novo cliente adicionado ao sistema", {
+            position: "top-center",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+          return newContactRef.id;
+        } catch (error: any) {
+          console.error("Erro ao criar cliente:", error);
+          toast.error("Não foi possível adicionar o cliente automaticamente, mas o agendamento será salvo", {
+            position: "top-center",
+            autoClose: 5000,
+          });
+          return null;
+        }
+      } else {
+        console.log("Cliente já existe, não é necessário criar.");
+        return existingClientId;
+      }
+    } catch (error) {
+      console.error("Erro ao processar cliente:", error);
+      return null;
+    }
+  };
+
   const handleCreateAppointment = async () => {
     if (!uid) return;
     
@@ -402,6 +617,64 @@ export default function NewAppointment() {
       const numericPrice = typeof procedurePrice === 'string' 
         ? parseInt(procedurePrice) || 0 
         : (typeof procedurePrice === 'number' ? procedurePrice : 0);
+
+      // Verificar se o cliente existe e aplicar limitações se necessário
+      let contactUid = null;
+      if (clientData.name && (clientData.cpf || clientData.phone)) {
+        contactUid = await createOrUpdateClientWithLimitations(
+          clientData.name, 
+          clientData.cpf || "", 
+          clientData.phone, 
+          clientData.email || ""
+        );
+        
+        // Definir o contactId para aplicar limitações de imagens
+        if (contactUid) {
+          setSelectedClientId(contactUid);
+          setContactId(contactUid);
+          
+          // Verificar e mostrar status de imagens do cliente criado
+          if (planLimits) {
+            try {
+              const servicesRef = collection(database, "Services");
+              const q = query(
+                servicesRef,
+                where("uid", "==", uid),
+                where("contactUid", "==", contactUid)
+              );
+              
+              const querySnapshot = await getDocs(q);
+              let existingImages = 0;
+              
+              querySnapshot.docs.forEach(doc => {
+                const data = doc.data();
+                const beforeCount = data.beforePhotos?.length || 0;
+                const afterCount = data.afterPhotos?.length || 0;
+                existingImages += beforeCount + afterCount;
+              });
+
+              const remaining = Math.max(0, planLimits.images - existingImages);
+              
+              // Armazenar informações do cliente
+              setClientImageInfo({
+                existing: existingImages,
+                remaining: remaining,
+                limit: planLimits.images
+              });
+              
+              if (existingImages >= planLimits.images) {
+                toast.warning(`Cliente ${clientData.name} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
+              } else if (remaining <= 2) {
+                toast.info(`Cliente ${clientData.name} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
+              } else {
+                toast.success(`Cliente ${clientData.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
+              }
+            } catch (error) {
+              console.error('Erro ao verificar imagens do cliente:', error);
+            }
+          }
+        }
+      }
 
       const appointmentDoc = {
         client: {
@@ -422,6 +695,7 @@ export default function NewAppointment() {
           professionalName: selectedProfessional?.name || "",
         },
         uid,
+        contactUid, // Adicionar contactUid para rastreamento
         createdAt: new Date().toISOString(),
         status: 'pendente'
       };
@@ -577,6 +851,45 @@ export default function NewAppointment() {
           Próximo
         </Button>
       </form>
+      
+      {/* Indicador de Status do Cliente */}
+      {clientImageInfo && (
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span className="font-semibold text-blue-800">Status do Cliente</span>
+            </div>
+            <span className="text-sm text-blue-600">
+              {clientImageInfo.existing}/{clientImageInfo.limit} imagens
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+            <div 
+              className={`h-2 rounded-full ${
+                clientImageInfo.existing / clientImageInfo.limit > 0.9 ? 'bg-red-500' :
+                clientImageInfo.existing / clientImageInfo.limit > 0.8 ? 'bg-orange-500' : 'bg-green-500'
+              }`}
+              style={{ width: `${Math.min((clientImageInfo.existing / clientImageInfo.limit) * 100, 100)}%` }}
+            ></div>
+          </div>
+          <div className="text-sm text-blue-700">
+            {clientImageInfo.remaining === 0 ? (
+              <span className="text-red-600 font-medium">
+                ⚠️ Limite atingido! Não é possível adicionar mais imagens.
+              </span>
+            ) : clientImageInfo.remaining <= 2 ? (
+              <span className="text-orange-600 font-medium">
+                ⚠️ Limite próximo! Restam apenas {clientImageInfo.remaining} imagens disponíveis.
+              </span>
+            ) : (
+              <span className="text-green-600">
+                ✅ Restam {clientImageInfo.remaining} imagens disponíveis para este cliente.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -855,7 +1168,7 @@ export default function NewAppointment() {
         <CustomModalClients
           visible={showClientsModal}
           onClose={() => setShowClientsModal(false)}
-          onSelect={(client) => {
+          onSelect={async (client) => {
             clientForm.setValue("name", client.name || "");
             clientForm.setValue("phone", phoneMask(client.phone || ""));
             clientForm.setValue("cpf", cpfMask(client.cpf || ""));
@@ -863,6 +1176,47 @@ export default function NewAppointment() {
               clientForm.setValue("email", client.email);
             }
             setShowClientsModal(false);
+            
+            // Verificar e mostrar status de imagens do cliente
+            if (planLimits && client.id) {
+              try {
+                const servicesRef = collection(database, "Services");
+                const q = query(
+                  servicesRef,
+                  where("uid", "==", uid),
+                  where("contactUid", "==", client.id)
+                );
+                
+                const querySnapshot = await getDocs(q);
+                let existingImages = 0;
+                
+                querySnapshot.docs.forEach(doc => {
+                  const data = doc.data();
+                  const beforeCount = data.beforePhotos?.length || 0;
+                  const afterCount = data.afterPhotos?.length || 0;
+                  existingImages += beforeCount + afterCount;
+                });
+
+                const remaining = Math.max(0, planLimits.images - existingImages);
+                
+                // Armazenar informações do cliente
+                setClientImageInfo({
+                  existing: existingImages,
+                  remaining: remaining,
+                  limit: planLimits.images
+                });
+                
+                if (existingImages >= planLimits.images) {
+                  toast.warning(`Cliente ${client.name} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
+                } else if (remaining <= 2) {
+                  toast.info(`Cliente ${client.name} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
+                } else {
+                  toast.success(`Cliente ${client.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
+                }
+              } catch (error) {
+                console.error('Erro ao verificar imagens do cliente:', error);
+              }
+            }
           }}
           title="Selecionar Cliente"
         />

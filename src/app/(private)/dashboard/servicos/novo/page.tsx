@@ -493,8 +493,9 @@ export default function NewService() {
     }
   };
 
-  const createOrUpdateClient = async (clientName: string, clientCpf: string, clientPhone: string, clientEmail: string) => {
-    if (!uid) return;
+  // Função para criar ou atualizar cliente com verificação de limitações
+  const createOrUpdateClientWithLimitations = async (clientName: string, clientCpf: string, clientPhone: string, clientEmail: string): Promise<string | null> => {
+    if (!uid) return null;
     
     try {
       const contactsRef = collection(database, "Contacts");
@@ -576,6 +577,10 @@ export default function NewService() {
       // Criar novo cliente se não existir
       if (!clientExists) {
         console.log("Cliente não encontrado. Criando novo cliente...");
+        
+        // Nota: Não bloqueamos a criação automática de clientes aqui
+        // As limitações de imagens serão aplicadas quando o cliente for usado
+        
         const newContactRef = doc(collection(database, "Contacts"));
         
         const newContactData = {
@@ -591,7 +596,6 @@ export default function NewService() {
         try {
           await setDoc(newContactRef, newContactData);
           console.log("Novo cliente criado com ID:", newContactRef.id);
-          setSelectedClientId(newContactRef.id);
           toast.info("Novo cliente adicionado ao sistema", {
             position: "top-center",
             autoClose: 3000,
@@ -600,26 +604,84 @@ export default function NewService() {
             pauseOnHover: true,
             draggable: true,
           });
+          return newContactRef.id;
         } catch (error: any) {
           console.error("Erro ao criar cliente:", error);
           toast.error("Não foi possível adicionar o cliente automaticamente, mas o serviço será salvo", {
             position: "top-center",
             autoClose: 5000,
           });
+          return null;
         }
       } else {
         console.log("Cliente já existe, não é necessário criar.");
-        if (existingClientId) {
-          setSelectedClientId(existingClientId);
-        }
+        return existingClientId;
       }
     } catch (error) {
       console.error("Erro ao processar cliente:", error);
+      return null;
     }
   };
 
   // Handlers
-  const handleClientSubmit = (data: ClientData) => {
+  const handleClientSubmit = async (data: ClientData) => {
+    // Criar ou atualizar cliente automaticamente
+    if (data.name && (data.cpf || data.phone)) {
+      const contactUid = await createOrUpdateClientWithLimitations(
+        data.name, 
+        data.cpf || "", 
+        data.phone, 
+        data.email || ""
+      );
+      
+      // Definir o contactId para aplicar limitações de imagens
+      if (contactUid) {
+        setSelectedClientId(contactUid);
+        setContactId(contactUid);
+        
+        // Verificar e mostrar status de imagens do cliente criado
+        if (planLimits) {
+          try {
+            const servicesRef = collection(database, "Services");
+            const q = query(
+              servicesRef,
+              where("uid", "==", uid),
+              where("contactUid", "==", contactUid)
+            );
+            
+            const querySnapshot = await getDocs(q);
+            let existingImages = 0;
+            
+            querySnapshot.docs.forEach(doc => {
+              const data = doc.data();
+              const beforeCount = data.beforePhotos?.length || 0;
+              const afterCount = data.afterPhotos?.length || 0;
+              existingImages += beforeCount + afterCount;
+            });
+
+            const remaining = Math.max(0, planLimits.images - existingImages);
+            
+            // Armazenar informações do cliente
+            setClientImageInfo({
+              existing: existingImages,
+              remaining: remaining,
+              limit: planLimits.images
+            });
+            
+            if (existingImages >= planLimits.images) {
+              toast.warning(`Cliente ${data.name} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
+            } else if (remaining <= 2) {
+              toast.info(`Cliente ${data.name} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
+            } else {
+              toast.success(`Cliente ${data.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
+            }
+          } catch (error) {
+            console.error('Erro ao verificar imagens do cliente:', error);
+          }
+        }
+      }
+    }
+    
     setCurrentStep(2);
   };
 
@@ -657,9 +719,14 @@ export default function NewService() {
 
   // Função para verificar limite de imagens do cliente
   const checkClientImageLimit = async (contactId: string, newImagesToAdd: number): Promise<boolean> => {
-    if (!uid || !planLimits) return true;
+    if (!uid || !planLimits) {
+      console.log('⚠️ Verificação de limite ignorada:', { uid: !!uid, planLimits: !!planLimits });
+      return true;
+    }
     
     try {
+      console.log('🔍 Iniciando verificação de limite:', { contactId, newImagesToAdd, planLimits });
+      
       // Buscar serviços existentes do cliente
       const servicesRef = collection(database, "Services");
       const q = query(
@@ -677,6 +744,8 @@ export default function NewService() {
         const afterCount = data.afterPhotos?.length || 0;
         existingImages += beforeCount + afterCount;
       });
+      
+      console.log('🔍 Imagens existentes encontradas:', existingImages);
 
       // Se estamos editando um serviço existente, não contar as imagens desse serviço
       if (serviceId) {
@@ -692,12 +761,16 @@ export default function NewService() {
       
       const totalAfterAdding = existingImages + newImagesToAdd;
       
+      console.log('🔍 Cálculo final:', { existingImages, newImagesToAdd, totalAfterAdding, limit: planLimits.images });
+      
       if (totalAfterAdding > planLimits.images) {
         const remaining = Math.max(0, planLimits.images - existingImages);
+        console.log('❌ Limite excedido!', { remaining });
         toast.error(`Limite de ${planLimits.images} imagens por cliente atingido! Este cliente já tem ${existingImages} imagens. Você pode adicionar mais ${remaining} imagens. Faça upgrade para adicionar mais imagens.`);
         return false;
       }
       
+      console.log('✅ Upload permitido');
       return true;
     } catch (error) {
       console.error('Erro ao verificar limite de imagens:', error);
@@ -711,10 +784,14 @@ export default function NewService() {
     
     // Verificar limite apenas para imagens (before e after), não para documentos
     if ((type === 'before' || type === 'after') && contactId) {
+      console.log('🔍 Verificando limite de imagens:', { contactId, filesLength: files.length, planLimits });
       const canUpload = await checkClientImageLimit(contactId, files.length);
+      console.log('🔍 Resultado da verificação:', canUpload);
       if (!canUpload) {
         return;
       }
+    } else {
+      console.log('⚠️ Não verificando limite:', { type, contactId, hasFiles: !!files });
     }
     
     setIsUploading(true);
@@ -850,11 +927,11 @@ export default function NewService() {
         });
         
         if (existingImages >= planLimits.images) {
-          toast.warning(`⚠️ Cliente ${client.name} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
+          toast.warning(`Cliente ${client.name} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
         } else if (remaining <= 2) {
-          toast.info(`ℹ️ Cliente ${client.name} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
+          toast.info(`Cliente ${client.name} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
         } else {
-          toast.success(`✅ Cliente ${client.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
+          toast.success(`Cliente ${client.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
         }
       } catch (error) {
         console.error('Erro ao verificar imagens do cliente:', error);
@@ -1545,7 +1622,11 @@ export default function NewService() {
                   
                   // Criar ou atualizar cliente
                   if (clientName && (clientCpf || clientPhone)) {
-                    await createOrUpdateClient(clientName, clientCpf, clientPhone, clientData.email);
+                    const contactUid = await createOrUpdateClientWithLimitations(clientName, clientCpf, clientPhone, clientData.email);
+                    if (contactUid) {
+                      setSelectedClientId(contactUid);
+                      setContactId(contactUid);
+                    }
                   }
                   
                   const budgetData = {
@@ -2253,7 +2334,11 @@ export default function NewService() {
                   
                   // Criar ou atualizar cliente
                   if (clientName && (clientCpf || clientPhone)) {
-                    await createOrUpdateClient(clientName, clientCpf, clientPhone, clientData.email);
+                    const contactUid = await createOrUpdateClientWithLimitations(clientName, clientCpf, clientPhone, clientData.email);
+                    if (contactUid) {
+                      setSelectedClientId(contactUid);
+                      setContactId(contactUid);
+                    }
                   }
                   
                   const processedPayments = payments.map(payment => {

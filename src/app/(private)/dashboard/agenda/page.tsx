@@ -733,6 +733,9 @@ export default function Agenda() {
       // Se não encontrou o contato, criar um novo ou usar null
       if (!contactUid) {
         try {
+          // Nota: Não bloqueamos a criação automática de clientes aqui
+          // As limitações de imagens serão aplicadas quando o cliente for usado
+          
           // Tentar criar um novo contato
           const newContactData = {
             name: appointment.client?.name || '',
