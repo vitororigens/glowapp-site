@@ -46,6 +46,8 @@ interface Service {
     date: string;
     installments?: number;
   }>;
+  pendingValue?: number;
+  originalPrice?: string | number;
 }
 
 export default function Financeiro() {
@@ -160,12 +162,19 @@ export default function Financeiro() {
     ...(revenues || []).map(rev => ({ ...rev, collection: "Revenue" as const, type: "Receita" })),
     ...(expenses || []).map(exp => ({ ...exp, collection: "Expense" as const, type: "Despesa" })),
     ...(services || [])
-      .filter(service => !service.budget && service.sendToFinance)
+      .filter(service => {
+        // Incluir todos os serviços que não são orçamentos
+        const isService = !service.budget;
+        console.log(`Serviço ${service.name}: budget=${service.budget}, sendToFinance=${service.sendToFinance}, isService=${isService}`);
+        return isService;
+      })
       .map(service => {
         const paidValue = service.payments 
           ? service.payments
               .reduce((sum, p) => sum + Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
           : 0;
+        
+        console.log(`Processando serviço ${service.name}: paidValue=${paidValue}, originalPrice=${service.price}`);
         
         return {
           id: service.id,
@@ -185,7 +194,7 @@ export default function Financeiro() {
   const totalRevenue = [
     ...(revenues || []),
     ...(services || [])
-      .filter(service => !service.budget && service.sendToFinance)
+      .filter(service => !service.budget) // Remover filtro sendToFinance
       .map(service => ({ 
         value: service.payments 
           ? service.payments
@@ -230,51 +239,107 @@ export default function Financeiro() {
       </div>
 
       <div className="w-full flex flex-col items-center">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10 w-full max-w-5xl">
-          <Card className="p-4">
-            <h3 className="text-sm font-bold text-gray-500">Receitas</h3>
-            <p className="text-2xl font-bold text-green-600">{formatCurrencyFromCents(totalRevenue)}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 w-full max-w-5xl">
+          <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xl">💰</span>
+              </div>
+              <h3 className="text-sm font-bold text-green-700">Receitas</h3>
+            </div>
+            <p className="text-3xl font-bold text-green-600">{formatCurrencyFromCents(totalRevenue)}</p>
           </Card>
-          <Card className="p-4">
-            <h3 className="text-sm font-bold text-gray-500">Despesas</h3>
-            <p className="text-2xl font-bold text-red-600">{formatCurrencyFromCents(totalExpense)}</p>
+          <Card className="p-6 bg-gradient-to-br from-red-50 to-rose-100 border-red-200 shadow-lg">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xl">💸</span>
+              </div>
+              <h3 className="text-sm font-bold text-red-700">Despesas</h3>
+            </div>
+            <p className="text-3xl font-bold text-red-600">{formatCurrencyFromCents(totalExpense)}</p>
           </Card>
-          <Card className="p-4">
-            <h3 className="text-sm font-bold text-gray-500">Saldo</h3>
-            <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrencyFromCents(balance)}</p>
+          <Card className={`p-6 shadow-lg ${balance >= 0 ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200' : 'bg-gradient-to-br from-red-50 to-rose-100 border-red-200'}`}>
+            <div className="flex items-center gap-3 mb-2">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${balance >= 0 ? 'bg-green-500' : 'bg-red-500'}`}>
+                <span className="text-white text-xl">{balance >= 0 ? '📈' : '📉'}</span>
+              </div>
+              <h3 className={`text-sm font-bold ${balance >= 0 ? 'text-green-700' : 'text-red-700'}`}>Saldo</h3>
+            </div>
+            <p className={`text-3xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrencyFromCents(balance)}</p>
           </Card>
         </div>
       </div>
 
       {/* Box de Receitas */}
-      <div className="bg-gray-100 p-4 rounded-lg mb-6">
+      <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-lg mb-6 border border-green-200">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Receitas</h2>
-          <Button onClick={() => router.push("/dashboard/financeiro/historico?tipo=receita")}>Ver Histórico Completo</Button>
+          <h2 className="text-xl font-bold text-green-800 flex items-center gap-2">
+            💰 Receitas
+          </h2>
+          <Button 
+            onClick={() => router.push("/dashboard/financeiro/historico?tipo=receita")}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            Ver Histórico Completo
+          </Button>
+        </div>
+        <div className="mb-4 text-sm text-green-700 bg-green-100 p-3 rounded-lg">
+          <strong>📅 Ordenado por data:</strong> Receitas mais recentes aparecem primeiro
         </div>
         <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Valor Total</TableHead>
-                <TableHead>Valor Pago</TableHead>
-                <TableHead>Formas de Pagamento</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+              <TableRow className="bg-green-50">
+                <TableHead className="font-semibold text-green-800">👤 Nome</TableHead>
+                <TableHead className="font-semibold text-green-800">📅 Data</TableHead>
+                <TableHead className="font-semibold text-green-800">💵 Valor Total</TableHead>
+                <TableHead className="font-semibold text-green-800">💰 Valor Pago</TableHead>
+                <TableHead className="font-semibold text-green-800">⏳ Valor Pendente</TableHead>
+                <TableHead className="font-semibold text-green-800">💳 Formas de Pagamento</TableHead>
+                <TableHead className="text-right font-semibold text-green-800">⚙️ Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {allTransactions.filter(t => t.collection === "Revenue").slice(0, 10).map((transaction) => (
-                <TableRow key={`${transaction.collection}-${transaction.id}`}>
-                  <TableCell>{transaction.name}</TableCell>
-                  <TableCell>{formatDateToBrazilian(transaction.date)}</TableCell>
+              {allTransactions
+                .filter(t => t.collection === "Revenue")
+                .slice(0, 10)
+                .map((transaction) => (
+                <TableRow 
+                  key={`${transaction.collection}-${transaction.id}`}
+                  className="hover:bg-green-50 transition-colors duration-200 border-b border-green-100"
+                >
+                  <TableCell className="font-medium">{transaction.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-100 text-green-800 text-sm">
+                      {formatDateToBrazilian(transaction.date)}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     {transaction.type === "Serviço" ? 
                       formatPrice(Number((transaction as any).originalPrice)) 
                       : formatPrice(Number(transaction.value))}
                   </TableCell>
                   <TableCell className="text-green-600">{formatPrice(Number(transaction.value))}</TableCell>
+                  <TableCell>
+                    {transaction.type === "Serviço" ? (
+                      (() => {
+                        const originalPrice = Number(String((transaction as any).originalPrice).replace(/[^\d,-]/g, "").replace(",", "."));
+                        const paidValue = Number(transaction.value);
+                        const pendingValue = originalPrice - paidValue;
+                        return (
+                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-sm font-semibold ${
+                            pendingValue > 0 
+                              ? 'bg-orange-100 text-orange-800' 
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            ⏳ {formatPrice(pendingValue)}
+                          </span>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-gray-500">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {transaction.type === "Serviço" && (transaction as any).payments && (transaction as any).payments.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
@@ -339,26 +404,46 @@ export default function Financeiro() {
       </div>
 
       {/* Box de Despesas */}
-      <div className="bg-gray-100 p-4 rounded-lg">
+      <div className="bg-gradient-to-r from-red-50 to-rose-50 p-6 rounded-lg border border-red-200">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Despesas</h2>
-          <Button onClick={() => router.push("/dashboard/financeiro/historico?tipo=despesa")}>Ver Histórico Completo</Button>
+          <h2 className="text-xl font-bold text-red-800 flex items-center gap-2">
+            💸 Despesas
+          </h2>
+          <Button 
+            onClick={() => router.push("/dashboard/financeiro/historico?tipo=despesa")}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            Ver Histórico Completo
+          </Button>
+        </div>
+        <div className="mb-4 text-sm text-red-700 bg-red-100 p-3 rounded-lg">
+          <strong>📅 Ordenado por data:</strong> Despesas mais recentes aparecem primeiro
         </div>
         <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Valor Pago</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+              <TableRow className="bg-red-50">
+                <TableHead className="font-semibold text-red-800">👤 Nome</TableHead>
+                <TableHead className="font-semibold text-red-800">📅 Data</TableHead>
+                <TableHead className="font-semibold text-red-800">💰 Valor</TableHead>
+                <TableHead className="text-right font-semibold text-red-800">⚙️ Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {allTransactions.filter(t => t.collection === "Expense").slice(0, 10).map((transaction) => (
-                <TableRow key={`${transaction.collection}-${transaction.id}`}>
-                  <TableCell>{transaction.name}</TableCell>
-                  <TableCell>{formatDateToBrazilian(transaction.date)}</TableCell>
+              {allTransactions
+                .filter(t => t.collection === "Expense")
+                .slice(0, 10)
+                .map((transaction) => (
+                <TableRow 
+                  key={`${transaction.collection}-${transaction.id}`}
+                  className="hover:bg-red-50 transition-colors duration-200 border-b border-red-100"
+                >
+                  <TableCell className="font-medium">{transaction.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <span className="inline-flex items-center px-2 py-1 rounded-md bg-red-100 text-red-800 text-sm">
+                      {formatDateToBrazilian(transaction.date)}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-red-600">{formatPrice(Number(transaction.value), true)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">

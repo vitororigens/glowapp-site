@@ -627,28 +627,6 @@ export default function NewService() {
     try {
       const contactsRef = collection(database, "Contacts");
       
-      // Verificar limite de clientes antes de criar um novo
-      const allClientsQuery = query(contactsRef, where("uid", "==", uid));
-      const allClientsSnapshot = await getDocs(allClientsQuery);
-      const currentClientCount = allClientsSnapshot.size;
-      
-      // Verificar se pode adicionar mais clientes
-      if (!planLimits || !planLimits.isActive) {
-        toast.error("Plano inativo. Não é possível criar clientes.", {
-          position: "top-center",
-          autoClose: 3000,
-        });
-        return null;
-      }
-      
-      if (currentClientCount >= planLimits.clients) {
-        toast.error(`Limite de clientes atingido! Você tem ${currentClientCount}/${planLimits.clients} clientes do plano ${planLimits.planName}. Faça upgrade para adicionar mais clientes.`, {
-          position: "top-center",
-          autoClose: 5000,
-        });
-        return null;
-      }
-      
       let clientExists = false;
       let existingClientId = null;
       
@@ -725,10 +703,29 @@ export default function NewService() {
       
       // Criar novo cliente se não existir
       if (!clientExists) {
-        console.log("Cliente não encontrado. Criando novo cliente...");
+        console.log("Cliente não encontrado. Verificando limite antes de criar...");
         
-        // Nota: Não bloqueamos a criação automática de clientes aqui
-        // As limitações de imagens serão aplicadas quando o cliente for usado
+        // Verificar limite de clientes APENAS se for criar um novo cliente
+        const allClientsQuery = query(contactsRef, where("uid", "==", uid));
+        const allClientsSnapshot = await getDocs(allClientsQuery);
+        const currentClientCount = allClientsSnapshot.size;
+        
+        // Verificar se pode adicionar mais clientes
+        if (!planLimits || !planLimits.isActive) {
+          toast.error("Plano inativo. Não é possível criar clientes.", {
+            position: "top-center",
+            autoClose: 3000,
+          });
+          return null;
+        }
+        
+        if (currentClientCount >= planLimits.clients) {
+          toast.error(`Limite de clientes atingido! Você tem ${currentClientCount}/${planLimits.clients} clientes do plano ${planLimits.planName}. Faça upgrade para adicionar mais clientes.`, {
+            position: "top-center",
+            autoClose: 5000,
+          });
+          return null;
+        }
         
         const newContactRef = doc(collection(database, "Contacts"));
         
