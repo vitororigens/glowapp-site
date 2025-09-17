@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
 import { collection, getDocs, query, where, updateDoc, doc } from "firebase/firestore";
 import { toast } from "react-toastify";
-import { Calendar, User, DollarSign, CheckCircle, XCircle, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, User, DollarSign, CheckCircle, XCircle, ArrowRight, ChevronLeft, ChevronRight, X, Phone, Mail, Clock, FileText, UserCheck, Settings, Pencil } from "lucide-react";
 import { formatDateToBrazilian } from "@/utils/formater/date";
 import { useRouter } from "next/navigation";
 
@@ -46,6 +47,8 @@ export default function TodayAppointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showAppointmentDetailsModal, setShowAppointmentDetailsModal] = useState(false);
+  const [selectedAppointmentForDetails, setSelectedAppointmentForDetails] = useState<Appointment | null>(null);
   
   const { user } = useAuthContext();
   const uid = user?.uid;
@@ -101,6 +104,15 @@ export default function TodayAppointments() {
       console.error("Erro ao atualizar status:", error);
       toast.error("Erro ao atualizar agendamento!");
     }
+  };
+
+  const openAppointmentDetailsModal = (appointment: Appointment) => {
+    setSelectedAppointmentForDetails(appointment);
+    setShowAppointmentDetailsModal(true);
+  };
+
+  const handleEdit = (id: string) => {
+    router.push(`/dashboard/agenda/novo?id=${id}`);
   };
 
   // Funções do carrossel
@@ -214,7 +226,10 @@ export default function TodayAppointments() {
           
           return (
             <div key={appointment.id} className="w-1/3 flex-shrink-0 px-3">
-              <Card className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300 h-full">
+              <Card 
+                className="bg-white border-0 shadow-sm hover:shadow-md transition-shadow duration-300 h-full cursor-pointer"
+                onClick={() => openAppointmentDetailsModal(appointment)}
+              >
                 <CardContent className="p-6">
                 {/* Header com nome e status */}
                 <div className="flex items-start justify-between mb-4">
@@ -329,6 +344,286 @@ export default function TodayAppointments() {
           </>
         )}
       </div>
+
+      {/* Modal de Detalhes do Agendamento */}
+      <AlertDialog open={showAppointmentDetailsModal} onOpenChange={setShowAppointmentDetailsModal}>
+        <AlertDialogContent className="max-w-4xl h-[90vh] flex flex-col">
+          <AlertDialogHeader className="flex-shrink-0 relative">
+            <div className="absolute top-0 right-0 z-10">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowAppointmentDetailsModal(false)}
+                className="h-8 w-8 hover:bg-gray-100"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <AlertDialogTitle className="pr-8 flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Detalhes Completo do Agendamento
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Informações detalhadas do agendamento selecionado
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {selectedAppointmentForDetails && (() => {
+              const appointment = selectedAppointmentForDetails;
+              const price = appointment.appointment?.servicePrice || appointment.appointment?.procedurePrice || 0;
+              
+              const getStatusConfig = (status: Appointment['status']) => {
+                switch (status) {
+                  case 'pendente':
+                    return {
+                      label: 'PENDENTE',
+                      className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                      bgColor: 'bg-yellow-50',
+                      textColor: 'text-yellow-900'
+                    };
+                  case 'confirmado':
+                    return {
+                      label: 'CONFIRMADO',
+                      className: 'bg-blue-100 text-blue-800 border-blue-200',
+                      bgColor: 'bg-blue-50',
+                      textColor: 'text-blue-900'
+                    };
+                  case 'concluido':
+                    return {
+                      label: 'CONCLUÍDO',
+                      className: 'bg-green-100 text-green-800 border-green-200',
+                      bgColor: 'bg-green-50',
+                      textColor: 'text-green-900'
+                    };
+                  case 'cancelado':
+                    return {
+                      label: 'CANCELADO',
+                      className: 'bg-red-100 text-red-800 border-red-200',
+                      bgColor: 'bg-red-50',
+                      textColor: 'text-red-900'
+                    };
+                  case 'nao_compareceu':
+                    return {
+                      label: 'NÃO COMPARECEU',
+                      className: 'bg-gray-100 text-gray-800 border-gray-200',
+                      bgColor: 'bg-gray-50',
+                      textColor: 'text-gray-900'
+                    };
+                  default:
+                    return {
+                      label: 'PENDENTE',
+                      className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                      bgColor: 'bg-yellow-50',
+                      textColor: 'text-yellow-900'
+                    };
+                }
+              };
+
+              const statusConfig = getStatusConfig(appointment.status);
+
+              return (
+                <div className="space-y-6 pb-4">
+                  {/* Header com Status */}
+                  <div className={`p-6 rounded-lg border ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold mb-2">
+                          {appointment.appointment?.serviceName || appointment.appointment?.procedureName || 'Serviço'}
+                        </h2>
+                        <p className="text-lg opacity-80">
+                          {appointment.client.name}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className={`px-4 py-2 rounded-full text-sm font-bold border ${statusConfig.className}`}>
+                          {statusConfig.label}
+                        </span>
+                        <p className="text-2xl font-bold mt-2">
+                          {formatAppointmentPrice(price)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Informações do Agendamento */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Informações do Agendamento
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Status</p>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusConfig.className}`}>
+                          {statusConfig.label}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Data</p>
+                        <p className="font-medium">{formatDateToBrazilian(appointment.appointment?.date || '')}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Horário</p>
+                        <p className="font-medium">{appointment.appointment?.startTime} - {appointment.appointment?.endTime}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Valor Total</p>
+                        <p className="font-medium text-lg text-green-600">{formatAppointmentPrice(price)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Serviço</p>
+                        <p className="font-medium">{appointment.appointment?.serviceName || appointment.appointment?.procedureName || "Não informado"}</p>
+                      </div>
+                    </div>
+                    {appointment.appointment?.observations && (
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-500">Observações</p>
+                        <p className="font-medium bg-white p-3 rounded border">{appointment.appointment.observations}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Informações do Profissional */}
+                  <div className="bg-orange-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <UserCheck className="h-5 w-5" />
+                      Informações do Profissional
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Nome</p>
+                        <p className="font-medium">{appointment.appointment?.professionalName || "Não informado"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Especialidade</p>
+                        <p className="font-medium">Não informado</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Registro</p>
+                        <p className="font-medium">Não informado</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Telefone</p>
+                        <p className="font-medium">Não informado</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Informações do Cliente */}
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <User className="h-5 w-5" />
+                      Informações do Cliente
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Nome</p>
+                        <p className="font-medium">{appointment.client.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Telefone</p>
+                        <p className="font-medium">{appointment.client.phone || "Não informado"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="font-medium">{appointment.client.email || "Não informado"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">CPF</p>
+                        <p className="font-medium">{(appointment.client as any).cpf || "Não informado"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ações */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Settings className="h-5 w-5" />
+                      Ações
+                    </h3>
+                    <div className="flex flex-wrap gap-3 justify-between">
+                      {/* Botão Editar - Sempre primeiro */}
+                      <Button
+                        onClick={() => handleEdit(appointment.id)}
+                        variant="outline"
+                        className="border-gray-300 px-6 py-3 text-base font-medium hover:bg-gray-50"
+                      >
+                        <Pencil className="h-5 w-5 mr-2" />
+                        Editar
+                      </Button>
+
+                      {/* Botões de ação baseados no status */}
+                      {appointment.status === 'pendente' && (
+                        <>
+                          <Button
+                            onClick={() => {
+                              updateAppointmentStatus(appointment.id, 'confirmado');
+                              setShowAppointmentDetailsModal(false);
+                            }}
+                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-base font-medium"
+                          >
+                            <CheckCircle className="h-5 w-5 mr-2" />
+                            Confirmar
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              updateAppointmentStatus(appointment.id, 'cancelado');
+                              setShowAppointmentDetailsModal(false);
+                            }}
+                            className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-base font-medium"
+                          >
+                            <XCircle className="h-5 w-5 mr-2" />
+                            Cancelar
+                          </Button>
+                        </>
+                      )}
+
+                      {appointment.status === 'confirmado' && (
+                        <>
+                          <Button
+                            onClick={() => {
+                              updateAppointmentStatus(appointment.id, 'concluido');
+                              setShowAppointmentDetailsModal(false);
+                            }}
+                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-base font-medium"
+                          >
+                            <CheckCircle className="h-5 w-5 mr-2" />
+                            Concluir
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              updateAppointmentStatus(appointment.id, 'nao_compareceu');
+                              setShowAppointmentDetailsModal(false);
+                            }}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 text-base font-medium"
+                          >
+                            <XCircle className="h-5 w-5 mr-2" />
+                            Não Compareceu
+                          </Button>
+                        </>
+                      )}
+
+                      {appointment.status === 'concluido' && (
+                        <Button
+                          onClick={() => {
+                            router.push(`/dashboard/agenda?convert=${appointment.id}`);
+                            setShowAppointmentDetailsModal(false);
+                          }}
+                          className="bg-pink-600 hover:bg-pink-700 text-white px-6 py-3 text-base font-medium"
+                        >
+                          <FileText className="h-5 w-5 mr-2" />
+                          Converter para Serviço
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );

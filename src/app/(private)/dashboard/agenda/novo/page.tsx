@@ -21,11 +21,12 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, User, Phone, Mail, Clock, Calendar as CalendarIcon2, FileText, Plus, ArrowLeft, CheckCircle } from "lucide-react";
+import { CalendarIcon, User, Phone, Mail, Clock, Calendar as CalendarIcon2, FileText, Plus, ArrowLeft, CheckCircle, X, Pencil, Settings, CheckCircle as CheckCircleIcon, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CustomModalServices } from "@/components/CustomModalServices";
 import { CustomModalProfessionals } from "@/components/CustomModalProfessionals";
 import { CustomModalClients } from "@/components/CustomModalClients";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import "@/styles/calendar.css";
 
 // Schema para dados do cliente
@@ -99,6 +100,10 @@ export default function NewAppointment() {
     remaining: number;
     limit: number;
   } | null>(null);
+  
+  // Estados para modal de detalhes completos
+  const [showAppointmentDetailsModal, setShowAppointmentDetailsModal] = useState(false);
+  const [selectedAppointmentForDetails, setSelectedAppointmentForDetails] = useState<any>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [contactId, setContactId] = useState<string | null>(null);
   const { user } = useAuthContext();
@@ -302,6 +307,7 @@ export default function NewAppointment() {
           clientForm.setValue("name", appointmentData.client.name || "");
           clientForm.setValue("phone", appointmentData.client.phone || "");
           clientForm.setValue("email", appointmentData.client.email || "");
+          clientForm.setValue("cpf", appointmentData.client.cpf || "");
         }
         
         // Preencher dados do agendamento
@@ -829,6 +835,17 @@ export default function NewAppointment() {
     }
   };
 
+  const handleEdit = (id: string) => {
+    router.push(`/dashboard/agenda/novo?id=${id}`);
+  };
+
+  const formatAppointmentPrice = (price: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(price / 100);
+  };
+
   const resetAllForms = () => {
     clientForm.reset();
     appointmentForm.reset();
@@ -1244,17 +1261,17 @@ export default function NewAppointment() {
             </div>
           </div>
 
-          <div className="flex space-x-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Button
               onClick={goBack}
-              className="flex-1 bg-pink-500 hover:bg-pink-600"
+              className="w-full sm:flex-1 bg-pink-500 hover:bg-pink-600"
             >
               Voltar
             </Button>
             <Button
               onClick={handleCreateAppointment}
               disabled={isLoading}
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? (appointmentId ? "Atualizando..." : "Criando...") : (appointmentId ? "Atualizar Agendamento" : "Criar Agendamento")}
             </Button>
@@ -1313,6 +1330,289 @@ export default function NewAppointment() {
           onSelect={handleClientSelect}
           title="Selecionar Cliente"
         />
+
+        {/* Modal de Detalhes do Agendamento */}
+        <AlertDialog open={showAppointmentDetailsModal} onOpenChange={setShowAppointmentDetailsModal}>
+          <AlertDialogContent className="max-w-4xl h-[90vh] flex flex-col">
+            <AlertDialogHeader className="flex-shrink-0 relative">
+              <div className="absolute top-0 right-0 z-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowAppointmentDetailsModal(false)}
+                  className="h-8 w-8 hover:bg-gray-100"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <AlertDialogTitle className="pr-8 flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5" />
+                Detalhes Completo do Agendamento
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Informações detalhadas do agendamento selecionado
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {selectedAppointmentForDetails && (() => {
+                const appointment = selectedAppointmentForDetails;
+                const appointmentDate = new Date(appointment.appointment?.date || '');
+                const price = appointment.appointment?.servicePrice || appointment.appointment?.procedurePrice || 0;
+                
+                const getStatusConfig = (status: string) => {
+                  switch (status) {
+                    case 'pendente':
+                      return {
+                        label: 'PENDENTE',
+                        className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                        bgColor: 'bg-yellow-50',
+                        textColor: 'text-yellow-900'
+                      };
+                    case 'confirmado':
+                      return {
+                        label: 'CONFIRMADO',
+                        className: 'bg-blue-100 text-blue-800 border-blue-200',
+                        bgColor: 'bg-blue-50',
+                        textColor: 'text-blue-900'
+                      };
+                    case 'concluido':
+                      return {
+                        label: 'CONCLUÍDO',
+                        className: 'bg-green-100 text-green-800 border-green-200',
+                        bgColor: 'bg-green-50',
+                        textColor: 'text-green-900'
+                      };
+                    case 'cancelado':
+                      return {
+                        label: 'CANCELADO',
+                        className: 'bg-red-100 text-red-800 border-red-200',
+                        bgColor: 'bg-red-50',
+                        textColor: 'text-red-900'
+                      };
+                    case 'nao_compareceu':
+                      return {
+                        label: 'NÃO COMPARECEU',
+                        className: 'bg-gray-100 text-gray-800 border-gray-200',
+                        bgColor: 'bg-gray-50',
+                        textColor: 'text-gray-900'
+                      };
+                    default:
+                      return {
+                        label: 'PENDENTE',
+                        className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                        bgColor: 'bg-yellow-50',
+                        textColor: 'text-yellow-900'
+                      };
+                  }
+                };
+
+                const statusConfig = getStatusConfig(appointment.status);
+
+                return (
+                  <div className="space-y-6 pb-4">
+                    {/* Header com Status */}
+                    <div className={`p-6 rounded-lg border ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-2xl font-bold mb-2">
+                            {appointment.appointment?.serviceName || appointment.appointment?.procedureName || 'Serviço'}
+                          </h2>
+                          <p className="text-lg opacity-80">
+                            {appointment.client.name}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-4 py-2 rounded-full text-sm font-bold border ${statusConfig.className}`}>
+                            {statusConfig.label}
+                          </span>
+                          <p className="text-2xl font-bold mt-2">
+                            {formatAppointmentPrice(price)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Informações do Agendamento */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <CalendarIcon className="h-5 w-5" />
+                        Informações do Agendamento
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Status</p>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusConfig.className}`}>
+                            {statusConfig.label}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Data</p>
+                          <p className="font-medium">{format(appointmentDate, "dd/MM/yyyy", { locale: ptBR })}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Horário</p>
+                          <p className="font-medium">{appointment.appointment?.startTime} - {appointment.appointment?.endTime}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Valor Total</p>
+                          <p className="font-medium text-lg text-green-600">{formatAppointmentPrice(price)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Serviço</p>
+                          <p className="font-medium">{appointment.appointment?.serviceName || appointment.appointment?.procedureName || "Não informado"}</p>
+                        </div>
+                      </div>
+                      {appointment.appointment?.observations && (
+                        <div className="mt-4">
+                          <p className="text-sm text-gray-500">Observações</p>
+                          <p className="font-medium bg-white p-3 rounded border">{appointment.appointment.observations}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Informações do Profissional */}
+                    <div className="bg-orange-50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <User className="h-5 w-5" />
+                        Informações do Profissional
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Nome</p>
+                          <p className="font-medium">{appointment.appointment?.professionalName || "Não informado"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Especialidade</p>
+                          <p className="font-medium">{(() => {
+                            const professional = professionals.find(p => p.id === appointment.appointment?.professionalId);
+                            return professional?.specialty || "Não informado";
+                          })()}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Registro</p>
+                          <p className="font-medium">{(() => {
+                            const professional = professionals.find(p => p.id === appointment.appointment?.professionalId);
+                            return professional?.registrationNumber || "Não informado";
+                          })()}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Telefone</p>
+                          <p className="font-medium">{(() => {
+                            const professional = professionals.find(p => p.id === appointment.appointment?.professionalId);
+                            return professional?.phone || "Não informado";
+                          })()}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Informações do Cliente */}
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <User className="h-5 w-5" />
+                        Informações do Cliente
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Nome</p>
+                          <p className="font-medium">{appointment.client.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Telefone</p>
+                          <p className="font-medium">{appointment.client.phone || "Não informado"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Email</p>
+                          <p className="font-medium">{appointment.client.email || "Não informado"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">CPF</p>
+                          <p className="font-medium">{appointment.client.cpf || "Não informado"}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ações */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Settings className="h-5 w-5" />
+                        Ações
+                      </h3>
+                      <div className="flex flex-wrap gap-3 justify-between">
+                        {/* Botão Editar - Sempre primeiro */}
+                        <Button
+                          onClick={() => {
+                            setShowAppointmentDetailsModal(false);
+                            // Se for um agendamento existente, redireciona para edição
+                            if (appointmentId) {
+                              handleEdit(appointmentId);
+                            }
+                          }}
+                          variant="outline"
+                          className="border-gray-300 px-6 py-3 text-base font-medium hover:bg-gray-50"
+                        >
+                          <Pencil className="h-5 w-5 mr-2" />
+                          Editar
+                        </Button>
+
+                        {/* Botões de ação baseados no status */}
+                        {appointment.status === 'pendente' && (
+                          <>
+                            <Button
+                              onClick={() => {
+                                // Aqui você pode implementar a lógica de confirmação
+                                setShowAppointmentDetailsModal(false);
+                              }}
+                              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-base font-medium"
+                            >
+                              <CheckCircleIcon className="h-5 w-5 mr-2" />
+                              Confirmar
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                // Aqui você pode implementar a lógica de cancelamento
+                                setShowAppointmentDetailsModal(false);
+                              }}
+                              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-base font-medium"
+                            >
+                              <XCircle className="h-5 w-5 mr-2" />
+                              Cancelar
+                            </Button>
+                          </>
+                        )}
+
+                        {appointment.status === 'confirmado' && (
+                          <>
+                            <Button
+                              onClick={() => {
+                                // Aqui você pode implementar a lógica de conclusão
+                                setShowAppointmentDetailsModal(false);
+                              }}
+                              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-base font-medium"
+                            >
+                              <CheckCircleIcon className="h-5 w-5 mr-2" />
+                              Concluir
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                // Aqui você pode implementar a lógica de não compareceu
+                                setShowAppointmentDetailsModal(false);
+                              }}
+                              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 text-base font-medium"
+                            >
+                              <XCircle className="h-5 w-5 mr-2" />
+                              Não Compareceu
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
