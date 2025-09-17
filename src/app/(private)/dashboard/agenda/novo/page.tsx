@@ -94,6 +94,11 @@ export default function NewAppointment() {
     remaining: number;
     limit: number;
   } | null>(null);
+  const [clientCountInfo, setClientCountInfo] = useState<{
+    current: number;
+    remaining: number;
+    limit: number;
+  } | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [contactId, setContactId] = useState<string | null>(null);
   const { user } = useAuthContext();
@@ -135,8 +140,16 @@ export default function NewAppointment() {
       loadServices();
       loadProcedures();
       loadProfessionals();
+      checkClientCountStatus();
     }
   }, [uid]);
+
+  // Atualizar contagem de clientes quando planLimits mudar
+  useEffect(() => {
+    if (planLimits && uid) {
+      checkClientCountStatus();
+    }
+  }, [planLimits, uid]);
 
   // Carregar dados do agendamento para edição
   useEffect(() => {
@@ -417,10 +430,10 @@ export default function NewAppointment() {
 
   // Handlers
   const handleClientSubmit = async (data: ClientData) => {
-    // Se já temos um cliente selecionado E estamos editando um agendamento existente,
+    // Se já temos um cliente selecionado (seja por edição ou seleção anterior),
     // não precisamos fazer a verificação de imagens novamente
-    if (selectedClientId && appointmentId) {
-      console.log("Cliente já selecionado para edição - pulando verificação de imagens do cliente");
+    if (selectedClientId) {
+      console.log("Cliente já selecionado - pulando verificação de imagens do cliente");
       setCurrentStep(2);
       return;
     }
@@ -441,6 +454,9 @@ export default function NewAppointment() {
         
         // Verificar e mostrar status de imagens do cliente criado (apenas para novos agendamentos)
         await checkClientImageStatus(contactUid, data.name);
+      } else {
+        // Se não conseguiu criar o cliente (limite atingido), não avançar para próxima etapa
+        return;
       }
     }
     
@@ -554,12 +570,55 @@ export default function NewAppointment() {
     }
   };
 
+  // Função para verificar contagem de clientes
+  const checkClientCountStatus = async () => {
+    if (!planLimits || !uid) return;
+    
+    try {
+      const contactsRef = collection(database, "Contacts");
+      const q = query(contactsRef, where("uid", "==", uid));
+      const querySnapshot = await getDocs(q);
+      const currentCount = querySnapshot.size;
+      const remaining = Math.max(0, planLimits.clients - currentCount);
+      
+      setClientCountInfo({
+        current: currentCount,
+        remaining: remaining,
+        limit: planLimits.clients
+      });
+    } catch (error) {
+      console.error('Erro ao verificar contagem de clientes:', error);
+    }
+  };
+
   // Função para criar ou atualizar cliente com verificação de limitações
   const createOrUpdateClientWithLimitations = async (clientName: string, clientCpf: string, clientPhone: string, clientEmail: string): Promise<string | null> => {
     if (!uid) return null;
     
     try {
       const contactsRef = collection(database, "Contacts");
+      
+      // Verificar limite de clientes antes de criar um novo
+      const allClientsQuery = query(contactsRef, where("uid", "==", uid));
+      const allClientsSnapshot = await getDocs(allClientsQuery);
+      const currentClientCount = allClientsSnapshot.size;
+      
+      // Verificar se pode adicionar mais clientes
+      if (!planLimits || !planLimits.isActive) {
+        toast.error("Plano inativo. Não é possível criar clientes.", {
+          position: "top-center",
+          autoClose: 3000,
+        });
+        return null;
+      }
+      
+      if (currentClientCount >= planLimits.clients) {
+        toast.error(`Limite de clientes atingido! Você tem ${currentClientCount}/${planLimits.clients} clientes do plano ${planLimits.planName}. Faça upgrade para adicionar mais clientes.`, {
+          position: "top-center",
+          autoClose: 5000,
+        });
+        return null;
+      }
       
       let clientExists = false;
       let existingClientId = null;
@@ -782,6 +841,11 @@ export default function NewAppointment() {
       remaining: 0,
       limit: 0
     });
+    setClientCountInfo({
+      current: 0,
+      remaining: 0,
+      limit: 0
+    });
   };
 
   const renderProgressDots = () => (
@@ -946,6 +1010,7 @@ export default function NewAppointment() {
           </div>
         </div>
       )}
+
     </div>
   );
 
