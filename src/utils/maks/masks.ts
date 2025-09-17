@@ -39,6 +39,8 @@ export function formatCurrencyMask(value: string | undefined): string {
 export function cepMask(value: string) {
     let maskedValue = value;
     maskedValue = maskedValue.replace(/\D/g, '');
+    // Limitar a 8 dígitos
+    maskedValue = maskedValue.substring(0, 8);
     maskedValue = maskedValue.replace(/^(\d{5})(\d{3})$/, '$1-$2');
     return maskedValue;
 }
@@ -51,6 +53,8 @@ export function cepUnMask(maskedValue: string) {
 export function cpfMask(value: string) {
     let maskedValue = value;
     maskedValue = maskedValue.replace(/\D/g, '');
+    // Limitar a 11 dígitos
+    maskedValue = maskedValue.substring(0, 11);
     maskedValue = maskedValue.replace(/(\d{3})(\d)/, '$1.$2');
     maskedValue = maskedValue.replace(/(\d{3})(\d)/, '$1.$2');
     maskedValue = maskedValue.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
@@ -78,6 +82,8 @@ export function metroQuadradoUnMask(maskedValue: string) {
 export function celularMask(value: string) {
     let maskedValue = value;
     maskedValue = maskedValue.replace(/\D/g, '');
+    // Limitar a 11 dígitos
+    maskedValue = maskedValue.substring(0, 11);
     maskedValue = maskedValue.replace(/^(\d{2})(\d)/g, '($1) $2');
     maskedValue = maskedValue.replace(/(\d)(\d{4})$/, '$1-$2');
     return maskedValue;
@@ -91,6 +97,8 @@ export function celularUnMask(maskedValue: string) {
 export function horaMask(value: string) {
     let maskedValue = value;
     maskedValue = maskedValue.replace(/\D/g, '');
+    // Limitar a 4 dígitos
+    maskedValue = maskedValue.substring(0, 4);
     maskedValue = maskedValue.replace(/(\d{2})(\d)/, '$1:$2');
     return maskedValue;
 }
