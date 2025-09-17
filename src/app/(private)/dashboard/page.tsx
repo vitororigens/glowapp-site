@@ -10,7 +10,7 @@ import UpgradeBanner from "@/components/UpgradeBanner";
 import ProcedureCard from "@/components/ProcedureCard";
 import ServiceViewModal from "@/components/ServiceViewModal";
 import TodayAppointments from "@/components/TodayAppointments";
-import { Users, Calendar, DollarSign, Scissors, Plus, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, Calendar, DollarSign, Scissors, Plus, Eye, ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Service {
@@ -398,7 +398,7 @@ export default function DashboardHome() {
               className="text-pink-600 hover:text-pink-700 text-sm font-medium flex items-center space-x-1"
             >
               <span>Ver Todos</span>
-              <Eye className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
           

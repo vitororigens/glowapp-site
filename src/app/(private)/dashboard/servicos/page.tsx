@@ -161,22 +161,42 @@ export default function Services() {
             </div>
           </div>
         
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Hora</TableHead>
-                  <TableHead>Valor Pago</TableHead>
-                  <TableHead>Valor Pendente</TableHead>
-                  <TableHead>Valor Total</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Formas de Pagamento</TableHead>
-                </TableRow>
-              </TableHeader>
+            <div className="overflow-x-auto">
+              <div className="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                <strong>📅 Ordenado por data:</strong> Serviços mais recentes aparecem primeiro
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50">
+                    <TableHead className="font-semibold">Cliente</TableHead>
+                    <TableHead className="font-semibold">📅 Data</TableHead>
+                    <TableHead className="font-semibold">🕐 Hora</TableHead>
+                    <TableHead className="font-semibold text-green-700">💰 Valor Pago</TableHead>
+                    <TableHead className="font-semibold text-orange-700">⏳ Valor Pendente</TableHead>
+                    <TableHead className="font-semibold">💵 Valor Total</TableHead>
+                    <TableHead className="font-semibold">📊 Status</TableHead>
+                    <TableHead className="font-semibold">💳 Formas de Pagamento</TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
-                {services.map((service: Service) => {
+                {services
+                  .sort((a, b) => {
+                    // Ordenar por data (mais recente primeiro)
+                    const dateA = new Date(a.date);
+                    const dateB = new Date(b.date);
+                    
+                    // Se as datas forem iguais, ordenar por hora (mais recente primeiro)
+                    if (dateA.getTime() === dateB.getTime()) {
+                      const timeA = a.time ? a.time.split(':').map(Number) : [0, 0];
+                      const timeB = b.time ? b.time.split(':').map(Number) : [0, 0];
+                      const timeAValue = timeA[0] * 60 + timeA[1];
+                      const timeBValue = timeB[0] * 60 + timeB[1];
+                      return timeBValue - timeAValue;
+                    }
+                    
+                    return dateB.getTime() - dateA.getTime();
+                  })
+                  .map((service: Service) => {
                   const paidAmount = service.payments 
                     ? service.payments.reduce((sum, p) => {
                         const value = typeof p.value === 'number' 
@@ -191,12 +211,16 @@ export default function Services() {
                   return (
                     <TableRow 
                       key={service.id} 
-                      className="cursor-pointer hover:bg-gray-50"
+                      className="cursor-pointer hover:bg-blue-50 transition-colors duration-200 border-b border-gray-100"
                       onClick={() => handleViewService(service)}
                     >
-                      <TableCell>{service.name}</TableCell>
-                      <TableCell>{formatDateToBrazilian(service.date)}</TableCell>
-                      <TableCell>{service.time}</TableCell>
+                      <TableCell className="font-medium">{service.name}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-sm">
+                          {formatDateToBrazilian(service.date)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-gray-600">{service.time || "N/A"}</TableCell>
                       <TableCell className="text-green-600">{formatCurrencyFromCents(paidAmount)}</TableCell>
                       <TableCell className={service.budget ? "text-gray-400" : (paidAmount < valorTotal ? "text-orange-600 font-semibold" : "text-gray-500")}>
                         {service.budget ? "N/A" : (paidAmount < valorTotal ? formatCurrencyFromCents(valorTotal - paidAmount) : "R$ 0,00")}
