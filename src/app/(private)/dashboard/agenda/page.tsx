@@ -283,8 +283,7 @@ export default function Agenda() {
             status: normalizedStatus // Define status padrão/normalizado
           };
         })
-        .filter(appointment => appointment !== null)
-        .filter(appointment => appointment.status !== 'nao_compareceu') as Appointment[];
+        .filter(appointment => appointment !== null) as Appointment[];
       
       console.log('✅ Agendamentos carregados:', appointmentsData);
       console.log('📊 Total de agendamentos válidos:', appointmentsData.length);
@@ -391,8 +390,15 @@ export default function Agenda() {
         dateMatches = true;
       }
       
+      // Aplicar filtro de status apenas para visualizações de dia e semana
+      // Mas permitir mostrar se o usuário filtrar especificamente por esses status
+      const statusFilterApplied = (viewMode === 'dia' || viewMode === 'semana') 
+        ? (appointment.status !== 'cancelado' && appointment.status !== 'nao_compareceu') || 
+          (statusFilter === 'cancelado' || statusFilter === 'nao_compareceu')
+        : true;
+      
       return dateMatches &&
-        appointment.status !== 'nao_compareceu' &&
+        statusFilterApplied &&
         (appointment.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
          (appointment.appointment.serviceName || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
         (statusFilter === 'todos' || appointment.status === statusFilter) &&
@@ -837,7 +843,7 @@ export default function Agenda() {
     const appointmentLocalDate = createLocalDate(appointment.appointment.date);
     const isToday = isSameDate(appointmentLocalDate, new Date());
     console.log('📅 Verificando agendamento:', appointment.id, 'Data:', appointment.appointment.date, 'É hoje?', isToday);
-    return isToday && appointment.status !== 'nao_compareceu';
+    return isToday;
   }).length;
 
   // Funções de navegação
@@ -1561,7 +1567,7 @@ export default function Agenda() {
                     const dayAppointments = appointments.filter(appointment => {
                       if (!appointment.appointment?.date) return false;
                       const appointmentDate = createLocalDate(appointment.appointment.date);
-                      return isSameDay(appointmentDate, day) && appointment.status !== 'nao_compareceu';
+                      return isSameDay(appointmentDate, day);
                     });
                     
                     return (
@@ -1643,7 +1649,7 @@ export default function Agenda() {
                 const weeklyAppointments = appointments.filter(appointment => {
                   if (!appointment.appointment?.date) return false;
                   const appointmentDate = createLocalDate(appointment.appointment.date);
-                  return appointmentDate >= weekStart && appointmentDate <= weekEnd && appointment.status !== 'nao_compareceu';
+                  return appointmentDate >= weekStart && appointmentDate <= weekEnd;
                 });
 
                 if (weeklyAppointments.length === 0) {
@@ -2021,7 +2027,7 @@ export default function Agenda() {
               const dayAppointments = appointments.filter(appointment => {
                 if (!appointment.appointment?.date) return false;
                 const appointmentDate = createLocalDate(appointment.appointment.date);
-                return isSameDay(appointmentDate, selectedDayForModal) && appointment.status !== 'nao_compareceu';
+                return isSameDay(appointmentDate, selectedDayForModal);
               });
 
               if (dayAppointments.length === 0) {

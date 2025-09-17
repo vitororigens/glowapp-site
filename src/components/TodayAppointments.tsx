@@ -72,9 +72,7 @@ export default function TodayAppointments() {
         .filter(appointment => 
           appointment.appointment && 
           appointment.appointment.date && 
-          appointment.appointment.date === today &&
-          appointment.status !== 'cancelado' &&
-          appointment.status !== 'nao_compareceu'
+          appointment.appointment.date === today
         )
         .sort((a, b) => a.appointment.startTime.localeCompare(b.appointment.startTime));
 
@@ -276,20 +274,14 @@ export default function TodayAppointments() {
                   {appointment.status === 'pendente' && (
                     <div className="flex gap-2">
                       <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateAppointmentStatus(appointment.id, 'confirmado');
-                        }}
+                        onClick={() => updateAppointmentStatus(appointment.id, 'confirmado')}
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm"
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
                         Confirmar
                       </Button>
                       <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateAppointmentStatus(appointment.id, 'cancelado');
-                        }}
+                        onClick={() => updateAppointmentStatus(appointment.id, 'cancelado')}
                         className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm"
                       >
                         <XCircle className="h-4 w-4 mr-2" />
@@ -301,20 +293,14 @@ export default function TodayAppointments() {
                   {appointment.status === 'confirmado' && (
                     <div className="flex gap-2">
                       <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateAppointmentStatus(appointment.id, 'concluido');
-                        }}
+                        onClick={() => updateAppointmentStatus(appointment.id, 'concluido')}
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm"
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
                         Concluir
                       </Button>
                       <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateAppointmentStatus(appointment.id, 'nao_compareceu');
-                        }}
+                        onClick={() => updateAppointmentStatus(appointment.id, 'nao_compareceu')}
                         className="flex-1 bg-gray-600 hover:bg-gray-700 text-white text-sm"
                       >
                         <XCircle className="h-4 w-4 mr-2" />
@@ -325,10 +311,7 @@ export default function TodayAppointments() {
 
                   {appointment.status === 'concluido' && (
                     <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/dashboard/agenda?convert=${appointment.id}`);
-                      }}
+                      onClick={() => router.push(`/dashboard/agenda?convert=${appointment.id}`)}
                       className="w-full bg-pink-600 hover:bg-pink-700 text-white text-sm"
                     >
                       Converter para Serviço
