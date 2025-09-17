@@ -57,6 +57,7 @@ interface Service {
 
 interface Procedure {
   id: string;
+  code: string;
   name: string;
   duration: number;
   price: number;
@@ -86,7 +87,7 @@ export default function NewAppointment() {
   const [showProfessionalsModal, setShowProfessionalsModal] = useState(false);
   const [showClientsModal, setShowClientsModal] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(null);
+  const [selectedProcedures, setSelectedProcedures] = useState<Procedure[]>([]);
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const [clientImageInfo, setClientImageInfo] = useState<{
     existing: number;
@@ -143,6 +144,13 @@ export default function NewAppointment() {
       loadAppointmentForEdit();
     }
   }, [appointmentId, uid, procedures, professionals]);
+
+  // Resetar estados para novos agendamentos
+  useEffect(() => {
+    if (!appointmentId && uid) {
+      resetAllForms();
+    }
+  }, [appointmentId, uid]);
 
   // Função para extrair apenas o nome (sem especialidade)
   const extractNameOnly = (fullName: string): string => {
@@ -314,11 +322,15 @@ export default function NewAppointment() {
             appointmentForm.setValue("contact", appointment.professionalName);
           }
           
-          // Procedimento - buscar na lista de procedimentos
-          if (appointment.procedureId) {
+          // Procedimentos - buscar na lista de procedimentos
+          if (appointment.procedureIds && Array.isArray(appointment.procedureIds)) {
+            const selectedProcedures = procedures.filter(p => appointment.procedureIds.includes(p.id));
+            setSelectedProcedures(selectedProcedures);
+          } else if (appointment.procedureId) {
+            // Compatibilidade com dados antigos (procedimento único)
             const procedure = procedures.find(p => p.id === appointment.procedureId);
             if (procedure) {
-              setSelectedProcedure(procedure);
+              setSelectedProcedures([procedure]);
             }
           }
           
@@ -327,6 +339,43 @@ export default function NewAppointment() {
             const professional = professionals.find(p => p.id === appointment.professionalId);
             if (professional) {
               setSelectedProfessional(professional);
+            }
+          }
+        }
+        
+        // Definir contactUid se disponível
+        if (appointmentData.contactUid) {
+          setSelectedClientId(appointmentData.contactUid);
+          setContactId(appointmentData.contactUid);
+          
+          // Verificar status de imagens do cliente quando carregando para edição
+          if (planLimits && appointmentData.client?.name) {
+            await checkClientImageStatus(appointmentData.contactUid, appointmentData.client.name);
+          }
+        } else {
+          // Se não há contactUid, tentar encontrar o cliente pelos dados
+          if (appointmentData.client?.name) {
+            try {
+              const contactsRef = collection(database, "Contacts");
+              const nameQuery = query(
+                contactsRef, 
+                where("name", "==", appointmentData.client.name),
+                where("uid", "==", uid)
+              );
+              const nameSnapshot = await getDocs(nameQuery);
+              
+              if (!nameSnapshot.empty) {
+                const clientId = nameSnapshot.docs[0].id;
+                setSelectedClientId(clientId);
+                setContactId(clientId);
+                
+                // Verificar status de imagens
+                if (planLimits) {
+                  await checkClientImageStatus(clientId, appointmentData.client.name);
+                }
+              }
+            } catch (error) {
+              console.error('Erro ao buscar cliente por nome na edição:', error);
             }
           }
         }
@@ -368,7 +417,15 @@ export default function NewAppointment() {
 
   // Handlers
   const handleClientSubmit = async (data: ClientData) => {
-    // Criar ou atualizar cliente automaticamente
+    // Se já temos um cliente selecionado E estamos editando um agendamento existente,
+    // não precisamos fazer a verificação de imagens novamente
+    if (selectedClientId && appointmentId) {
+      console.log("Cliente já selecionado para edição - pulando verificação de imagens do cliente");
+      setCurrentStep(2);
+      return;
+    }
+    
+    // Criar ou atualizar cliente automaticamente (apenas para novos agendamentos)
     if (data.name && (data.cpf || data.phone)) {
       const contactUid = await createOrUpdateClientWithLimitations(
         data.name, 
@@ -382,46 +439,8 @@ export default function NewAppointment() {
         setSelectedClientId(contactUid);
         setContactId(contactUid);
         
-        // Verificar e mostrar status de imagens do cliente criado
-        if (planLimits) {
-          try {
-            const servicesRef = collection(database, "Services");
-            const q = query(
-              servicesRef,
-              where("uid", "==", uid),
-              where("contactUid", "==", contactUid)
-            );
-            
-            const querySnapshot = await getDocs(q);
-            let existingImages = 0;
-            
-            querySnapshot.docs.forEach(doc => {
-              const data = doc.data();
-              const beforeCount = data.beforePhotos?.length || 0;
-              const afterCount = data.afterPhotos?.length || 0;
-              existingImages += beforeCount + afterCount;
-            });
-
-            const remaining = Math.max(0, planLimits.images - existingImages);
-            
-            // Armazenar informações do cliente
-            setClientImageInfo({
-              existing: existingImages,
-              remaining: remaining,
-              limit: planLimits.images
-            });
-            
-            if (existingImages >= planLimits.images) {
-              toast.warning(`Cliente ${data.name} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
-            } else if (remaining <= 2) {
-              toast.info(`Cliente ${data.name} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
-            } else {
-              toast.success(`Cliente ${data.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
-            }
-          } catch (error) {
-            console.error('Erro ao verificar imagens do cliente:', error);
-          }
-        }
+        // Verificar e mostrar status de imagens do cliente criado (apenas para novos agendamentos)
+        await checkClientImageStatus(contactUid, data.name);
       }
     }
     
@@ -438,18 +457,19 @@ export default function NewAppointment() {
 
   const handleServiceSelect = (selectedServiceIds: string[]) => {
     if (selectedServiceIds.length > 0) {
-      // Buscar o primeiro serviço selecionado
-      const selectedService = procedures.find(p => p.id === selectedServiceIds[0]);
-      if (selectedService) {
-        setSelectedProcedure(selectedService);
-        
-        // Calcular horário de fim baseado no procedimento
-        const startTime = appointmentForm.getValues("startTime");
-        if (startTime) {
-          const endTime = calculateEndTime(startTime, { duration: selectedService.duration } as Service);
-          appointmentForm.setValue("endTime", endTime);
-        }
+      // Buscar todos os procedimentos selecionados
+      const selectedServices = procedures.filter(p => selectedServiceIds.includes(p.id));
+      setSelectedProcedures(selectedServices);
+      
+      // Calcular horário de fim baseado na duração total dos procedimentos
+      const startTime = appointmentForm.getValues("startTime");
+      if (startTime && selectedServices.length > 0) {
+        const totalDuration = selectedServices.reduce((sum, service) => sum + (service.duration || 0), 0);
+        const endTime = calculateEndTime(startTime, { duration: totalDuration } as Service);
+        appointmentForm.setValue("endTime", endTime);
       }
+    } else {
+      setSelectedProcedures([]);
     }
     setShowServicesModal(false);
   };
@@ -466,11 +486,71 @@ export default function NewAppointment() {
     setShowProfessionalsModal(false);
   };
 
+  const handleClientSelect = async (client: any) => {
+    // Implementar seleção de cliente existente
+    clientForm.setValue("name", client.name);
+    clientForm.setValue("phone", client.phone);
+    clientForm.setValue("email", client.email);
+    clientForm.setValue("cpf", client.cpf);
+    setSelectedClientId(client.id);
+    setContactId(client.id);
+    setShowClientsModal(false);
+    
+    // Verificar e mostrar status de imagens do cliente
+    if (client.id && planLimits) {
+      await checkClientImageStatus(client.id, client.name);
+    }
+  };
+
   const handleStartTimeChange = (time: string) => {
     appointmentForm.setValue("startTime", time);
-    if (selectedService) {
-      const endTime = calculateEndTime(time, selectedService);
+    if (selectedProcedures.length > 0) {
+      const totalDuration = selectedProcedures.reduce((sum, procedure) => sum + (procedure.duration || 0), 0);
+      const endTime = calculateEndTime(time, { duration: totalDuration } as Service);
       appointmentForm.setValue("endTime", endTime);
+    }
+  };
+
+  // Função para verificar status de imagens do cliente
+  const checkClientImageStatus = async (contactUid: string, clientName: string) => {
+    if (!planLimits || !uid) return;
+    
+    try {
+      const servicesRef = collection(database, "Services");
+      const q = query(
+        servicesRef,
+        where("uid", "==", uid),
+        where("contactUid", "==", contactUid)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      let existingImages = 0;
+      
+      querySnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const beforeCount = data.beforePhotos?.length || 0;
+        const afterCount = data.afterPhotos?.length || 0;
+        existingImages += beforeCount + afterCount;
+      });
+
+      const remaining = Math.max(0, planLimits.images - existingImages);
+      
+      // Armazenar informações do cliente
+      setClientImageInfo({
+        existing: existingImages,
+        remaining: remaining,
+        limit: planLimits.images
+      });
+      
+      if (existingImages >= planLimits.images) {
+        toast.warning(`Cliente ${clientName} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
+      } else if (remaining <= 2) {
+        toast.info(`Cliente ${clientName} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
+      } else {
+        toast.success(`Cliente ${clientName} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar imagens do cliente:', error);
     }
   };
 
@@ -486,7 +566,7 @@ export default function NewAppointment() {
       
       // Verificar se cliente já existe pelo CPF
       if (clientCpf) {
-        const cpfQuery = query(contactsRef, where("cpf", "==", clientCpf));
+        const cpfQuery = query(contactsRef, where("cpf", "==", clientCpf), where("uid", "==", uid));
         const cpfSnapshot = await getDocs(cpfQuery);
         
         if (!cpfSnapshot.empty) {
@@ -498,7 +578,7 @@ export default function NewAppointment() {
       
       // Verificar se cliente já existe pelo telefone
       if (!clientExists && clientPhone) {
-        const phoneQuery = query(contactsRef, where("phone", "==", clientPhone));
+        const phoneQuery = query(contactsRef, where("phone", "==", clientPhone), where("uid", "==", uid));
         const phoneSnapshot = await getDocs(phoneQuery);
         
         if (!phoneSnapshot.empty) {
@@ -510,7 +590,7 @@ export default function NewAppointment() {
       
       // Verificar se cliente já existe pelo nome
       if (!clientExists && clientName) {
-        const nameQuery = query(contactsRef, where("name", "==", clientName));
+        const nameQuery = query(contactsRef, where("name", "==", clientName), where("uid", "==", uid));
         const nameSnapshot = await getDocs(nameQuery);
         
         if (!nameSnapshot.empty) {
@@ -612,15 +692,17 @@ export default function NewAppointment() {
       const clientData = clientForm.getValues();
       const appointmentData = appointmentForm.getValues();
       
-      // Converter o preço para número se for string
-      const procedurePrice = selectedProcedure?.price;
-      const numericPrice = typeof procedurePrice === 'string' 
-        ? parseInt(procedurePrice) || 0 
-        : (typeof procedurePrice === 'number' ? procedurePrice : 0);
+      // Calcular preço total de todos os procedimentos
+      const totalPrice = selectedProcedures.reduce((sum, procedure) => {
+        const price = typeof procedure.price === 'string' ? parseInt(procedure.price) : (procedure.price || 0);
+        return sum + price;
+      }, 0);
 
-      // Verificar se o cliente existe e aplicar limitações se necessário
-      let contactUid = null;
-      if (clientData.name && (clientData.cpf || clientData.phone)) {
+      // Usar o contactUid já definido ou criar/atualizar cliente se necessário
+      let contactUid = selectedClientId;
+      
+      // Se não temos um contactUid e estamos criando um novo agendamento, criar o cliente
+      if (!selectedClientId && !appointmentId && clientData.name && (clientData.cpf || clientData.phone)) {
         contactUid = await createOrUpdateClientWithLimitations(
           clientData.name, 
           clientData.cpf || "", 
@@ -628,51 +710,9 @@ export default function NewAppointment() {
           clientData.email || ""
         );
         
-        // Definir o contactId para aplicar limitações de imagens
         if (contactUid) {
           setSelectedClientId(contactUid);
           setContactId(contactUid);
-          
-          // Verificar e mostrar status de imagens do cliente criado
-          if (planLimits) {
-            try {
-              const servicesRef = collection(database, "Services");
-              const q = query(
-                servicesRef,
-                where("uid", "==", uid),
-                where("contactUid", "==", contactUid)
-              );
-              
-              const querySnapshot = await getDocs(q);
-              let existingImages = 0;
-              
-              querySnapshot.docs.forEach(doc => {
-                const data = doc.data();
-                const beforeCount = data.beforePhotos?.length || 0;
-                const afterCount = data.afterPhotos?.length || 0;
-                existingImages += beforeCount + afterCount;
-              });
-
-              const remaining = Math.max(0, planLimits.images - existingImages);
-              
-              // Armazenar informações do cliente
-              setClientImageInfo({
-                existing: existingImages,
-                remaining: remaining,
-                limit: planLimits.images
-              });
-              
-              if (existingImages >= planLimits.images) {
-                toast.warning(`Cliente ${clientData.name} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
-              } else if (remaining <= 2) {
-                toast.info(`Cliente ${clientData.name} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
-              } else {
-                toast.success(`Cliente ${clientData.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
-              }
-            } catch (error) {
-              console.error('Erro ao verificar imagens do cliente:', error);
-            }
-          }
         }
       }
 
@@ -686,11 +726,13 @@ export default function NewAppointment() {
         appointment: {
           ...appointmentData,
           date: format(appointmentData.date, 'yyyy-MM-dd'),
-          serviceName: selectedProcedure?.name || "",
-          servicePrice: numericPrice,
-          procedureId: selectedProcedure?.id || "",
-          procedureName: selectedProcedure?.name || "",
-          procedurePrice: numericPrice,
+          serviceName: selectedProcedures.map(p => p.name).join(", "),
+          servicePrice: totalPrice,
+          procedureIds: selectedProcedures.map(p => p.id),
+          procedureNames: selectedProcedures.map(p => p.name),
+          procedureCodes: selectedProcedures.map(p => p.code || ''),
+          procedurePrices: selectedProcedures.map(p => typeof p.price === 'string' ? parseInt(p.price) : (p.price || 0)),
+          totalPrice: totalPrice,
           professionalId: selectedProfessional?.id || "",
           professionalName: selectedProfessional?.name || "",
         },
@@ -726,6 +768,20 @@ export default function NewAppointment() {
     } else {
       router.back();
     }
+  };
+
+  const resetAllForms = () => {
+    clientForm.reset();
+    appointmentForm.reset();
+    setSelectedProcedures([]);
+    setSelectedProfessional(null);
+    setSelectedClientId(null);
+    setContactId(null);
+    setClientImageInfo({
+      existing: 0,
+      remaining: 0,
+      limit: 0
+    });
   };
 
   const renderProgressDots = () => (
@@ -853,7 +909,7 @@ export default function NewAppointment() {
       </form>
       
       {/* Indicador de Status do Cliente */}
-      {clientImageInfo && (
+      {clientImageInfo && contactId && (
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -906,7 +962,7 @@ export default function NewAppointment() {
               <FileText className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              value={selectedProcedure?.name || ""}
+              value={selectedProcedures.length > 0 ? selectedProcedures.map(p => p.name).join(", ") : ""}
               placeholder="Adicionar procedimento"
               style={{ textIndent: '2.0rem', paddingRight: '40px' }}
               readOnly
@@ -983,11 +1039,14 @@ export default function NewAppointment() {
               {...appointmentForm.register("startTime")}
               placeholder="Horário"
               style={{ textIndent: '2.0rem', paddingRight: '40px' }}
+              maxLength={5}
               onChange={(e) => {
                 const value = e.target.value;
                 const maskedValue = horaMask(value);
-                appointmentForm.setValue("startTime", maskedValue);
-                handleStartTimeChange(maskedValue);
+                if (maskedValue.length <= 5) {
+                  appointmentForm.setValue("startTime", maskedValue);
+                  handleStartTimeChange(maskedValue);
+                }
               }}
             />
           </div>
@@ -1094,10 +1153,28 @@ export default function NewAppointment() {
               <p className="text-gray-700">Data: {format(appointmentData.date, "dd/MM/yyyy", { locale: ptBR })}</p>
               <p className="text-gray-700">Hora: {appointmentData.startTime}</p>
               <div>
-                <p className="font-semibold text-gray-700">Procedimento:</p>
+                <p className="font-semibold text-gray-700">Procedimentos:</p>
                 <ul className="list-disc list-inside">
-                  <li>{selectedProcedure?.name || "Não selecionado"} - R$ {selectedProcedure?.price ? (typeof selectedProcedure.price === 'string' ? (parseInt(selectedProcedure.price) / 100).toFixed(2).replace('.', ',') : (selectedProcedure.price / 100).toFixed(2).replace('.', ',')) : "0,00"}</li>
+                  {selectedProcedures.length > 0 ? (
+                    selectedProcedures.map((procedure, index) => (
+                      <li key={index}>
+                        {procedure.name} - R$ {procedure.price ? (typeof procedure.price === 'string' ? (parseInt(procedure.price) / 100).toFixed(2).replace('.', ',') : (procedure.price / 100).toFixed(2).replace('.', ',')) : "0,00"}
+                      </li>
+                    ))
+                  ) : (
+                    <li>Nenhum procedimento selecionado</li>
+                  )}
                 </ul>
+                {selectedProcedures.length > 0 && (
+                  <div className="mt-2 pt-2 border-t">
+                    <p className="font-bold text-gray-800">
+                      Total: R$ {selectedProcedures.reduce((sum, procedure) => {
+                        const price = typeof procedure.price === 'string' ? parseInt(procedure.price) : (procedure.price || 0);
+                        return sum + price;
+                      }, 0) / 100}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1168,56 +1245,7 @@ export default function NewAppointment() {
         <CustomModalClients
           visible={showClientsModal}
           onClose={() => setShowClientsModal(false)}
-          onSelect={async (client) => {
-            clientForm.setValue("name", client.name || "");
-            clientForm.setValue("phone", phoneMask(client.phone || ""));
-            clientForm.setValue("cpf", cpfMask(client.cpf || ""));
-            if (client.email) {
-              clientForm.setValue("email", client.email);
-            }
-            setShowClientsModal(false);
-            
-            // Verificar e mostrar status de imagens do cliente
-            if (planLimits && client.id) {
-              try {
-                const servicesRef = collection(database, "Services");
-                const q = query(
-                  servicesRef,
-                  where("uid", "==", uid),
-                  where("contactUid", "==", client.id)
-                );
-                
-                const querySnapshot = await getDocs(q);
-                let existingImages = 0;
-                
-                querySnapshot.docs.forEach(doc => {
-                  const data = doc.data();
-                  const beforeCount = data.beforePhotos?.length || 0;
-                  const afterCount = data.afterPhotos?.length || 0;
-                  existingImages += beforeCount + afterCount;
-                });
-
-                const remaining = Math.max(0, planLimits.images - existingImages);
-                
-                // Armazenar informações do cliente
-                setClientImageInfo({
-                  existing: existingImages,
-                  remaining: remaining,
-                  limit: planLimits.images
-                });
-                
-                if (existingImages >= planLimits.images) {
-                  toast.warning(`Cliente ${client.name} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
-                } else if (remaining <= 2) {
-                  toast.info(`Cliente ${client.name} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
-                } else {
-                  toast.success(`Cliente ${client.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
-                }
-              } catch (error) {
-                console.error('Erro ao verificar imagens do cliente:', error);
-              }
-            }
-          }}
+          onSelect={handleClientSelect}
           title="Selecionar Cliente"
         />
       </div>

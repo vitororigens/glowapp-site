@@ -7,6 +7,7 @@ import { Search, FileText } from "lucide-react";
 
 interface Procedure {
   id: string;
+  code: string;
   name: string;
   duration: number;
   price: number;

@@ -112,6 +112,7 @@ interface Service {
 
 interface Procedure {
   id: string;
+  code: string;
   name: string;
   price: number;
   duration: number;
@@ -195,7 +196,7 @@ export default function NewService() {
   const [showProfessionalsModal, setShowProfessionalsModal] = useState(false);
   const [showClientsModal, setShowClientsModal] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [selectedProcedure, setSelectedProcedure] = useState<Procedure | null>(null);
+  const [selectedProcedures, setSelectedProcedures] = useState<Procedure[]>([]);
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const [payments, setPayments] = useState<Array<{
     method: "dinheiro" | "pix" | "cartao" | "boleto";
@@ -290,6 +291,13 @@ export default function NewService() {
     }
   }, [serviceId, uid]);
 
+  // Resetar estados para novos serviços
+  useEffect(() => {
+    if (!serviceId && uid) {
+      resetAllForms();
+    }
+  }, [serviceId, uid]);
+
   // Definir contactId se vier da URL
   useEffect(() => {
     if (contactIdParam) {
@@ -323,13 +331,20 @@ export default function NewService() {
           if (docSnap.exists()) {
             const data = docSnap.data();
             
-            // Carregar procedimento selecionado
-            if (data.services?.[0]) {
-              const selectedProc = procedures.find(p => p.id === data.services[0].id);
-              if (selectedProc) {
-                setSelectedProcedure(selectedProc);
-                procedureForm.setValue("procedureName", selectedProc.name);
-                procedureForm.setValue("price", formatCurrencyFromCents(selectedProc.price));
+            // Carregar procedimentos selecionados
+            if (data.services && data.services.length > 0) {
+              const selectedProcs = procedures.filter(p => data.services.some((s: any) => s.id === p.id));
+              if (selectedProcs.length > 0) {
+                setSelectedProcedures(selectedProcs);
+                procedureForm.setValue("procedureName", selectedProcs.map(p => p.name).join(", "));
+                
+                // Calcular preço total
+                const totalPrice = selectedProcs.reduce((sum, procedure) => {
+                  const price = typeof procedure.price === 'string' ? parseInt(procedure.price) : (procedure.price || 0);
+                  return sum + price;
+                }, 0);
+                
+                procedureForm.setValue("price", formatCurrencyFromCents(totalPrice));
               }
             }
             
@@ -485,11 +500,89 @@ export default function NewService() {
         // Definir tipo de serviço
         setServiceType(data.budget ? "budget" : "complete");
         
+        // Verificar status de imagens do cliente quando carregando para edição
+        if (data.contactUid && planLimits) {
+          try {
+            const servicesRef = collection(database, "Services");
+            const q = query(
+              servicesRef,
+              where("uid", "==", uid),
+              where("contactUid", "==", data.contactUid)
+            );
+            
+            const querySnapshot = await getDocs(q);
+            let existingImages = 0;
+            
+            querySnapshot.docs.forEach(doc => {
+              const serviceData = doc.data();
+              const beforeCount = serviceData.beforePhotos?.length || 0;
+              const afterCount = serviceData.afterPhotos?.length || 0;
+              existingImages += beforeCount + afterCount;
+            });
+
+            const remaining = Math.max(0, planLimits.images - existingImages);
+            
+            // Armazenar informações do cliente
+            setClientImageInfo({
+              existing: existingImages,
+              remaining: remaining,
+              limit: planLimits.images
+            });
+            
+            console.log(`Cliente ${data.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
+          } catch (error) {
+            console.error('Erro ao verificar imagens do cliente na edição:', error);
+          }
+        }
+        
         console.log("Formulário resetado com os dados carregados.");
       }
     } catch (error) {
       console.error("Erro ao carregar dados do serviço:", error);
       toast.error("Erro ao carregar dados do serviço!");
+    }
+  };
+
+  // Função para verificar status de imagens do cliente
+  const checkClientImageStatus = async (contactUid: string, clientName: string) => {
+    if (!planLimits || !uid) return;
+    
+    try {
+      const servicesRef = collection(database, "Services");
+      const q = query(
+        servicesRef,
+        where("uid", "==", uid),
+        where("contactUid", "==", contactUid)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      let existingImages = 0;
+      
+      querySnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const beforeCount = data.beforePhotos?.length || 0;
+        const afterCount = data.afterPhotos?.length || 0;
+        existingImages += beforeCount + afterCount;
+      });
+
+      const remaining = Math.max(0, planLimits.images - existingImages);
+      
+      // Armazenar informações do cliente
+      setClientImageInfo({
+        existing: existingImages,
+        remaining: remaining,
+        limit: planLimits.images
+      });
+      
+      if (existingImages >= planLimits.images) {
+        toast.warning(`Cliente ${clientName} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
+      } else if (remaining <= 2) {
+        toast.info(`Cliente ${clientName} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
+      } else {
+        toast.success(`Cliente ${clientName} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar imagens do cliente:', error);
     }
   };
 
@@ -625,7 +718,15 @@ export default function NewService() {
 
   // Handlers
   const handleClientSubmit = async (data: ClientData) => {
-    // Criar ou atualizar cliente automaticamente
+    // Se já temos um cliente selecionado E estamos editando um serviço existente,
+    // não precisamos fazer a verificação de imagens novamente
+    if (selectedClientId && serviceId) {
+      console.log("Cliente já selecionado para edição - pulando verificação de imagens do cliente");
+      setCurrentStep(2);
+      return;
+    }
+    
+    // Criar ou atualizar cliente automaticamente para ambos os tipos de serviço
     if (data.name && (data.cpf || data.phone)) {
       const contactUid = await createOrUpdateClientWithLimitations(
         data.name, 
@@ -640,45 +741,7 @@ export default function NewService() {
         setContactId(contactUid);
         
         // Verificar e mostrar status de imagens do cliente criado
-        if (planLimits) {
-          try {
-            const servicesRef = collection(database, "Services");
-            const q = query(
-              servicesRef,
-              where("uid", "==", uid),
-              where("contactUid", "==", contactUid)
-            );
-            
-            const querySnapshot = await getDocs(q);
-            let existingImages = 0;
-            
-            querySnapshot.docs.forEach(doc => {
-              const data = doc.data();
-              const beforeCount = data.beforePhotos?.length || 0;
-              const afterCount = data.afterPhotos?.length || 0;
-              existingImages += beforeCount + afterCount;
-            });
-
-            const remaining = Math.max(0, planLimits.images - existingImages);
-            
-            // Armazenar informações do cliente
-            setClientImageInfo({
-              existing: existingImages,
-              remaining: remaining,
-              limit: planLimits.images
-            });
-            
-            if (existingImages >= planLimits.images) {
-              toast.warning(`Cliente ${data.name} já atingiu o limite de ${planLimits.images} imagens do plano ${planLimits.planName}. Não é possível adicionar mais imagens.`);
-            } else if (remaining <= 2) {
-              toast.info(`Cliente ${data.name} tem ${existingImages}/${planLimits.images} imagens. Restam apenas ${remaining} imagens disponíveis.`);
-            } else {
-              toast.success(`Cliente ${data.name} tem ${existingImages}/${planLimits.images} imagens. Restam ${remaining} imagens disponíveis.`);
-            }
-          } catch (error) {
-            console.error('Erro ao verificar imagens do cliente:', error);
-          }
-        }
+        await checkClientImageStatus(contactUid, data.name);
       }
     }
     
@@ -688,12 +751,12 @@ export default function NewService() {
   const handleProcedureSubmit = (data: ProcedureData) => {
     console.log("Dados do procedimento:", data);
     console.log("Profissional selecionado:", selectedProfessional);
-    console.log("Procedimento selecionado:", selectedProcedure);
+    console.log("Procedimentos selecionados:", selectedProcedures);
     console.log("Erros do formulário:", procedureForm.formState.errors);
     
     // Validação customizada
-    if (!selectedProcedure) {
-      toast.error("Selecione um procedimento");
+    if (selectedProcedures.length === 0) {
+      toast.error("Selecione pelo menos um procedimento");
       return;
     }
     
@@ -854,14 +917,23 @@ export default function NewService() {
 
   const handleServiceSelect = (selectedServiceIds: string[]) => {
     if (selectedServiceIds.length > 0) {
-      const selectedService = procedures.find(p => p.id === selectedServiceIds[0]);
-      if (selectedService) {
-        setSelectedProcedure(selectedService);
-        procedureForm.setValue("procedureName", selectedService.name);
-        procedureForm.setValue("price", String(selectedService.price));
-        // Trigger validation
-        procedureForm.trigger();
-      }
+      const selectedServices = procedures.filter(p => selectedServiceIds.includes(p.id));
+      setSelectedProcedures(selectedServices);
+      
+      // Calcular preço total e definir no formulário
+      const totalPrice = selectedServices.reduce((sum, procedure) => {
+        const price = typeof procedure.price === 'string' ? parseInt(procedure.price) : (procedure.price || 0);
+        return sum + price;
+      }, 0);
+      
+      procedureForm.setValue("procedureName", selectedServices.map(p => p.name).join(", "));
+      procedureForm.setValue("price", String(totalPrice));
+      // Trigger validation
+      procedureForm.trigger();
+    } else {
+      setSelectedProcedures([]);
+      procedureForm.setValue("procedureName", "");
+      procedureForm.setValue("price", "0");
     }
     setShowServicesModal(false);
   };
@@ -952,7 +1024,7 @@ export default function NewService() {
     procedureForm.reset();
     paymentForm.reset();
     observationsForm.reset();
-    setSelectedProcedure(null);
+    setSelectedProcedures([]);
     setSelectedProfessional(null);
     setPayments([]);
     setCurrentPaymentIndex(-1);
@@ -962,10 +1034,21 @@ export default function NewService() {
       date: new Date().toISOString().split('T')[0], // Mantido para compatibilidade
       installments: undefined,
     });
+    // Resetar dados do cliente
+    setSelectedClientId(null);
+    setContactId(null);
+    setClientImageInfo({
+      existing: 0,
+      remaining: 0,
+      limit: 0
+    });
   };
 
   // Funções de pagamento baseadas no código antigo
-  const totalPrice = selectedProcedure?.price || 0;
+  const totalPrice = selectedProcedures.reduce((sum, procedure) => {
+    const price = typeof procedure.price === 'string' ? parseInt(procedure.price) : (procedure.price || 0);
+    return sum + price;
+  }, 0);
   const totalPaid = payments.reduce((acc, payment) => {
     // Os valores dos pagamentos já estão formatados em reais, então convertemos para número
     const paymentValue = Number(payment.value.replace(/\D/g, '')) / 100;
@@ -1293,7 +1376,7 @@ export default function NewService() {
               <FileText className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              value={selectedProcedure?.name || ""}
+              value={selectedProcedures.length > 0 ? selectedProcedures.map(p => p.name).join(", ") : ""}
               placeholder="Adicionar serviço"
               style={{ textIndent: '2.0rem', paddingRight: '40px' }}
               readOnly
@@ -1361,7 +1444,7 @@ export default function NewService() {
               <DollarSign className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              value={selectedProcedure?.price ? formatCurrencyFromCents(selectedProcedure.price) : ""}
+              value={totalPrice > 0 ? formatCurrencyFromCents(totalPrice) : ""}
               placeholder="Valor Total"
               style={{ textIndent: '2.0rem' }}
               readOnly
@@ -1401,7 +1484,7 @@ export default function NewService() {
               <FileText className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              value={selectedProcedure?.name || ""}
+              value={selectedProcedures.length > 0 ? selectedProcedures.map(p => p.name).join(", ") : ""}
               placeholder="Adicionar serviço"
               style={{ textIndent: '2.0rem', paddingRight: '40px' }}
               readOnly
@@ -1472,10 +1555,13 @@ export default function NewService() {
               {...procedureForm.register("startTime")}
               placeholder="Horário de início"
               style={{ textIndent: '2.0rem' }}
+              maxLength={5}
               onChange={(e) => {
                 const value = e.target.value;
                 const maskedValue = horaMask(value);
-                procedureForm.setValue("startTime", maskedValue);
+                if (maskedValue.length <= 5) {
+                  procedureForm.setValue("startTime", maskedValue);
+                }
               }}
             />
           </div>
@@ -1526,7 +1612,7 @@ export default function NewService() {
               <DollarSign className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              value={selectedProcedure?.price ? formatCurrencyFromCents(selectedProcedure.price) : ""}
+              value={totalPrice > 0 ? formatCurrencyFromCents(totalPrice) : ""}
               placeholder="Valor Total"
               style={{ textIndent: '2.0rem' }}
               readOnly
@@ -1595,7 +1681,15 @@ export default function NewService() {
               <div>
                 <p className="text-sm font-semibold text-gray-700">Procedimento:</p>
                 <ul className="list-disc list-inside">
-                  <li className="text-sm text-gray-700">{selectedProcedure?.name || "Não selecionado"} - {selectedProcedure?.price ? formatCurrencyFromCents(selectedProcedure.price) : "R$ 0,00"}</li>
+                  {selectedProcedures.length > 0 ? (
+                    selectedProcedures.map((procedure, index) => (
+                      <li key={index} className="text-sm text-gray-700">
+                        {procedure.name} - {procedure.price ? formatCurrencyFromCents(procedure.price) : "R$ 0,00"}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-sm text-gray-700">Nenhum procedimento selecionado</li>
+                  )}
                 </ul>
               </div>
             </div>
@@ -1636,18 +1730,18 @@ export default function NewService() {
                     email: clientData.email || "",
                     date: new Date().toISOString().split('T')[0],
                     time: "",
-                    price: selectedProcedure?.price || 0,
+                    price: totalPrice,
                     paidAmount: 0,
                     priority: "",
                     duration: "",
                     observations: "",
-                    services: selectedProcedure ? [{
-                      id: selectedProcedure.id,
-                      code: "",
-                      name: selectedProcedure.name,
-                      price: String(selectedProcedure.price),
+                    services: selectedProcedures.map(procedure => ({
+                      id: procedure.id,
+                      code: procedure.code || "",
+                      name: procedure.name,
+                      price: String(procedure.price),
                       date: new Date().toISOString().split('T')[0]
-                    }] : [],
+                    })),
                     professionals: selectedProfessional ? [{
                       id: selectedProfessional.id,
                       name: selectedProfessional.name,
@@ -1989,11 +2083,16 @@ export default function NewService() {
                     const beforePhotos = observationsForm.watch('beforePhotos') || [];
                     const afterPhotos = observationsForm.watch('afterPhotos') || [];
                     const serviceImages = beforePhotos.length + afterPhotos.length;
-                    const totalImages = clientImageInfo.existing + serviceImages;
+                    
+                    // Para verificação de limitações, sempre usar o total de imagens do cliente
+                    // Para exibição, mostrar apenas as imagens do serviço atual quando editando
+                    const totalImages = clientImageInfo.existing;
+                    const displayImages = serviceId ? serviceImages : totalImages;
+                    
                     const remaining = Math.max(0, planLimits.images - totalImages);
                     return (
                       <span className={remaining === 0 ? 'text-red-600 font-medium' : 'text-gray-600'}>
-                        {totalImages}/{planLimits.images} imagens
+                        {displayImages}/{planLimits.images} imagens
                         {remaining > 0 && ` (${remaining} restantes)`}
                       </span>
                     );
@@ -2071,11 +2170,16 @@ export default function NewService() {
                     const beforePhotos = observationsForm.watch('beforePhotos') || [];
                     const afterPhotos = observationsForm.watch('afterPhotos') || [];
                     const serviceImages = beforePhotos.length + afterPhotos.length;
-                    const totalImages = clientImageInfo.existing + serviceImages;
+                    
+                    // Para verificação de limitações, sempre usar o total de imagens do cliente
+                    // Para exibição, mostrar apenas as imagens do serviço atual quando editando
+                    const totalImages = clientImageInfo.existing;
+                    const displayImages = serviceId ? serviceImages : totalImages;
+                    
                     const remaining = Math.max(0, planLimits.images - totalImages);
                     return (
                       <span className={remaining === 0 ? 'text-red-600 font-medium' : 'text-gray-600'}>
-                        {totalImages}/{planLimits.images} imagens
+                        {displayImages}/{planLimits.images} imagens
                         {remaining > 0 && ` (${remaining} restantes)`}
                       </span>
                     );
@@ -2254,10 +2358,28 @@ export default function NewService() {
               <p className="text-sm text-gray-700">Data: {format(procedureData.date, "dd/MM/yyyy", { locale: ptBR })}</p>
               <p className="text-sm text-gray-700">Horário: {procedureData.startTime}</p>
               <div>
-                <p className="text-sm font-semibold text-gray-700">Procedimento:</p>
+                <p className="text-sm font-semibold text-gray-700">Procedimentos:</p>
                 <ul className="list-disc list-inside">
-                  <li className="text-sm text-gray-700">{selectedProcedure?.name || "Não selecionado"} - {selectedProcedure?.price ? formatCurrencyFromCents(selectedProcedure.price) : "R$ 0,00"}</li>
+                  {selectedProcedures.length > 0 ? (
+                    selectedProcedures.map((procedure, index) => (
+                      <li key={index} className="text-sm text-gray-700">
+                        {procedure.name} - {procedure.price ? formatCurrencyFromCents(procedure.price) : "R$ 0,00"}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-sm text-gray-700">Nenhum procedimento selecionado</li>
+                  )}
                 </ul>
+                {selectedProcedures.length > 0 && (
+                  <div className="mt-2 pt-2 border-t">
+                    <p className="text-sm font-bold text-gray-800">
+                      Total: R$ {selectedProcedures.reduce((sum, procedure) => {
+                        const price = typeof procedure.price === 'string' ? parseInt(procedure.price) : (procedure.price || 0);
+                        return sum + price;
+                      }, 0) / 100}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2377,18 +2499,21 @@ export default function NewService() {
                     email: clientData.email || "",
                     date: procedureData.date ? format(procedureData.date, 'yyyy-MM-dd') : new Date().toISOString().split('T')[0],
                     time: procedureData.startTime || "",
-                    price: selectedProcedure?.price || 0,
+                    price: selectedProcedures.reduce((sum, procedure) => {
+                      const price = typeof procedure.price === 'string' ? parseInt(procedure.price) : (procedure.price || 0);
+                      return sum + price;
+                    }, 0),
                     paidAmount: paidAmount,
                     priority: "",
                     duration: procedureData.endTime ? `${procedureData.startTime} - ${procedureData.endTime}` : "",
                     observations: observationsData.observations || "",
-                    services: selectedProcedure ? [{
-                      id: selectedProcedure.id,
-                      code: "",
-                      name: selectedProcedure.name,
-                      price: String(selectedProcedure.price),
+                    services: selectedProcedures.map(procedure => ({
+                      id: procedure.id,
+                      code: procedure.code || "",
+                      name: procedure.name,
+                      price: String(procedure.price),
                       date: procedureData.date ? format(procedureData.date, 'yyyy-MM-dd') : new Date().toISOString().split('T')[0]
-                    }] : [],
+                    })),
                     professionals: selectedProfessional ? [{
                       id: selectedProfessional.id,
                       name: selectedProfessional.name,

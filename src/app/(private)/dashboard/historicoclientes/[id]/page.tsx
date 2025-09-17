@@ -15,6 +15,7 @@ import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatDateToBrazilian } from "@/utils/formater/date";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ServiceViewModal from "@/components/ServiceViewModal";
 
 // Função para carregar valores do banco de dados (valores em centavos)
 const loadCurrencyFromDB = (value: number | string | undefined) => {
@@ -27,15 +28,25 @@ const loadCurrencyFromDB = (value: number | string | undefined) => {
 interface Service {
   id: string;
   name: string;
+  cpf?: string;
+  phone?: string;
+  email?: string;
   date: string;
   time: string;
   price: number | string;
+  priority?: string;
+  duration?: string;
   services: Array<{
     id: string;
     code: string;
     name: string;
     price: string;
     date: string;
+  }>;
+  professionals?: Array<{
+    id: string;
+    name: string;
+    specialty: string;
   }>;
   budget: boolean;
   payments?: Array<{
@@ -51,6 +62,14 @@ interface Service {
   clientId?: string;
   imagesBefore?: string[];
   imagesAfter?: string[];
+  beforePhotos?: Array<{
+    url: string;
+    description?: string;
+  }>;
+  afterPhotos?: Array<{
+    url: string;
+    description?: string;
+  }>;
   observations?: string;
 }
 
@@ -73,9 +92,6 @@ export default function ClientHistory() {
   const [clientImageCount, setClientImageCount] = useState(0);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [currentImageType, setCurrentImageType] = useState<'before' | 'after'>('before');
-  const [isFullscreen, setIsFullscreen] = useState(false);
   
   const { user } = useAuthContext();
   const { planLimits, canAddImageToClient, getRemainingImagesForClient } = usePlanLimitations();
@@ -155,10 +171,12 @@ export default function ClientHistory() {
       setIsLoadingServices(true);
       console.log("Buscando serviços para o cliente ID:", clientId);
       
+      const servicesRef = collection(database, "Services");
+      
+      // Primeiro, tentar buscar por contactUid (mais preciso)
       try {
-        const servicesRefExact = collection(database, "Services");
         const qExact = query(
-          servicesRefExact,
+          servicesRef,
           where("uid", "==", uid),
           where("contactUid", "==", clientId)
         );
@@ -182,78 +200,64 @@ export default function ClientHistory() {
         console.error("Erro na consulta exata:", exactError);
       }
       
-      const servicesRef = collection(database, "Services");
-      
-      const q = query(
-        servicesRef, 
-        where("uid", "==", uid)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      console.log("Total de serviços do usuário:", querySnapshot.docs.length);
-      
-      if (querySnapshot.docs.length > 0) {
-        const sampleDoc = querySnapshot.docs[0].data();
-        console.log("Estrutura de exemplo:", Object.keys(sampleDoc));
-        console.log("ID do cliente buscado:", clientId);
-        console.log("Nome do cliente:", clientName);
-      }
-      
-      const servicesData = querySnapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-        .filter(service => {
-          const docData = service as any;
-          
-          const matchesById = 
-            docData.contactId === clientId || 
-            docData.contactUid === clientId ||
-            docData.clientId === clientId;
-          
-          const matchesByName = 
-            clientName && 
-            docData.name && 
-            docData.name.toLowerCase() === clientName.toLowerCase();
-            
-          return matchesById || matchesByName;
-        }) as Service[];
-      
-      console.log("Serviços encontrados para este cliente:", servicesData.length);
-      
-      if (servicesData.length === 0 && querySnapshot.docs.length > 0) {
-        console.log("Tentando abordagem alternativa de busca...");
+      // Se não encontrou por contactUid, buscar por outros campos de ID
+      try {
+        const qContactId = query(
+          servicesRef,
+          where("uid", "==", uid),
+          where("contactId", "==", clientId)
+        );
         
-        const alternativeServices = querySnapshot.docs
-          .map(doc => {
-            const data = doc.data();
-            const stringData = JSON.stringify(data).toLowerCase();
-            const matches = 
-              stringData.includes(clientId.toLowerCase()) || 
-              (clientName && stringData.includes(clientName.toLowerCase()));
-            
-            if (matches) {
-              return {
-                id: doc.id,
-                ...data
-              };
-            }
-            return null;
-          })
-          .filter(service => service !== null) as Service[];
-          
-        console.log("Serviços encontrados com abordagem alternativa:", alternativeServices.length);
+        const querySnapshotContactId = await getDocs(qContactId);
+        console.log("Serviços encontrados com contactId:", querySnapshotContactId.docs.length);
         
-        if (alternativeServices.length > 0) {
-          setServices(alternativeServices);
+        if (querySnapshotContactId.docs.length > 0) {
+          const contactIdServicesData = querySnapshotContactId.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Service[];
+          
+          setServices(contactIdServicesData.sort((a, b) => 
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+          ));
+          setIsLoadingServices(false);
           return;
         }
+      } catch (contactIdError) {
+        console.error("Erro na consulta por contactId:", contactIdError);
       }
       
-      setServices(servicesData.sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      ));
+      // Se ainda não encontrou, buscar por clientId
+      try {
+        const qClientId = query(
+          servicesRef,
+          where("uid", "==", uid),
+          where("clientId", "==", clientId)
+        );
+        
+        const querySnapshotClientId = await getDocs(qClientId);
+        console.log("Serviços encontrados com clientId:", querySnapshotClientId.docs.length);
+        
+        if (querySnapshotClientId.docs.length > 0) {
+          const clientIdServicesData = querySnapshotClientId.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Service[];
+          
+          setServices(clientIdServicesData.sort((a, b) => 
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+          ));
+          setIsLoadingServices(false);
+          return;
+        }
+      } catch (clientIdError) {
+        console.error("Erro na consulta por clientId:", clientIdError);
+      }
+      
+      // Se não encontrou por nenhum ID, não mostrar serviços de outros clientes
+      console.log("Nenhum serviço encontrado para este cliente específico");
+      setServices([]);
+      
     } catch (error) {
       console.error("Erro ao buscar serviços do cliente:", error);
       toast.error("Erro ao carregar histórico do cliente!");
@@ -268,44 +272,71 @@ export default function ClientHistory() {
     try {
       console.log(`Buscando imagens para cliente: ${clientId}`);
       
-      // Buscar todos os serviços do usuário
       const servicesRef = collection(database, "Services");
-      const q = query(
-        servicesRef,
-        where("uid", "==", uid)
-      );
-      
-      const querySnapshot = await getDocs(q);
       let totalImages = 0;
       let servicesFound = 0;
       
-      console.log(`Total de serviços encontrados: ${querySnapshot.docs.length}`);
-      
-      querySnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        console.log(`Serviço ${doc.id}:`, {
-          contactUid: data.contactUid,
-          name: data.name,
-          beforePhotos: data.beforePhotos?.length || 0,
-          afterPhotos: data.afterPhotos?.length || 0,
-          imagesBefore: data.imagesBefore?.length || 0,
-          imagesAfter: data.imagesAfter?.length || 0
-        });
+      // Buscar por contactUid primeiro (mais preciso)
+      try {
+        const qExact = query(
+          servicesRef,
+          where("uid", "==", uid),
+          where("contactUid", "==", clientId)
+        );
         
-        // Verificar se é do cliente correto
-        if (data.contactUid === clientId || data.name === clientName) {
-          servicesFound++;
+        const querySnapshotExact = await getDocs(qExact);
+        console.log(`Serviços encontrados com contactUid: ${querySnapshotExact.docs.length}`);
+        
+        querySnapshotExact.docs.forEach(doc => {
+          const data = doc.data();
           const beforeCount = (data.imagesBefore?.length || 0) + (data.beforePhotos?.length || 0);
           const afterCount = (data.imagesAfter?.length || 0) + (data.afterPhotos?.length || 0);
           totalImages += beforeCount + afterCount;
+          servicesFound++;
           console.log(`Serviço do cliente encontrado: ${beforeCount} antes + ${afterCount} depois = ${beforeCount + afterCount} total`);
+        });
+        
+        if (servicesFound > 0) {
+          console.log(`Total de imagens para cliente ${clientName}: ${totalImages} (${servicesFound} serviços)`);
+          setClientImageCount(totalImages);
+          return;
         }
-      });
+      } catch (exactError) {
+        console.error("Erro na consulta exata de imagens:", exactError);
+      }
       
-      console.log(`Serviços do cliente encontrados: ${servicesFound}`);
-      console.log(`Total de imagens do cliente ${clientId}: ${totalImages}`);
+      // Se não encontrou por contactUid, tentar por contactId
+      try {
+        const qContactId = query(
+          servicesRef,
+          where("uid", "==", uid),
+          where("contactId", "==", clientId)
+        );
+        
+        const querySnapshotContactId = await getDocs(qContactId);
+        console.log(`Serviços encontrados com contactId: ${querySnapshotContactId.docs.length}`);
+        
+        querySnapshotContactId.docs.forEach(doc => {
+          const data = doc.data();
+          const beforeCount = (data.imagesBefore?.length || 0) + (data.beforePhotos?.length || 0);
+          const afterCount = (data.imagesAfter?.length || 0) + (data.afterPhotos?.length || 0);
+          totalImages += beforeCount + afterCount;
+          servicesFound++;
+          console.log(`Serviço do cliente encontrado: ${beforeCount} antes + ${afterCount} depois = ${beforeCount + afterCount} total`);
+        });
+        
+        if (servicesFound > 0) {
+          console.log(`Total de imagens para cliente ${clientName}: ${totalImages} (${servicesFound} serviços)`);
+          setClientImageCount(totalImages);
+          return;
+        }
+      } catch (contactIdError) {
+        console.error("Erro na consulta por contactId de imagens:", contactIdError);
+      }
       
-      setClientImageCount(totalImages);
+      // Se não encontrou por nenhum ID, não contar imagens de outros clientes
+      console.log(`Nenhuma imagem encontrada para cliente ${clientName}`);
+      setClientImageCount(0);
     } catch (error) {
       console.error('Erro ao buscar contagem de imagens do cliente:', error);
       setClientImageCount(0);
@@ -360,39 +391,27 @@ export default function ClientHistory() {
     console.log('🔍 Visualizando serviço:', service);
     console.log('📸 Images Before:', service.imagesBefore);
     console.log('📸 Images After:', service.imagesAfter);
-    setSelectedService(service);
+    
+    // Adaptar os dados do serviço para o formato esperado pelo ServiceViewModal
+    const adaptedService = {
+      ...service,
+      // Converter imagesBefore e imagesAfter para beforePhotos e afterPhotos se necessário
+      beforePhotos: service.beforePhotos || (service.imagesBefore?.map(url => ({ url })) || []),
+      afterPhotos: service.afterPhotos || (service.imagesAfter?.map(url => ({ url })) || []),
+      // Adicionar dados do cliente se disponível
+      name: service.name || clientData?.name || "Cliente",
+      cpf: service.cpf || clientData?.cpf,
+      phone: service.phone || clientData?.phone,
+      email: service.email || clientData?.email,
+    };
+    
+    setSelectedService(adaptedService);
     setIsServiceModalOpen(true);
   };
 
   const closeServiceModal = () => {
     setSelectedService(null);
     setIsServiceModalOpen(false);
-  };
-
-  const openFullscreen = () => {
-    setIsFullscreen(true);
-  };
-
-  const closeFullscreen = () => {
-    setIsFullscreen(false);
-  };
-
-  const nextImage = () => {
-    if (selectedService) {
-      const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
-      if (currentPhotos.length > 1) {
-        setCurrentImageIndex((prev) => (prev + 1) % currentPhotos.length);
-      }
-    }
-  };
-
-  const prevImage = () => {
-    if (selectedService) {
-      const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
-      if (currentPhotos.length > 1) {
-        setCurrentImageIndex((prev) => (prev - 1 + currentPhotos.length) % currentPhotos.length);
-      }
-    }
   };
   
   const isLoading = isLoadingClient || isLoadingServices;
@@ -616,388 +635,11 @@ export default function ClientHistory() {
       </div>
 
       {/* Modal de Detalhes do Serviço */}
-      <Dialog open={isServiceModalOpen} onOpenChange={setIsServiceModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Detalhes Completos do Serviço
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedService && (
-            <div className="space-y-6">
-              {/* Informações Básicas */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Informações Básicas
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Nome do Serviço</p>
-                    <p className="font-medium">{selectedService.name || "Não informado"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Tipo</p>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      selectedService.budget ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
-                    }`}>
-                      {selectedService.budget ? 'Orçamento' : 'Serviço'}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Data</p>
-                    <p className="font-medium">{formatDateToBrazilian(selectedService.date)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Horário</p>
-                    <p className="font-medium">{selectedService.time || "Não informado"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Valor Total</p>
-                    <p className="font-medium text-lg">{loadCurrencyFromDB(selectedService.price)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Detalhes dos Serviços */}
-              {selectedService.services && selectedService.services.length > 0 && (
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Procedimentos Realizados
-                  </h3>
-                  <div className="space-y-3">
-                    {selectedService.services.map((serviceItem, index) => (
-                      <div key={index} className="bg-white p-3 rounded border">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div>
-                            <p className="text-sm text-gray-500">Código</p>
-                            <p className="font-medium">{serviceItem.code || "Não informado"}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Nome do Procedimento</p>
-                            <p className="font-medium">{serviceItem.name || "Não informado"}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Valor</p>
-                            <p className="font-medium">{loadCurrencyFromDB(serviceItem.price)}</p>
-                          </div>
-                        </div>
-                        {serviceItem.date && (
-                          <div className="mt-2">
-                            <p className="text-sm text-gray-500">Data do Procedimento</p>
-                            <p className="font-medium">{formatDateToBrazilian(serviceItem.date)}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Formas de Pagamento */}
-              {selectedService.payments && selectedService.payments.length > 0 && (
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
-                    Formas de Pagamento
-                  </h3>
-                  <div className="space-y-3">
-                    {selectedService.payments.map((payment, index) => (
-                      <div key={index} className="bg-white p-3 rounded border">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                          <div>
-                            <p className="text-sm text-gray-500">Método</p>
-                            <p className="font-medium capitalize">{payment.method || "Não informado"}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Valor</p>
-                            <p className="font-medium">{currencyMask(payment.value)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Parcelas</p>
-                            <p className="font-medium">{payment.installments ? `${payment.installments}x` : "À vista"}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Status</p>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              payment.status === 'pago' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {payment.status === 'pago' ? 'Pago' : 'Pendente'}
-                            </span>
-                          </div>
-                        </div>
-                        {payment.date && (
-                          <div className="mt-2">
-                            <p className="text-sm text-gray-500">Data do Pagamento</p>
-                            <p className="font-medium">{formatDateToBrazilian(payment.date)}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Informações do Cliente */}
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Informações do Cliente
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Nome</p>
-                    <p className="font-medium">{clientData?.name || "Não informado"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Telefone</p>
-                    <p className="font-medium">{clientData?.phone ? celularMask(clientData.phone) : "Não informado"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Email</p>
-                    <p className="font-medium">{clientData?.email || "Não informado"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">CPF</p>
-                    <p className="font-medium">{clientData?.cpf ? cpfMask(clientData.cpf) : "Não informado"}</p>
-                  </div>
-                </div>
-                {clientData?.observations && (
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-500">Observações do Cliente</p>
-                    <p className="font-medium bg-white p-3 rounded border">{clientData.observations}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Observações do Serviço */}
-              {selectedService.observations && (
-                <div className="bg-orange-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Observações do Serviço
-                  </h3>
-                  <div className="bg-white p-3 rounded border">
-                    <p className="font-medium">{selectedService.observations}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Galeria de Fotos */}
-              {((selectedService.imagesBefore?.length ?? 0) > 0 || (selectedService.imagesAfter?.length ?? 0) > 0) && (
-                <div className="bg-pink-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Image className="h-5 w-5" />
-                    Galeria de Fotos
-                  </h3>
-                  
-                  {/* Seletor de tipo de foto */}
-                  <div className="flex gap-2 mb-4">
-                    <Button
-                      variant={currentImageType === 'before' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        setCurrentImageType('before');
-                        setCurrentImageIndex(0);
-                      }}
-                    >
-                      Fotos Antes ({selectedService.imagesBefore?.length || 0})
-                    </Button>
-                    <Button
-                      variant={currentImageType === 'after' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        setCurrentImageType('after');
-                        setCurrentImageIndex(0);
-                      }}
-                    >
-                      Fotos Depois ({selectedService.imagesAfter?.length || 0})
-                    </Button>
-                  </div>
-
-                  {/* Visualizador de imagens */}
-                  {(() => {
-                    const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
-                    return currentPhotos.length > 0 ? (
-                      <div className="space-y-4">
-                        <div className="relative bg-white rounded-lg overflow-hidden group">
-                          <img
-                            src={currentPhotos[currentImageIndex]}
-                            alt={`Foto ${currentImageType} ${currentImageIndex + 1}`}
-                            className="w-full h-80 object-cover cursor-pointer transition-transform duration-200 hover:scale-105"
-                            onClick={openFullscreen}
-                          />
-                          
-                          {/* Botão de tela cheia */}
-                          <button
-                            onClick={openFullscreen}
-                            className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                          >
-                            <ZoomIn className="w-4 h-4" />
-                          </button>
-                          
-                          {/* Navegação de imagens */}
-                          {currentPhotos.length > 1 && (
-                            <>
-                              <button
-                                onClick={prevImage}
-                                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                              >
-                                <ChevronLeft className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={nextImage}
-                                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                              >
-                                <ChevronRight className="w-4 h-4" />
-                              </button>
-                              
-                              {/* Indicadores */}
-                              <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
-                                {currentPhotos.map((_, index) => (
-                                  <button
-                                    key={index}
-                                    onClick={() => setCurrentImageIndex(index)}
-                                    className={`w-2 h-2 rounded-full transition-colors duration-200 ${
-                                      index === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50 hover:bg-opacity-75'
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        
-                        {/* Miniaturas */}
-                        {currentPhotos.length > 1 && (
-                          <div className="flex space-x-2 overflow-x-auto pb-2">
-                            {currentPhotos.map((photo, index) => (
-                              <button
-                                key={index}
-                                onClick={() => setCurrentImageIndex(index)}
-                                className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
-                                  index === currentImageIndex 
-                                    ? 'border-pink-500 ring-2 ring-pink-200' 
-                                    : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                              >
-                                <img
-                                  src={photo}
-                                  alt={`Miniatura ${index + 1}`}
-                                  className="w-full h-full object-cover"
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 bg-white rounded-lg">
-                        <Image className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                        <p className="text-gray-500">Nenhuma foto {currentImageType === 'before' ? 'antes' : 'depois'}</p>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {/* Botões de Ação */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button variant="outline" onClick={closeServiceModal}>
-                  <X className="h-4 w-4 mr-2" />
-                  Fechar
-                </Button>
-                <Button onClick={() => {
-                  closeServiceModal();
-                  handleEditService(selectedService.id);
-                }}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar Serviço
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-        
-        {/* Modal de tela cheia */}
-        {isFullscreen && selectedService && (
-          <div className="fixed inset-0 z-[60] bg-black bg-opacity-95 flex items-center justify-center">
-            <div className="relative w-full h-full flex items-center justify-center p-4">
-              {/* Botão fechar */}
-              <button
-                onClick={closeFullscreen}
-                className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70"
-              >
-                <X className="w-6 h-6" />
-              </button>
-              
-              {/* Imagem em tela cheia */}
-              {(() => {
-                const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
-                return currentPhotos.length > 0 ? (
-                  <img
-                    src={currentPhotos[currentImageIndex]}
-                    alt={`Foto ${currentImageType} ${currentImageIndex + 1}`}
-                    className="max-w-full max-h-full object-contain"
-                  />
-                ) : null;
-              })()}
-              
-              {/* Navegação em tela cheia */}
-              {(() => {
-                const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
-                return currentPhotos.length > 1 ? (
-                  <>
-                    <button
-                      onClick={prevImage}
-                      className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-70"
-                    >
-                      <ChevronLeft className="w-6 h-6" />
-                    </button>
-                    <button
-                      onClick={nextImage}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-70"
-                    >
-                      <ChevronRight className="w-6 h-6" />
-                    </button>
-                    
-                    {/* Indicadores em tela cheia */}
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                      {(() => {
-                        const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
-                        return currentPhotos.map((_, index) => (
-                          <button
-                            key={index}
-                            onClick={() => setCurrentImageIndex(index)}
-                            className={`w-3 h-3 rounded-full transition-colors duration-200 ${
-                              index === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50 hover:bg-opacity-75'
-                            }`}
-                          />
-                        ));
-                      })()}
-                    </div>
-                  </>
-                ) : null;
-              })()}
-              
-              {/* Informações da foto */}
-              <div className="absolute bottom-4 left-4 text-white">
-                {(() => {
-                  const currentPhotos = currentImageType === 'before' ? selectedService.imagesBefore || [] : selectedService.imagesAfter || [];
-                  return currentPhotos.length > 0 ? (
-                    <p className="text-sm opacity-75">
-                      {currentImageType === 'before' ? 'Antes' : 'Depois'} - {currentImageIndex + 1} de {currentPhotos.length}
-                    </p>
-                  ) : null;
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
-      </Dialog>
+      <ServiceViewModal
+        isOpen={isServiceModalOpen}
+        onClose={closeServiceModal}
+        service={selectedService}
+      />
     </div>
   );
-} 
+}

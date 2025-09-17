@@ -149,20 +149,11 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
-        <DialogHeader className="flex flex-row items-center justify-between">
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Detalhes Completos do Serviço
           </DialogTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="flex items-center gap-2"
-          >
-            <X className="h-4 w-4" />
-            Fechar
-          </Button>
         </DialogHeader>
         
         <div className="space-y-6">

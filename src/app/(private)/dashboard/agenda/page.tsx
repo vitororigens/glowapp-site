@@ -63,6 +63,11 @@ interface Appointment {
     servicePrice?: number;
     procedureName?: string;
     procedurePrice?: number;
+    procedureIds?: string[];
+    procedureNames?: string[];
+    procedureCodes?: string[];
+    procedurePrices?: number[];
+    totalPrice?: number;
     professionalName?: string;
     professionalId?: string;
     observations?: string;
@@ -487,7 +492,7 @@ export default function Agenda() {
       method: "dinheiro",
       value: "",
       date: new Date().toISOString().split('T')[0],
-      installments: 1,
+      installments: undefined,
     });
     setCurrentPaymentIndex(-1);
     setShowConversionModal(true);
@@ -585,7 +590,7 @@ export default function Agenda() {
       method: "dinheiro",
       value: "",
       date: new Date().toISOString().split('T')[0],
-      installments: 1,
+      installments: undefined,
     });
   };
 
@@ -711,49 +716,48 @@ export default function Agenda() {
         }
       }
 
-      // Encontrar o contato para obter o contactUid
-      let contactUid: string | null = null;
-      try {
-        const contactsRef = collection(database, "Contacts");
-        const cpfNumeric = (conversionData.clientCpf || '').replace(/\D/g, '');
-        let qContacts;
-        if (cpfNumeric) {
-          qContacts = query(contactsRef, where("cpf", "==", cpfNumeric));
-        } else {
-          qContacts = query(contactsRef, where("name", "==", appointment.client.name));
-        }
-        const contactsSnap = await getDocs(qContacts);
-        if (!contactsSnap.empty) {
-          contactUid = contactsSnap.docs[0].id;
-        }
-      } catch (e) {
-        console.warn('Não foi possível identificar o contato para contactUid:', e);
-      }
-
-      // Se não encontrou o contato, criar um novo ou usar null
+      // Usar o contactUid do agendamento se disponível, senão buscar/criar
+      let contactUid: string | null = (appointment as any).contactUid || null;
+      
+      // Se não temos contactUid do agendamento, buscar ou criar
       if (!contactUid) {
         try {
-          // Nota: Não bloqueamos a criação automática de clientes aqui
-          // As limitações de imagens serão aplicadas quando o cliente for usado
-          
-          // Tentar criar um novo contato
-          const newContactData = {
-            name: appointment.client?.name || '',
-            phone: appointment.client?.phone || '',
-            email: appointment.client?.email || '',
-            cpf: (conversionData.clientCpf || '').replace(/\D/g, ''),
-            uid: uid,
-            createdAt: new Date().toISOString()
-          };
-          
           const contactsRef = collection(database, "Contacts");
-          const newContactRef = await addDoc(contactsRef, newContactData);
-          contactUid = newContactRef.id;
-          console.log('Novo contato criado:', contactUid);
+          const cpfNumeric = (conversionData.clientCpf || '').replace(/\D/g, '');
+          let qContacts;
+          if (cpfNumeric) {
+            qContacts = query(contactsRef, where("cpf", "==", cpfNumeric));
+          } else {
+            qContacts = query(contactsRef, where("name", "==", appointment.client.name));
+          }
+          const contactsSnap = await getDocs(qContacts);
+          if (!contactsSnap.empty) {
+            contactUid = contactsSnap.docs[0].id;
+          }
         } catch (e) {
-          console.warn('Não foi possível criar novo contato:', e);
-          // Se não conseguir criar, usar null em vez de undefined
-          contactUid = null;
+          console.warn('Não foi possível identificar o contato para contactUid:', e);
+        }
+
+        // Se ainda não encontrou o contato, criar um novo
+        if (!contactUid) {
+          try {
+            const newContactData = {
+              name: appointment.client?.name || '',
+              phone: appointment.client?.phone || '',
+              email: appointment.client?.email || '',
+              cpf: (conversionData.clientCpf || '').replace(/\D/g, ''),
+              uid: uid,
+              createdAt: new Date().toISOString()
+            };
+            
+            const contactsRef = collection(database, "Contacts");
+            const newContactRef = await addDoc(contactsRef, newContactData);
+            contactUid = newContactRef.id;
+            console.log('Novo contato criado:', contactUid);
+          } catch (e) {
+            console.warn('Não foi possível criar novo contato:', e);
+            contactUid = null;
+          }
         }
       }
 
@@ -779,15 +783,13 @@ export default function Agenda() {
         priority: "",
         duration: "",
         observations: conversionData.observations || '',
-        services: [
-          {
-            id: (appointment as any).appointment?.procedureId || '',
-            code: '',
-            name: appointment.appointment?.serviceName || appointment.appointment?.procedureName || 'Serviço',
-            price: String(appointment.appointment?.servicePrice || appointment.appointment?.procedurePrice || 0),
-            date: appointment.appointment?.date || ''
-          }
-        ],
+        services: ((appointment.appointment as any)?.procedureIds || []).map((procedureId: string, index: number) => ({
+          id: procedureId,
+          code: (appointment as any).appointment?.procedureCodes?.[index] || '',
+          name: (appointment as any).appointment?.procedureNames?.[index] || 'Serviço',
+          price: String((appointment as any).appointment?.procedurePrices?.[index] || 0),
+          date: appointment.appointment?.date || ''
+        })),
         professionals: appointment.appointment?.professionalName ? [
           {
             id: appointment.appointment?.professionalId || '',
@@ -2860,7 +2862,9 @@ export default function Agenda() {
                                       ? "PIX"
                                       : payment.method === "boleto"
                                       ? "Boleto"
-                                      : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
+                                      : payment.method === "cartao"
+                                      ? `Cartão ${payment.installments ? `${payment.installments}x` : ""}`
+                                      : "Cartão"}
                                   </div>
                                   <div className="text-sm">
                                     {formatDateToBrazilian(payment.date)} - {payment.value}
