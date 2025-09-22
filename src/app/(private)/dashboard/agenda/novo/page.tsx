@@ -106,6 +106,7 @@ export default function NewAppointment() {
   const [selectedAppointmentForDetails, setSelectedAppointmentForDetails] = useState<any>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [contactId, setContactId] = useState<string | null>(null);
+  const [clientDataModified, setClientDataModified] = useState(false);
   const { user } = useAuthContext();
   const { userData } = useUserData();
   const { planLimits } = usePlanLimitations();
@@ -437,11 +438,17 @@ export default function NewAppointment() {
   // Handlers
   const handleClientSubmit = async (data: ClientData) => {
     // Se já temos um cliente selecionado (seja por edição ou seleção anterior),
-    // não precisamos fazer a verificação de imagens novamente
-    if (selectedClientId) {
+    // mas os dados foram modificados pelo usuário, forçar criação de novo cliente
+    if (selectedClientId && !clientDataModified) {
       console.log("Cliente já selecionado - pulando verificação de imagens do cliente");
       setCurrentStep(2);
       return;
+    }
+    
+    // Se os dados foram modificados, resetar selectedClientId para forçar criação de novo cliente
+    if (clientDataModified) {
+      setSelectedClientId(null);
+      setContactId(null);
     }
     
     // Criar ou atualizar cliente automaticamente (apenas para novos agendamentos)
@@ -889,9 +896,13 @@ export default function NewAppointment() {
               <User className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              {...clientForm.register("name")}
               placeholder="Nome completo do cliente"
               style={{ textIndent: '2.0rem' }}
+              value={clientForm.watch("name") || ""}
+              onChange={(e) => {
+                clientForm.setValue("name", e.target.value);
+                setClientDataModified(true);
+              }}
             />
             <Button
               type="button"
@@ -925,14 +936,15 @@ export default function NewAppointment() {
               <User className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              {...clientForm.register("cpf")}
               placeholder="CPF"
               style={{ textIndent: '2.0rem' }}
               maxLength={14}
+              value={clientForm.watch("cpf") || ""}
               onChange={(e) => {
                 const maskedValue = cpfMask(e.target.value);
                 if (maskedValue.length <= 14) {
                   clientForm.setValue("cpf", maskedValue);
+                  setClientDataModified(true);
                 }
               }}
             />
@@ -948,14 +960,15 @@ export default function NewAppointment() {
               <Phone className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              {...clientForm.register("phone")}
               placeholder="Celular"
               style={{ textIndent: '2.0rem' }}
               maxLength={15}
+              value={clientForm.watch("phone") || ""}
               onChange={(e) => {
                 const maskedValue = phoneMask(e.target.value);
                 if (maskedValue.length <= 15) {
                   clientForm.setValue("phone", maskedValue);
+                  setClientDataModified(true);
                 }
               }}
             />
@@ -971,9 +984,13 @@ export default function NewAppointment() {
               <Mail className="h-5 w-5 text-gray-400" />
             </div>
             <Input
-              {...clientForm.register("email")}
               placeholder="E-mail"
               style={{ textIndent: '2.0rem' }}
+              value={clientForm.watch("email") || ""}
+              onChange={(e) => {
+                clientForm.setValue("email", e.target.value);
+                setClientDataModified(true);
+              }}
             />
           </div>
           {clientForm.formState.errors.email && (
