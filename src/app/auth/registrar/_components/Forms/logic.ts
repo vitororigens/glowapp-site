@@ -15,6 +15,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import useFirestoreCollection from '@/hooks/useFirestoreCollection';
 import { useRouter } from 'next/navigation';
 import firebase from 'firebase/compat/app';
+import { triggerNewClientJourney } from '@/services/automation';
 
 const useLogic = () => {
   const router = useRouter();
@@ -52,7 +53,16 @@ const useLogic = () => {
             phone: data.phone || "",
 
           })
-        }).then(() => {
+        }).then(async () => {
+          // Disparar automação (não bloqueante)
+          try {
+            await triggerNewClientJourney({
+              userId: uid,
+              name: data.name.trim(),
+              email: data.email.trim(),
+              phone: data.phone,
+            });
+          } catch {}
           console.log('Usuário adicionado ao banco de dados.');
           router.push('/auth/login');
           handleLogout();

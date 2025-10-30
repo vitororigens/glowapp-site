@@ -11,6 +11,7 @@ import { useUserData } from "@/hooks/useUserData";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { database } from "@/services/firebase";
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, where, updateDoc } from "firebase/firestore";
+import { triggerAppointmentConfirmationSite } from "@/services/automation";
 import { z } from "zod";
 import { toast } from "react-toastify";
 import { Textarea } from "@/components/ui/textarea";
@@ -815,10 +816,63 @@ export default function NewAppointment() {
         // Atualizar agendamento existente
         const appointmentRef = doc(database, "Appointments", appointmentId);
         await setDoc(appointmentRef, appointmentDoc);
+        // Disparar automação (não bloqueante)
+        try {
+          await triggerAppointmentConfirmationSite({
+            appointmentId,
+            client: {
+              name: clientData.name,
+              phone: clientData.phone,
+              email: clientData.email,
+            },
+            appointment: {
+              date: format(appointmentData.date, 'yyyy-MM-dd'),
+              startTime: appointmentData.startTime || "",
+              endTime: appointmentData.endTime || "",
+              observations: appointmentData.observations,
+              professionalName: selectedProfessional?.name,
+              services: selectedProcedures.map(p => ({ id: p.id, name: p.name, price: p.price })),
+              totalPrice: totalPrice,
+            },
+            user: {
+              id: uid || "",
+              name: userData?.name,
+              email: userData?.email,
+              phone: userData?.phone,
+            },
+          });
+        } catch {}
         toast.success("Agendamento atualizado com sucesso!");
       } else {
         // Criar novo agendamento
-        await addDoc(collection(database, "Appointments"), appointmentDoc);
+        const created = await addDoc(collection(database, "Appointments"), appointmentDoc);
+        const newId = created.id;
+        // Disparar automação (não bloqueante)
+        try {
+          await triggerAppointmentConfirmationSite({
+            appointmentId: newId,
+            client: {
+              name: clientData.name,
+              phone: clientData.phone,
+              email: clientData.email,
+            },
+            appointment: {
+              date: format(appointmentData.date, 'yyyy-MM-dd'),
+              startTime: appointmentData.startTime || "",
+              endTime: appointmentData.endTime || "",
+              observations: appointmentData.observations,
+              professionalName: selectedProfessional?.name,
+              services: selectedProcedures.map(p => ({ id: p.id, name: p.name, price: p.price })),
+              totalPrice: totalPrice,
+            },
+            user: {
+              id: uid || "",
+              name: userData?.name,
+              email: userData?.email,
+              phone: userData?.phone,
+            },
+          });
+        } catch {}
         toast.success("Agendamento criado com sucesso!");
       }
       
