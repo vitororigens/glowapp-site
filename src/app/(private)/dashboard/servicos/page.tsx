@@ -85,11 +85,12 @@ export default function Services() {
       .reduce((acc, service) => {
         const paidAmount = service.payments
           ?.reduce((sum, p) => {
-            const value = typeof p.value === 'number' 
+            const rawValue = typeof p.value === 'number' 
               ? p.value 
               : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-            // Os valores já estão em centavos, mantemos como estão
-            return sum + value;
+            // ✅ Normalizar: se < 1000, está em reais (antigo)
+            const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+            return sum + valueInCents;
           }, 0) || 0;
         return acc + paidAmount;
       }, 0);
@@ -100,7 +101,10 @@ export default function Services() {
   const { totalPaid, totalServices: servicesCount, totalBudgets } = calculateTotals();
 
   const formatPrice = (price: number | string) => {
-    return formatCurrencyFromCents(price);
+    // ✅ Normalizar: suportar valores em reais (antigo) ou centavos (novo)
+    const rawValue = typeof price === 'string' ? parseFloat(price) : price;
+    const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+    return formatCurrencyFromCents(valueInCents);
   };
 
   const handleDelete = async (id: string) => {
@@ -199,14 +203,17 @@ export default function Services() {
                   .map((service: Service) => {
                   const paidAmount = service.payments 
                     ? service.payments.reduce((sum, p) => {
-                        const value = typeof p.value === 'number' 
+                        const rawValue = typeof p.value === 'number' 
                           ? p.value 
                           : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-                        // Os valores já estão em centavos, mantemos como estão
-                        return sum + value;
+                        // ✅ Normalizar valores antigos
+                        const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+                        return sum + valueInCents;
                       }, 0)
                     : 0;
-                  const valorTotal = service.price;
+                  // ✅ Normalizar preço total
+                  const rawPrice = typeof service.price === 'number' ? service.price : parseFloat(String(service.price));
+                  const valorTotal = rawPrice < 1000 ? rawPrice * 100 : rawPrice;
                   console.log(valorTotal);
                   return (
                     <TableRow 
