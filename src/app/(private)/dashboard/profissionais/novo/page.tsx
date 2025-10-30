@@ -40,6 +40,22 @@ const formSchema = z.object({
 
 type FormSchemaType = z.infer<typeof formSchema>;
 
+// ✅ Especialidades padronizadas
+const professionalSpecialties = [
+  { label: 'Dentista', value: 'dentista' },
+  { label: 'Manicure', value: 'manicure' },
+  { label: 'Cirurgião Plástico', value: 'cirurgiao_plastico' },
+  { label: 'Enfermeiro(a) Esteta', value: 'enfermeiro_esteta' },
+  { label: 'Dermatologista', value: 'dermatologista' },
+  { label: 'Fisioterapeuta', value: 'fisioterapeuta' },
+  { label: 'Podólogo(a)', value: 'podologo' },
+  { label: 'Esteticista', value: 'esteticista' },
+  { label: 'Massoterapeuta', value: 'massoterapeuta' },
+  { label: 'Cabeleireiro(a)', value: 'cabeleireiro' },
+  { label: 'Maquiador(a)', value: 'maquiador' },
+  { label: 'Outro', value: 'outro' },
+];
+
 export default function NewProfessional() {
   const [isLoading, setIsLoading] = useState(false);
   const [image, setImage] = useState<string | null>(null);
@@ -141,12 +157,24 @@ export default function NewProfessional() {
         ? doc(database, "Profissionals", selectedItemId)
         : doc(collection(database, "Profissionals"));
 
+      // ✅ Buscar dados existentes para preservar createdAt
+      let existingCreatedAt = new Date().toISOString();
+      if (selectedItemId) {
+        const existingDoc = await getDoc(docRef);
+        if (existingDoc.exists()) {
+          existingCreatedAt = existingDoc.data().createdAt || new Date().toISOString();
+        }
+      }
+
       await setDoc(docRef, {
         ...sanitizedData,
         cpfCnpj: data.cpfCnpj ? cnpjUnMask(data.cpfCnpj) : "",
         phone: celularUnMask(data.phone || ""),
         uid,
         ...(imageUrl && { imageUrl }),
+        // ✅ Timestamps padronizados
+        createdAt: existingCreatedAt,
+        updatedAt: new Date().toISOString(),
       });
 
       toast.success(selectedItemId ? "Profissional Atualizado!" : "Profissional adicionado!");
@@ -274,7 +302,16 @@ export default function NewProfessional() {
             control={control}
             name="specialty"
             render={({ field }) => (
-              <Input {...field} placeholder="Especialidade" />
+              <select
+                value={field.value || ''}
+                onChange={field.onChange}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">Selecione uma especialidade</option>
+                {professionalSpecialties.map((spec) => (
+                  <option key={spec.value} value={spec.value}>{spec.label}</option>
+                ))}
+              </select>
             )}
           />
         </div>

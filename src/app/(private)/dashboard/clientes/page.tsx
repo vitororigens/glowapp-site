@@ -35,6 +35,7 @@ interface Contact {
 export default function Contacts() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');  // ✅ Adicionar busca
   const { user } = useAuthContext();
   const uid = user?.uid;
   const router = useRouter();
@@ -85,6 +86,19 @@ export default function Contacts() {
     router.push(`/dashboard/clientes/novo?id=${id}`);
   };
 
+  // ✅ Filtrar clientes pela busca
+  const filteredContacts = contacts.filter((contact) => {
+    if (!searchTerm.trim()) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      contact.name.toLowerCase().includes(searchLower) ||
+      contact.phone.includes(searchTerm) ||
+      contact.email?.toLowerCase().includes(searchLower) ||
+      contact.cpf?.includes(searchTerm)
+    );
+  });
+
   if (isLoading) {
     return <div className="p-4">Carregando...</div>;
   }
@@ -100,7 +114,7 @@ export default function Contacts() {
             <Button 
               variant="link" 
               className="p-0 h-auto font-semibold text-yellow-800"
-                              onClick={() => router.push('/dashboard/planos')}
+              onClick={() => router.push('/dashboard/planos')}
             >
               Faça upgrade para adicionar mais clientes.
             </Button>
@@ -126,6 +140,17 @@ export default function Contacts() {
         </Button>
       </div>
 
+      {/* ✅ Campo de Busca */}
+      <div className="mb-4">
+        <Input
+          type="text"
+          placeholder="Pesquisar por nome, telefone, email ou CPF..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-md"
+        />
+      </div>
+
       <div className="bg-white rounded-lg shadow">
         <Table>
           <TableHeader>
@@ -138,14 +163,16 @@ export default function Contacts() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {contacts.length === 0 ? (
+            {filteredContacts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-4">
-                  Nenhum cliente encontrado.
+                  {searchTerm.trim() 
+                    ? "Nenhum cliente encontrado para esta busca." 
+                    : "Nenhum cliente encontrado."}
                 </TableCell>
               </TableRow>
             ) : (
-              contacts.map((contact) => (
+              filteredContacts.map((contact) => (
                 <TableRow key={contact.id}>
                   <TableCell>
                     <div className="flex items-center space-x-2">

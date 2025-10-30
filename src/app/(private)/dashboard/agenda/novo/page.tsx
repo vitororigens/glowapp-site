@@ -786,30 +786,47 @@ export default function NewAppointment() {
         }
       }
 
+      // Calcular duração total dos procedimentos
+      const totalDuration = selectedProcedures.reduce((sum, procedure) => {
+        return sum + (procedure.duration || 0);
+      }, 0);
+
       const appointmentDoc = {
         client: {
           name: clientData.name,
           phone: clientData.phone,
-          email: clientData.email,
-          cpf: clientData.cpf,
+          email: clientData.email || '',
+          cpf: clientData.cpf || '',
         },
         appointment: {
-          ...appointmentData,
+          // ✅ Data e horários padronizados
           date: format(appointmentData.date, 'yyyy-MM-dd'),
-          serviceName: selectedProcedures.map(p => p.name).join(", "),
-          servicePrice: totalPrice,
+          startTime: appointmentData.startTime || '',
+          endTime: appointmentData.endTime || '',
+          duration: totalDuration, // ✅ Duração total em minutos
+          // ✅ Arrays de procedimentos (padrão unificado)
           procedureIds: selectedProcedures.map(p => p.id),
           procedureNames: selectedProcedures.map(p => p.name),
           procedureCodes: selectedProcedures.map(p => p.code || ''),
           procedurePrices: selectedProcedures.map(p => typeof p.price === 'string' ? parseInt(p.price) : (p.price || 0)),
+          // ✅ Totais
           totalPrice: totalPrice,
+          // ✅ Profissional com specialty
           professionalId: selectedProfessional?.id || "",
           professionalName: selectedProfessional?.name || "",
+          professionalSpecialty: selectedProfessional?.specialty || '', // ✅ Adicionado specialty
+          // ✅ Extras
+          observations: appointmentData.observations || '',
+          // Campos antigos mantidos para compatibilidade
+          serviceName: selectedProcedures.map(p => p.name).join(", "),
+          servicePrice: totalPrice,
         },
         uid,
-        contactUid, // Adicionar contactUid para rastreamento
+        contactUid: contactUid || '', // ✅ ID do cliente para rastreamento
         createdAt: new Date().toISOString(),
-        status: 'pendente'
+        updatedAt: new Date().toISOString(),
+        status: 'pendente',
+        convertedToService: false,
       };
 
       if (appointmentId) {

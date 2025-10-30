@@ -9,6 +9,7 @@ import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "./styles";
 import { useAuthContext } from "@/context/AuthContext";
+import { celularMask, cpfMask, cnpjMask } from "@/utils/maks/masks";  // ✅ Importar máscaras
 
 // Tipagem do profissional
 type PropsCardProfessional = {
@@ -28,6 +29,7 @@ export default function Profissionais() {
   const [professionals, setProfessionals] = useState<PropsCardProfessional[]>([]);
   const [selectedProfessional, setSelectedProfessional] = useState<PropsCardProfessional | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');  // ✅ Adicionar busca
   const router = useRouter();
   const { user } = useAuthContext();
   const uid = user?.uid;
@@ -74,6 +76,19 @@ export default function Profissionais() {
     }
   };
 
+  // ✅ Filtrar profissionais pela busca
+  const filteredProfessionals = professionals.filter((professional) => {
+    if (!searchTerm.trim()) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      professional.name.toLowerCase().includes(searchLower) ||
+      professional.email.toLowerCase().includes(searchLower) ||
+      professional.specialty?.toLowerCase().includes(searchLower) ||
+      professional.phone.includes(searchTerm)
+    );
+  });
+
   return (
     <Container>
       <div className="flex items-center justify-between mb-6">
@@ -82,6 +97,17 @@ export default function Profissionais() {
           <PlusIcon className="mr-2 h-4 w-4" />
           Adicionar profissionais
         </Button>
+      </div>
+
+      {/* ✅ Campo de Busca */}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Pesquisar por nome, email, telefone ou especialidade..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="flex h-10 w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
       </div>
 
       <div className="overflow-x-auto">
@@ -97,7 +123,16 @@ export default function Profissionais() {
             </tr>
           </thead>
           <tbody>
-            {professionals.map((professional) => (
+            {filteredProfessionals.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-4 text-center text-gray-500">
+                  {searchTerm.trim() 
+                    ? "Nenhum profissional encontrado para esta busca." 
+                    : "Nenhum profissional cadastrado."}
+                </td>
+              </tr>
+            ) : (
+              filteredProfessionals.map((professional) => (
               <tr
                 key={professional.id}
                 className="text-center hover:bg-gray-100 cursor-pointer"
@@ -111,8 +146,8 @@ export default function Profissionais() {
                   />
                 </td>
                 <td className="py-2 px-4 border">{professional.name}</td>
-                <td className="py-2 px-4 border">{professional.specialty}</td>
-                <td className="py-2 px-4 border">{professional.phone}</td>
+                <td className="py-2 px-4 border">{professional.specialty || '-'}</td>
+                <td className="py-2 px-4 border">{celularMask(professional.phone)}</td>
                 <td className="py-2 px-4 border">{professional.email}</td>
                 <td className="py-2 px-4 border">
                   <div className="flex gap-2 justify-center">
@@ -137,7 +172,8 @@ export default function Profissionais() {
                   </div>
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -170,10 +206,14 @@ export default function Profissionais() {
 
             <div className="mt-4 space-y-2">
               <p><strong>Email:</strong> {selectedProfessional.email}</p>
-              <p><strong>Telefone:</strong> {selectedProfessional.phone}</p>
-              <p><strong>CNPJ/CPF:</strong> {selectedProfessional.cpfCnpj}</p>
-              <p><strong>Registro:</strong> {selectedProfessional.registrationNumber}</p>
-              <p><strong>Endereço:</strong> {selectedProfessional.address}</p>
+              <p><strong>Telefone:</strong> {celularMask(selectedProfessional.phone)}</p>
+              <p><strong>CPF/CNPJ:</strong> {
+                selectedProfessional.cpfCnpj?.length > 11 
+                  ? cnpjMask(selectedProfessional.cpfCnpj) 
+                  : cpfMask(selectedProfessional.cpfCnpj)
+              }</p>
+              <p><strong>Registro:</strong> {selectedProfessional.registrationNumber || '-'}</p>
+              <p><strong>Endereço:</strong> {selectedProfessional.address || '-'}</p>
               {selectedProfessional.observations && (
                 <p><strong>Observações:</strong> {selectedProfessional.observations}</p>
               )}

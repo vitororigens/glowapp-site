@@ -14,6 +14,47 @@ import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
+// ✅ Categorias padronizadas (mesmas do app)
+const REVENUE_CATEGORIES = [
+  { label: 'Consultas', value: 'consultas' },
+  { label: 'Procedimentos', value: 'procedimentos' },
+  { label: 'Tratamentos', value: 'tratamentos' },
+  { label: 'Produtos', value: 'produtos' },
+  { label: 'Pacotes', value: 'pacotes' },
+  { label: 'Comissões', value: 'comissoes' },
+  { label: 'Adiantamentos', value: 'adiantamentos' },
+  { label: 'Investimentos', value: 'investimentos' },
+  { label: 'Outros', value: 'outros' },
+];
+
+const EXPENSE_CATEGORIES = [
+  { label: 'Produtos', value: 'produtos' },
+  { label: 'Equipamentos', value: 'equipamentos' },
+  { label: 'Aluguel', value: 'aluguel' },
+  { label: 'Contas', value: 'contas' },
+  { label: 'Internet', value: 'internet' },
+  { label: 'Telefone', value: 'telefone' },
+  { label: 'Marketing', value: 'marketing' },
+  { label: 'Publicidade', value: 'publicidade' },
+  { label: 'Seguros', value: 'seguros' },
+  { label: 'Impostos', value: 'impostos' },
+  { label: 'Salários', value: 'salarios' },
+  { label: 'Comissões', value: 'comissoes' },
+  { label: 'Manutenção', value: 'manutencao' },
+  { label: 'Limpeza', value: 'limpeza' },
+  { label: 'Descartáveis', value: 'descartaveis' },
+  { label: 'Cosméticos', value: 'cosmeticos' },
+  { label: 'Material de Trabalho', value: 'material_trabalho' },
+  { label: 'Cursos', value: 'cursos' },
+  { label: 'Certificações', value: 'certificacoes' },
+  { label: 'Viagens', value: 'viagens' },
+  { label: 'Eventos', value: 'eventos' },
+  { label: 'Alimentação', value: 'alimentacao' },
+  { label: 'Transporte', value: 'transporte' },
+  { label: 'Saúde', value: 'saude' },
+  { label: 'Outros', value: 'outros' },
+];
+
 export default function NewLaunch() {
   const [selectedType, setSelectedType] = useState<"revenue" | "expense" | "">("");
   const [isLoading, setIsLoading] = useState(false);
@@ -62,16 +103,21 @@ export default function NewLaunch() {
           if (docSnap.exists()) {
             const data = docSnap.data();
             const convertedDate = data.date ? convertBrazilianToISO(data.date) : "";
-            // Força multiplicação por 100 para corrigir valores antigos
-            const valueInCents = data.value ? Number(data.value) * 100 : 0;
             
-            // Teste direto para verificar se a função está funcionando
-            console.log("Teste 300000:", formatCurrencyFromCents(300000));
+            // ✅ Suportar valor em reais (antigo) ou centavos (novo)
+            let valueInCents = 0;
+            if (data.value) {
+              const rawValue = Number(data.value);
+              // Se < 1000, está em reais (antigo), converter para centavos
+              valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+            }
+            
             console.log("Valor do banco:", data.value);
-            console.log("Valor multiplicado:", valueInCents);
+            console.log("Valor normalizado (centavos):", valueInCents);
             
-            const formattedValue = data.value ? formatCurrencyFromCents(valueInCents) : "";
+            const formattedValue = formatCurrencyFromCents(valueInCents);
             console.log("Valor formatado:", formattedValue);
+            
             reset({
               name: data.name || "",
               category: data.category || "",
@@ -81,7 +127,7 @@ export default function NewLaunch() {
               type: itemType
             });
             
-            // Define o valor separadamente para garantir que seja aplicado
+            // Define o valor separadamente
             setTimeout(() => {
               setValue("value", formattedValue);
             }, 100);
@@ -97,48 +143,58 @@ export default function NewLaunch() {
   }, [itemId, itemType, reset]);
 
   const onSubmit = async (data: FormSchemaType) => {
-  const resolvedType = itemType || selectedType;
+    const resolvedType = itemType || selectedType;
 
-  if (!resolvedType) {
-    alert("Tipo de lançamento inválido.");
-    return;
-  }
+    if (!resolvedType) {
+      alert("Tipo de lançamento inválido.");
+      return;
+    }
 
-  const collectionName = resolvedType === "revenue" ? "Revenue" : "Expense";
-  const docId = itemId || crypto.randomUUID();
-  const docRef = doc(database, collectionName, docId);
+    const collectionName = resolvedType === "revenue" ? "Revenue" : "Expense";
+    const docId = itemId || crypto.randomUUID();
+    const docRef = doc(database, collectionName, docId);
 
-  const valueInCents = convertToCentsString(data.value);
-  const numericValue = Number(valueInCents);
-  if (isNaN(numericValue)) {
-    alert("Valor inválido.");
-    return;
-  }
+    // ✅ Buscar dados existentes para preservar createdAt
+    let existingCreatedAt = new Date().toISOString();
+    if (itemId) {
+      const existingDoc = await getDoc(docRef);
+      if (existingDoc.exists()) {
+        existingCreatedAt = existingDoc.data().createdAt || new Date().toISOString();
+      }
+    }
 
-  const typePt = resolvedType === "revenue" ? "Receita" : "Despesa";
+    const valueInCents = convertToCentsString(data.value);
+    const numericValue = Number(valueInCents);
+    if (isNaN(numericValue)) {
+      alert("Valor inválido.");
+      return;
+    }
 
-  const baseData = {
-    ...data,
-    date: formatDateToBrazilian(data.date), // Convert back to Brazilian format for storage
-    uid,
-    type: typePt,
-    value: numericValue,
-    updatedAt: new Date().toISOString(),
-    ...(itemId ? {} : { createdAt: new Date().toISOString() }),
+    const typePt = resolvedType === "revenue" ? "Receita" : "Despesa";
+
+    const baseData = {
+      ...data,
+      date: formatDateToBrazilian(data.date),
+      uid,
+      type: typePt,
+      value: numericValue,  // ✅ Em centavos
+      // ✅ Timestamps padronizados
+      createdAt: existingCreatedAt,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      setIsLoading(true);
+      await setDoc(docRef, baseData);
+      alert(itemId ? "Lançamento atualizado!" : "Lançamento adicionado!");
+      router.back();
+    } catch (error) {
+      console.error("Erro ao criar/atualizar lançamento: ", error);
+      alert("Erro ao salvar lançamento.");
+    } finally {
+      setIsLoading(false);
+    }
   };
-
-  try {
-    setIsLoading(true);
-    await setDoc(docRef, baseData);
-    alert(itemId ? "Lançamento atualizado!" : "Lançamento adicionado!");
-    router.back();
-  } catch (error) {
-    console.error("Erro ao criar/atualizar lançamento: ", error);
-    alert("Erro ao salvar lançamento.");
-  } finally {
-    setIsLoading(false);
-  }
-};
 
 
   return (
@@ -165,7 +221,15 @@ export default function NewLaunch() {
 
           <div>
             <Label>Categoria</Label>
-            <Input {...register("category")} />
+            <select
+              {...register("category")}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Selecione uma categoria</option>
+              {(selectedType === 'revenue' ? REVENUE_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
+                <option key={cat.value} value={cat.value}>{cat.label}</option>
+              ))}
+            </select>
             {errors.category && <p className="text-red-500 text-sm">{errors.category.message}</p>}
           </div>
 

@@ -19,11 +19,31 @@ const formSchema = z.object({
   name: z.string().min(1, "Nome do procedimento é obrigatório"),
   price: z.string().min(1, "Valor é obrigatório"),
   description: z.string().optional(),
+  duration: z.number().min(0, 'Duração deve ser maior ou igual a zero').optional(),  // ✅ Adicionado
+  category: z.string().optional(),  // ✅ Adicionado
+  isActive: z.boolean().default(true),  // ✅ Adicionado
   date: z.string().optional(),
   type: z.enum(['revenue'], { message: "Tipo é obrigatório" }),
 });
 
 type FormSchemaType = z.infer<typeof formSchema>;
+
+// ✅ Categorias de procedimentos (mesmas do app)
+const procedureCategories = [
+  'Manicure',
+  'Pedicure',
+  'Estética',
+  'Corte',
+  'Coloração',
+  'Hidratação',
+  'Maquiagem',
+  'Massagem',
+  'Limpeza de Pele',
+  'Depilação',
+  'Tratamento',
+  'Consulta',
+  'Outros',
+];
 
 // Função para gerar código automático baseado no nome
 const generateCode = (name: string) => {
@@ -59,6 +79,7 @@ export default function NewProcedure() {
     setValue,
     formState: { errors },
     reset,
+    watch,
   } = useForm<FormSchemaType>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -66,6 +87,9 @@ export default function NewProcedure() {
       name: "",
       price: "",
       description: "",
+      duration: 0,  // ✅ Adicionado
+      category: "",  // ✅ Adicionado
+      isActive: true,  // ✅ Adicionado
       date: new Date().toISOString().split('T')[0],
       type: "revenue",
     },
@@ -78,11 +102,26 @@ export default function NewProcedure() {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data) {
+            // ✅ Suportar preço em reais (antigo) ou centavos (novo)
+            let priceForDisplay = "0";
+            if (data.price) {
+              const rawPrice = typeof data.price === 'string' 
+                ? parseFloat(data.price) 
+                : data.price;
+              
+              // Se menor que 1000, está em reais (antigo), converter para centavos
+              const priceInCents = rawPrice < 1000 ? rawPrice * 100 : rawPrice;
+              priceForDisplay = currencyMask(priceInCents.toString());
+            }
+            
             reset({
               code: data.code || "",
               name: data.name || "",
-              price: currencyMask(data.price) || "",
+              price: priceForDisplay,
               description: data.description || "",
+              duration: data.duration || 0,  // ✅ Carregar duration
+              category: data.category || "",  // ✅ Carregar category
+              isActive: data.isActive ?? true,  // ✅ Carregar isActive
               date: data.date || new Date().toISOString().split('T')[0],
               type: "revenue",
             });
@@ -101,11 +140,32 @@ export default function NewProcedure() {
         ? doc(database, "Procedures", procedureId)
         : doc(collection(database, "Procedures"));
 
+      // Buscar dados existentes para preservar createdAt
+      let existingCreatedAt = new Date().toISOString();
+      if (procedureId) {
+        const existingDoc = await getDoc(docRef);
+        if (existingDoc.exists()) {
+          existingCreatedAt = existingDoc.data().createdAt || new Date().toISOString();
+        }
+      }
+
+      // ✅ Preço em CENTAVOS (number)
+      const priceInCents = parseInt(currencyUnMask(data.price)) || 0;
+
       await setDoc(docRef, {
-        ...data,
-        price: currencyUnMask(data.price),
+        name: data.name,
+        code: data.code,
+        price: priceInCents,  // ✅ Number em centavos
+        description: data.description || '',
+        duration: data.duration || 0,  // ✅ Number em minutos
+        category: data.category || '',  // ✅ Categoria
+        isActive: data.isActive ?? true,  // ✅ Status ativo
         uid,
-        createdAt: new Date().toISOString(),
+        type: data.type,
+        date: data.date || new Date().toISOString().split('T')[0],
+        // ✅ Timestamps
+        createdAt: existingCreatedAt,
+        updatedAt: new Date().toISOString(),
       });
 
       toast.success(procedureId ? "Procedimento atualizado!" : "Procedimento adicionado!");
@@ -173,6 +233,38 @@ export default function NewProcedure() {
           />
           {errors.price && (
             <p className="text-red-500 text-sm">{errors.price.message}</p>
+          )}
+        </div>
+
+        {/* ✅ Campo de Duração adicionado */}
+        <div>
+          <Label>Duração (minutos)</Label>
+          <Input
+            type="number"
+            placeholder="Ex: 60"
+            value={watch("duration") || ''}
+            onChange={(e) => setValue("duration", parseInt(e.target.value) || 0)}
+          />
+          {errors.duration && (
+            <p className="text-red-500 text-sm">{errors.duration.message}</p>
+          )}
+        </div>
+
+        {/* ✅ Campo de Categoria adicionado */}
+        <div>
+          <Label>Categoria</Label>
+          <select
+            value={watch("category") || ''}
+            onChange={(e) => setValue("category", e.target.value)}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">Selecione uma categoria</option>
+            {procedureCategories.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+          {errors.category && (
+            <p className="text-red-500 text-sm">{errors.category.message}</p>
           )}
         </div>
 

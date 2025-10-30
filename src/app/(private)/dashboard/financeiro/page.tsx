@@ -142,8 +142,12 @@ export default function Financeiro() {
 
   const formatPrice = (price: string | number | undefined, isExpense: boolean = false) => {
     if (!price) return "R$ 0,00";
-    // Os valores do banco já estão em centavos, então usamos formatCurrencyFromCents
-    const formattedValue = formatCurrencyFromCents(String(price));
+    
+    // ✅ Normalizar: suportar valores em reais (antigo) ou centavos (novo)
+    const rawValue = typeof price === 'string' ? parseFloat(price) : price;
+    const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+    
+    const formattedValue = formatCurrencyFromCents(valueInCents);
     return isExpense ? `- ${formattedValue}` : formattedValue;
   };
 
@@ -191,10 +195,11 @@ export default function Financeiro() {
       })
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  // ✅ Calcular total de receitas (normalizar valores antigos)
   const totalRevenue = [
     ...(revenues || []),
     ...(services || [])
-      .filter(service => !service.budget) // Remover filtro sendToFinance
+      .filter(service => !service.budget)
       .map(service => ({ 
         value: service.payments 
           ? service.payments
@@ -202,17 +207,20 @@ export default function Financeiro() {
           : 0 
       }))
   ].reduce((acc, curr) => {
-    // Os valores do banco já estão em centavos, então não precisamos dividir por 100
-    const value = typeof curr.value === 'number' ? curr.value : parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
-    return acc + value;
+    const rawValue = typeof curr.value === 'number' ? curr.value : parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
+    // Se < 1000, está em reais (antigo), converter para centavos
+    const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+    return acc + valueInCents;
   }, 0);
 
   const totalPending = 0;
 
+  // ✅ Calcular total de despesas (normalizar valores antigos)
   const totalExpense = (expenses || []).reduce((acc, curr) => {
-    // Os valores do banco já estão em centavos, então não precisamos dividir por 100
-    const value = parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
-    return acc + value;
+    const rawValue = parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
+    // Se < 1000, está em reais (antigo), converter para centavos
+    const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+    return acc + valueInCents;
   }, 0);
 
   const balance = totalRevenue - totalExpense;

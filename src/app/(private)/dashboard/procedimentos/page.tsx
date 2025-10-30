@@ -31,6 +31,7 @@ interface Procedure {
 export default function Procedures() {
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');  // ✅ Adicionar busca
   const { user } = useAuthContext();
   const router = useRouter();
   const uid = user?.uid;
@@ -78,6 +79,18 @@ export default function Procedures() {
     router.push(`/dashboard/procedimentos/novo?id=${id}`);
   };
 
+  // ✅ Filtrar procedimentos pela busca
+  const filteredProcedures = procedures.filter((procedure) => {
+    if (!searchTerm.trim()) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      procedure.name.toLowerCase().includes(searchLower) ||
+      procedure.code.toLowerCase().includes(searchLower) ||
+      procedure.description?.toLowerCase().includes(searchLower)
+    );
+  });
+
   return (
     <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
       <div className="flex items-center justify-between mb-6">
@@ -87,10 +100,25 @@ export default function Procedures() {
         </Button>
       </div>
 
+      {/* ✅ Campo de Busca */}
+      <div className="mb-4">
+        <Input
+          type="text"
+          placeholder="Pesquisar por nome, código ou descrição..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-md"
+        />
+      </div>
+
       {isLoading ? (
         <div className="text-center py-4">Carregando...</div>
-      ) : procedures.length === 0 ? (
-        <div className="text-center py-4">Nenhum procedimento cadastrado.</div>
+      ) : filteredProcedures.length === 0 ? (
+        <div className="text-center py-4">
+          {searchTerm.trim() 
+            ? "Nenhum procedimento encontrado para esta busca." 
+            : "Nenhum procedimento cadastrado."}
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <Table>
@@ -105,7 +133,7 @@ export default function Procedures() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {procedures.map((procedure) => (
+              {filteredProcedures.map((procedure) => (
                 <TableRow key={procedure.id}>
                   <TableCell>{procedure.code}</TableCell>
                   <TableCell>{procedure.name}</TableCell>

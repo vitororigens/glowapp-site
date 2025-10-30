@@ -244,6 +244,72 @@ export default function Agenda() {
     };
   }, [showFilterMenu]);
 
+  // ✅ Função para normalizar dados antigos e novos
+  const normalizeAppointmentData = (data: any, docId: string): Appointment | null => {
+    try {
+      // Verificar estrutura mínima
+      const hasNewStructure = data.client && data.appointment;
+      const hasOldStructure = data.clientName && (data.date || data.time);
+      
+      if (!hasNewStructure && !hasOldStructure) {
+        console.warn('⚠️ Estrutura de dados inválida:', docId);
+        return null;
+      }
+
+      // Normalizar data (DD/MM/YYYY → YYYY-MM-DD)
+      const normalizeDate = (dateStr: string) => {
+        if (!dateStr) return format(new Date(), 'yyyy-MM-dd');
+        if (dateStr.includes('/')) {
+          const [day, month, year] = dateStr.split('/');
+          return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+        return dateStr;
+      };
+
+      // Estrutura normalizada
+      const normalized: Appointment = {
+        id: docId,
+        client: {
+          name: data.client?.name || data.clientName || '',
+          phone: data.client?.phone || data.clientPhone || '',
+          email: data.client?.email || data.clientEmail || '',
+        },
+        appointment: {
+          // ✅ Data normalizada (sempre YYYY-MM-DD)
+          date: data.appointment?.date 
+            ? normalizeDate(data.appointment.date)
+            : normalizeDate(data.date || ''),
+          // ✅ Horários
+          startTime: data.appointment?.startTime || data.time || '',
+          endTime: data.appointment?.endTime || '',
+          // ✅ Nomes e IDs
+          serviceName: data.appointment?.serviceName || '',
+          servicePrice: data.appointment?.servicePrice || data.appointment?.totalPrice || 0,
+          procedureName: data.appointment?.procedureName || '',
+          procedurePrice: data.appointment?.procedurePrice || 0,
+          // ✅ Arrays (novo padrão)
+          procedureIds: data.appointment?.procedureIds || [],
+          procedureNames: data.appointment?.procedureNames || [],
+          procedureCodes: data.appointment?.procedureCodes || [],
+          procedurePrices: data.appointment?.procedurePrices || [],
+          totalPrice: data.appointment?.totalPrice || data.totalPrice || 0,
+          // ✅ Profissional
+          professionalName: data.appointment?.professionalName || data.professionalName || '',
+          professionalId: data.appointment?.professionalId || data.professionalId || '',
+          // ✅ Extras
+          observations: data.appointment?.observations || data.observations || '',
+        },
+        status: (data.status === 'agendado' || !data.status) ? 'pendente' : data.status,
+        createdAt: data.createdAt || new Date().toISOString(),
+      };
+
+      return normalized;
+    } catch (error) {
+      console.error('❌ Erro ao normalizar agendamento:', docId, error);
+      return null;
+    }
+  };
+
   const fetchAppointments = async () => {
     try {
       console.log('🔍 Buscando agendamentos para UID:', uid);
@@ -256,37 +322,19 @@ export default function Agenda() {
       const appointmentsData = querySnapshot.docs
         .filter(doc => {
           const data = doc.data();
-          console.log('📋 Documento:', doc.id, 'UID:', data.uid, 'Dados:', data);
           
           // Verificar se o UID realmente corresponde
           if (data.uid !== uid) {
-            console.warn('⚠️ UID não corresponde! Documento:', doc.id, 'UID do documento:', data.uid, 'UID esperado:', uid);
-            return false; // Filtrar documentos que não pertencem ao usuário
+            console.warn('⚠️ UID não corresponde! Documento:', doc.id);
+            return false;
           }
           
           return true;
         })
-        .map(doc => {
-          const data = doc.data();
-          
-          // Verificar se tem a estrutura mínima esperada
-          if (!data.client || !data.appointment) {
-            console.warn('⚠️ Estrutura de dados inválida para documento:', doc.id, 'Dados:', data);
-            return null;
-          }
-          
-          // Normaliza status antigos 'agendado' -> 'pendente'
-          const normalizedStatus = (data.status === 'agendado' || !data.status) ? 'pendente' : data.status;
-          return {
-            id: doc.id,
-            ...data,
-            status: normalizedStatus // Define status padrão/normalizado
-          };
-        })
+        .map(doc => normalizeAppointmentData(doc.data(), doc.id))
         .filter(appointment => appointment !== null) as Appointment[];
       
-      console.log('✅ Agendamentos carregados:', appointmentsData);
-      console.log('📊 Total de agendamentos válidos:', appointmentsData.length);
+      console.log('✅ Agendamentos carregados e normalizados:', appointmentsData.length);
       setAppointments(appointmentsData);
     } catch (error) {
       console.error("Erro ao buscar agendamentos:", error);
@@ -950,7 +998,7 @@ export default function Agenda() {
             
 
             <span className="font-medium text-blue-600">
-              {formatAppointmentPrice(appointment.appointment?.servicePrice || appointment.appointment?.procedurePrice)}
+              {formatAppointmentPrice(appointment.appointment?.totalPrice || appointment.appointment?.servicePrice || appointment.appointment?.procedurePrice || 0)}
             </span>
           </div>
         </div>
@@ -2713,7 +2761,7 @@ export default function Agenda() {
                         <Label htmlFor="procedurePrice">Valor</Label>
                         <Input
                           id="procedurePrice"
-                          value={formatAppointmentPrice(appointmentToConvert?.appointment?.servicePrice || appointmentToConvert?.appointment?.procedurePrice)}
+                          value={formatAppointmentPrice(appointmentToConvert?.appointment?.totalPrice || appointmentToConvert?.appointment?.servicePrice || appointmentToConvert?.appointment?.procedurePrice || 0)}
                           readOnly
                           className="bg-gray-50"
                         />
@@ -3165,7 +3213,7 @@ export default function Agenda() {
                         </h4>
                         <div className="bg-gray-50 p-3 rounded-lg space-y-2 text-sm">
                           <p><strong>Procedimento:</strong> {appointmentToConvert?.appointment?.serviceName || appointmentToConvert?.appointment?.procedureName || 'Não informado'}</p>
-                          <p><strong>Valor:</strong> {formatAppointmentPrice(appointmentToConvert?.appointment?.servicePrice || appointmentToConvert?.appointment?.procedurePrice)}</p>
+                          <p><strong>Valor:</strong> {formatAppointmentPrice(appointmentToConvert?.appointment?.totalPrice || appointmentToConvert?.appointment?.servicePrice || appointmentToConvert?.appointment?.procedurePrice || 0)}</p>
                           <p><strong>Profissional:</strong> {appointmentToConvert?.appointment?.professionalName || 'Não informado'}</p>
                           <p><strong>Data:</strong> {appointmentToConvert?.appointment?.date ? formatDateToBrazilian(appointmentToConvert.appointment.date) : 'Não informado'}</p>
                         </div>

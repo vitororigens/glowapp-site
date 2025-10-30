@@ -118,6 +118,15 @@ export default function NewContact() {
         ? doc(database, "Contacts", contactId)
         : doc(collection(database, "Contacts"));
 
+      // Buscar dados existentes para preservar createdAt
+      let existingCreatedAt = new Date().toISOString();
+      if (contactId) {
+        const existingDoc = await getDoc(docRef);
+        if (existingDoc.exists()) {
+          existingCreatedAt = existingDoc.data().createdAt || new Date().toISOString();
+        }
+      }
+
       await setDoc(docRef, {
         ...data,
         cpf: cpfUnMask(data.cpf || ""),
@@ -125,7 +134,9 @@ export default function NewContact() {
         uid,
         image: "",
         ...(image && { imageUrl: image }),
-        createdAt: new Date().toISOString(),
+        // ✅ Timestamps padronizados
+        createdAt: existingCreatedAt,
+        updatedAt: new Date().toISOString(),
       });
 
       toast.success(contactId ? "Cliente atualizado!" : "Cliente adicionado!");
