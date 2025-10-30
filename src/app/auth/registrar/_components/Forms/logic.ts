@@ -51,7 +51,9 @@ const useLogic = () => {
           const docRef = doc(database, 'Register', uid);
           return setDoc(docRef, {
             phone: data.phone || "",
-
+            name: data.name.trim(),
+            email: data.email.trim(),
+            createdAt: new Date(),
           })
         }).then(async () => {
           // Disparar automação (não bloqueante)

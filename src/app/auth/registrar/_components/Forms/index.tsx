@@ -8,6 +8,7 @@ import { useLogic } from "./logic";
 
 import { IconEye, IconEyeOff } from "@tabler/icons-react";
 import { Controller } from "react-hook-form";
+import { applyPhoneMask, phoneUnMask } from "@/utils/maks/masks";
 
 const Forms = () => {
   const { data, methods } = useLogic();
@@ -70,12 +71,20 @@ const Forms = () => {
           Telefone
         </label>
         <div className="flex">
-          <input
-            {...methods.register("phone")}
-            type="number"
-            id="phone"
-            className="form-password text-dark text-base font-medium block w-full rounded-md py-2.5 px-4 border border-gray-300 focus:border-primary focus:outline-0 placeholder:text-light placeholder:text-base"
-            placeholder="99812398232"
+          <Controller
+            control={data.control}
+            name="phone"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <input
+                type="text"
+                id="phone"
+                value={applyPhoneMask(value ?? '')}
+                onChange={(e) => onChange(phoneUnMask(e.target.value))}
+                onBlur={onBlur}
+                className="form-password text-dark text-base font-medium block w-full rounded-md py-2.5 px-4 border border-gray-300 focus:border-primary focus:outline-0 placeholder:text-light placeholder:text-base"
+                placeholder="(99) 98123-9823"
+              />
+            )}
           />
         </div>
       </div>
