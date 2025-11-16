@@ -76,15 +76,17 @@ export type NewAppointmentPayload = {
 
 /**
  * Dispara automação de confirmação de consulta (novo agendamento) a partir do site
- * Pode ser configurado via NEXT_PUBLIC_PIPEDREAM_APPOINTMENT_ENDPOINT ou usa o valor padrão
- * Compatível com workflow v75 e WhatsApp Business API
+ * Usa o backend Node.js próprio ao invés do Pipedream
+ * Pode ser configurado via NEXT_PUBLIC_AUTOMATION_BACKEND_URL ou usa o valor padrão
  */
 export async function triggerAppointmentConfirmationSite(payload: NewAppointmentPayload): Promise<boolean> {
   try {
-    // URL padrão do webhook, pode ser sobrescrita via variável de ambiente
-    const endpoint = process.env.NEXT_PUBLIC_PIPEDREAM_APPOINTMENT_ENDPOINT || 'https://eo2bu4jxza521q6.m.pipedream.net';
-    if (!endpoint) {
-      console.warn('[Automation] NEXT_PUBLIC_PIPEDREAM_APPOINTMENT_ENDPOINT não configurado');
+    // URL do backend Node.js, pode ser sobrescrita via variável de ambiente
+    const backendUrl = process.env.NEXT_PUBLIC_AUTOMATION_BACKEND_URL || 'http://localhost:3000';
+    const endpoint = `${backendUrl}/schedule`;
+    
+    if (!backendUrl) {
+      console.warn('[Automation] NEXT_PUBLIC_AUTOMATION_BACKEND_URL não configurado');
       return false;
     }
 
@@ -103,7 +105,7 @@ export async function triggerAppointmentConfirmationSite(payload: NewAppointment
           : payload.appointment.totalPrice)
       : 0;
 
-    // Remover prefixo "55" do telefone se existir (o workflow adiciona automaticamente)
+    // Formatar telefone (remover caracteres não numéricos, manter sem prefixo 55)
     let patientPhone = payload.client?.phone || '';
     if (patientPhone.startsWith('55')) {
       patientPhone = patientPhone.substring(2);
@@ -111,14 +113,13 @@ export async function triggerAppointmentConfirmationSite(payload: NewAppointment
     // Remover outros caracteres não numéricos
     patientPhone = patientPhone.replace(/\D/g, '');
 
-    // Preparar payload no formato esperado pelo workflow v75
-    // O workflow acessa os dados via steps.trigger.event.body.appointment
-    // Compatível com WhatsApp Business API v75
+    // Preparar payload no formato esperado pelo backend Node.js
+    // O backend salva no Firebase e envia template do WhatsApp
     const body = {
       appointment: {
-        id: payload.appointmentId ?? '', // ID do agendamento criado no Firebase
+        id: payload.appointmentId ?? '', // ID do agendamento criado no Firebase (opcional)
         patient_name: payload.client?.name ?? '',
-        patient_phone: patientPhone, // Sem prefixo "55" - o workflow adiciona
+        patient_phone: patientPhone, // Telefone sem prefixo "55" - o backend adiciona ao enviar
         patient_email: payload.client?.email ?? '',
         professional_name: payload.appointment?.professionalName ?? '',
         professional_specialty: payload.appointment?.professionalSpecialty ?? '',
@@ -135,10 +136,6 @@ export async function triggerAppointmentConfirmationSite(payload: NewAppointment
         email: payload.user.email ?? '',
         phone: payload.user.phone ?? '',
       },
-      sentAt: new Date().toISOString(),
-      orgId: process.env.NEXT_PUBLIC_PIPEDREAM_ORG_ID,
-      projectId: process.env.NEXT_PUBLIC_PIPEDREAM_PROJECT_ID,
-      source: 'site',
     };
 
     const res = await fetch(endpoint, {
