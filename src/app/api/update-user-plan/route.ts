@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { database } from '@/services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
+// Tornar a rota dinâmica para evitar execução durante o build
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     const { userId, planId, planName, paymentIntentId } = await request.json();
