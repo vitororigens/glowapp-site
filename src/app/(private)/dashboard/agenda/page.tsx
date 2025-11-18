@@ -20,7 +20,7 @@ import { ptBR } from "date-fns/locale";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlusCircle, Pencil, Trash2, Calendar as CalendarIcon,  Search, X, CheckCircle, XCircle, User, ArrowLeft, ArrowRight, FileText, CreditCard, Receipt, AlertTriangle, Filter, Settings, HelpCircle, MessageCircle, ChevronLeft, ChevronRight, Clock, Users, Eye, List, Grid3X3, DollarSign } from "lucide-react";
-import { currencyMask } from "@/utils/maks/masks";
+import { currencyMask, formatCurrencyFromCents } from "@/utils/maks/masks";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import {
   AlertDialog,
@@ -36,16 +36,8 @@ import {
 import { formatDateToBrazilian, formatDateTimeToBrazilian } from "@/utils/formater/date";
 
 // Função para formatar valor do agendamento
-const formatAppointmentPrice = (price: number | undefined) => {
-  if (price === undefined || price === null) return 'R$ 0,00';
-  
-  // O preço está sempre em centavos, então dividimos por 100
-  const valueInReais = price / 100;
-  
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(valueInReais);
+const formatAppointmentPrice = (price: number | string | undefined) => {
+  return formatCurrencyFromCents(price);
 };
 
 interface Appointment {
@@ -564,14 +556,18 @@ export default function Agenda() {
     setShowAppointmentDetailsModal(true);
   };
 
-  // Funções para pagamentos (igual ao novo serviço)
-  const totalPrice = appointmentToConvert ? 
-    (appointmentToConvert.appointment?.servicePrice || appointmentToConvert.appointment?.procedurePrice || 0) : 0;
+// Funções para pagamentos (igual ao novo serviço)
+const totalPrice = appointmentToConvert ? 
+  (appointmentToConvert.appointment?.servicePrice || appointmentToConvert.appointment?.procedurePrice || 0) : 0;
 
-  const totalPaid = payments.reduce((acc, payment) => {
-    // Os valores dos pagamentos já estão em centavos (formato "R$ 200,00" = 20000 centavos)
-    return acc + Number(payment.value.replace(/\D/g, ''));
-  }, 0);
+const totalPaid = payments.reduce((acc, payment) => {
+  // Os valores dos pagamentos já estão em centavos (formato "R$ 200,00" = 20000 centavos)
+  return acc + Number(payment.value.replace(/\D/g, ''));
+}, 0);
+
+const formattedTotalPrice = formatCurrencyFromCents(totalPrice);
+const formattedTotalPaid = formatCurrencyFromCents(totalPaid);
+const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - totalPaid, 0));
 
   const handlePaymentMethodChange = (value: "dinheiro" | "pix" | "cartao" | "boleto") => {
     setNewPayment({
@@ -617,10 +613,10 @@ export default function Agenda() {
       adjustedTotalPaid = adjustedTotalPaid - oldPaymentValue;
     }
     
-    if (adjustedTotalPaid + value > totalPrice) {
-      toast.error(`O valor total dos pagamentos (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((adjustedTotalPaid + value) / 100)}) não pode exceder o valor do serviço (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100)})`);
-      return;
-    }
+  if (adjustedTotalPaid + value > totalPrice) {
+    toast.error(`O valor total dos pagamentos (${formatCurrencyFromCents(adjustedTotalPaid + value)}) não pode exceder o valor do serviço (${formattedTotalPrice})`);
+    return;
+  }
 
     const formattedValue = currencyMask(newPayment.value);
     
@@ -2799,18 +2795,18 @@ export default function Agenda() {
                       <div className="bg-gray-50 p-3 rounded-md mb-4">
                         <div className="flex justify-between items-center mb-2">
                           <span>Valor total do serviço:</span>
-                          <span className="font-semibold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100)}</span>
+                          <span className="font-semibold">{formattedTotalPrice}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Total pago:</span>
                           <span className="font-semibold text-green-600">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPaid / 100)}
+                            {formattedTotalPaid}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Saldo pendente:</span>
                           <span className="font-semibold text-orange-600">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((totalPrice / 100) - (totalPaid / 100))}
+                            {formattedPendingBalance}
                           </span>
                         </div>
                       </div>
@@ -2858,10 +2854,10 @@ export default function Agenda() {
                           <div>
                             <Label>Tipo de Pagamento</Label>
                             <RadioGroup
-                              value={newPayment.value === new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100) ? "full" : "partial"}
+                              value={newPayment.value === formattedTotalPrice ? "full" : "partial"}
                               onValueChange={(value) => {
                                 if (value === "full") {
-                                  setNewPayment({...newPayment, value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100)});
+                                  setNewPayment({...newPayment, value: formattedTotalPrice});
                                 } else {
                                   setNewPayment({...newPayment, value: ""});
                                 }
@@ -2886,7 +2882,7 @@ export default function Agenda() {
                               value={newPayment.value}
                               onChange={(e) => setNewPayment({...newPayment, value: currencyMask(e.target.value)})}
                               className="mt-2"
-                              disabled={newPayment.value === new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice / 100)}
+                              disabled={newPayment.value === formattedTotalPrice}
                             />
                           </div>
                         </div>

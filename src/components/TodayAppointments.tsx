@@ -11,6 +11,7 @@ import { toast } from "react-toastify";
 import { Calendar, User, DollarSign, CheckCircle, XCircle, ArrowRight, ChevronLeft, ChevronRight, X, Phone, Mail, Clock, FileText, UserCheck, Settings, Pencil } from "lucide-react";
 import { formatDateToBrazilian } from "@/utils/formater/date";
 import { useRouter } from "next/navigation";
+import { formatCurrencyFromCents } from "@/utils/maks/masks";
 
 interface Appointment {
   id: string;
@@ -34,13 +35,9 @@ interface Appointment {
   createdAt: string;
 }
 
-// Função para formatar valor do agendamento
-const formatAppointmentPrice = (value: number) => {
-  const valueInReais = value / 100;
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(valueInReais);
+// Função para formatar valor do agendamento utilizando o padrão global
+const formatAppointmentPrice = (value: number | string | undefined) => {
+  return formatCurrencyFromCents(value);
 };
 
 export default function TodayAppointments() {

@@ -17,7 +17,7 @@ import { toast } from "react-toastify";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { dataMask, dataUnMask, horaMask, horaUnMask, phoneMask, cpfMask } from "@/utils/maks/masks";
+import { dataMask, dataUnMask, horaMask, horaUnMask, phoneMask, cpfMask, formatCurrencyFromCents } from "@/utils/maks/masks";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
@@ -160,10 +160,58 @@ export default function NewAppointment() {
 
   // Carregar dados do agendamento para edição
   useEffect(() => {
-    if (appointmentId && uid && procedures.length > 0 && professionals.length > 0) {
+    if (appointmentId && uid) {
       loadAppointmentForEdit();
     }
-  }, [appointmentId, uid, procedures, professionals]);
+  }, [appointmentId, uid]);
+
+  // Atualizar procedimentos e profissionais selecionados quando as listas estiverem carregadas
+  useEffect(() => {
+    if (appointmentId && procedures.length > 0) {
+      // Tentar fazer match dos procedimentos novamente quando a lista estiver disponível
+      const appointmentRef = doc(database, "Appointments", appointmentId);
+      getDoc(appointmentRef).then((appointmentSnap) => {
+        if (appointmentSnap.exists()) {
+          const appointmentData = appointmentSnap.data();
+          if (appointmentData.appointment) {
+            const appointment = appointmentData.appointment;
+            // Procedimentos - buscar na lista de procedimentos
+            if (appointment.procedureIds && Array.isArray(appointment.procedureIds)) {
+              const selectedProcedures = procedures.filter(p => appointment.procedureIds.includes(p.id));
+              if (selectedProcedures.length > 0) {
+                setSelectedProcedures(selectedProcedures);
+              }
+            } else if (appointment.procedureId) {
+              // Compatibilidade com dados antigos (procedimento único)
+              const procedure = procedures.find(p => p.id === appointment.procedureId);
+              if (procedure) {
+                setSelectedProcedures([procedure]);
+              }
+            }
+          }
+        }
+      }).catch(console.error);
+    }
+  }, [appointmentId, procedures]);
+
+  // Atualizar profissional selecionado quando a lista estiver carregada
+  useEffect(() => {
+    if (appointmentId && professionals.length > 0) {
+      // Tentar fazer match do profissional novamente quando a lista estiver disponível
+      const appointmentRef = doc(database, "Appointments", appointmentId);
+      getDoc(appointmentRef).then((appointmentSnap) => {
+        if (appointmentSnap.exists()) {
+          const appointmentData = appointmentSnap.data();
+          if (appointmentData.appointment?.professionalId) {
+            const professional = professionals.find(p => p.id === appointmentData.appointment.professionalId);
+            if (professional) {
+              setSelectedProfessional(professional);
+            }
+          }
+        }
+      }).catch(console.error);
+    }
+  }, [appointmentId, professionals]);
 
   // Resetar estados para novos agendamentos
   useEffect(() => {
@@ -294,37 +342,50 @@ export default function NewAppointment() {
   };
 
   const loadAppointmentForEdit = async () => {
-    if (!appointmentId) return;
+    if (!appointmentId) {
+      console.log('❌ loadAppointmentForEdit: appointmentId não encontrado');
+      return;
+    }
     
     try {
+      console.log('🔄 Carregando agendamento para edição:', appointmentId);
       const appointmentRef = doc(database, "Appointments", appointmentId);
       const appointmentSnap = await getDoc(appointmentRef);
       
       if (appointmentSnap.exists()) {
         const appointmentData = appointmentSnap.data();
-        console.log('Dados do agendamento carregados:', appointmentData);
+        console.log('✅ Dados do agendamento carregados:', appointmentData);
         
         // Preencher dados do cliente
         if (appointmentData.client) {
+          console.log('👤 Preenchendo dados do cliente:', appointmentData.client);
           clientForm.setValue("name", appointmentData.client.name || "");
           clientForm.setValue("phone", appointmentData.client.phone || "");
           clientForm.setValue("email", appointmentData.client.email || "");
           clientForm.setValue("cpf", appointmentData.client.cpf || "");
+          console.log('✅ Dados do cliente preenchidos no formulário');
+        } else {
+          console.warn('⚠️ Dados do cliente não encontrados no agendamento');
         }
         
         // Preencher dados do agendamento
         if (appointmentData.appointment) {
           const appointment = appointmentData.appointment;
+          console.log('📅 Preenchendo dados do agendamento:', appointment);
           
           // Data
           if (appointment.date) {
             // Corrigir problema de fuso horário - criar data local
             const [year, month, day] = appointment.date.split('-').map(Number);
             const date = new Date(year, month - 1, day); // month - 1 porque JavaScript usa 0-11
+            console.log('📆 Data do agendamento:', appointment.date, '->', date);
             appointmentForm.setValue("date", date);
+          } else {
+            console.warn('⚠️ Data do agendamento não encontrada');
           }
           
           // Horários
+          console.log('🕐 Horários:', { startTime: appointment.startTime, endTime: appointment.endTime });
           appointmentForm.setValue("startTime", appointment.startTime || "");
           // Verificar se o endTime é válido, senão calcular baseado no procedimento
           if (appointment.endTime && appointment.endTime !== "NaN:NaN") {
@@ -345,23 +406,45 @@ export default function NewAppointment() {
           
           // Procedimentos - buscar na lista de procedimentos
           if (appointment.procedureIds && Array.isArray(appointment.procedureIds)) {
+            console.log('🔍 Buscando procedimentos por IDs:', appointment.procedureIds);
+            console.log('📋 Procedimentos disponíveis:', procedures.map(p => ({ id: p.id, name: p.name })));
             const selectedProcedures = procedures.filter(p => appointment.procedureIds.includes(p.id));
-            setSelectedProcedures(selectedProcedures);
+            console.log('✅ Procedimentos encontrados:', selectedProcedures.map(p => ({ id: p.id, name: p.name })));
+            if (selectedProcedures.length > 0) {
+              setSelectedProcedures(selectedProcedures);
+            } else {
+              console.warn('⚠️ Nenhum procedimento encontrado na lista atual. IDs procurados:', appointment.procedureIds);
+            }
           } else if (appointment.procedureId) {
             // Compatibilidade com dados antigos (procedimento único)
+            console.log('🔍 Buscando procedimento único por ID:', appointment.procedureId);
             const procedure = procedures.find(p => p.id === appointment.procedureId);
             if (procedure) {
+              console.log('✅ Procedimento encontrado:', procedure);
               setSelectedProcedures([procedure]);
+            } else {
+              console.warn('⚠️ Procedimento não encontrado na lista atual. ID procurado:', appointment.procedureId);
             }
+          } else {
+            console.log('ℹ️ Nenhum procedimento associado ao agendamento');
           }
           
           // Profissional - buscar na lista de profissionais
           if (appointment.professionalId) {
+            console.log('👨‍⚕️ Buscando profissional por ID:', appointment.professionalId);
+            console.log('📋 Profissionais disponíveis:', professionals.map(p => ({ id: p.id, name: p.name })));
             const professional = professionals.find(p => p.id === appointment.professionalId);
             if (professional) {
+              console.log('✅ Profissional encontrado:', professional);
               setSelectedProfessional(professional);
+            } else {
+              console.warn('⚠️ Profissional não encontrado na lista atual. ID procurado:', appointment.professionalId);
             }
           }
+          
+          console.log('✅ Dados do agendamento preenchidos no formulário');
+        } else {
+          console.warn('⚠️ Dados do agendamento não encontrados');
         }
         
         // Definir contactUid se disponível
@@ -403,9 +486,13 @@ export default function NewAppointment() {
         
         // Manter na primeira etapa para permitir edição dos dados do cliente
         setCurrentStep(1);
+        console.log('✅ Carregamento do agendamento concluído com sucesso!');
+      } else {
+        console.error('❌ Agendamento não encontrado no banco de dados');
+        toast.error("Agendamento não encontrado!");
       }
     } catch (error) {
-      console.error("Erro ao carregar agendamento para edição:", error);
+      console.error("❌ Erro ao carregar agendamento para edição:", error);
       toast.error("Erro ao carregar dados do agendamento!");
     }
   };
@@ -914,11 +1001,8 @@ export default function NewAppointment() {
     router.push(`/dashboard/agenda/novo?id=${id}`);
   };
 
-  const formatAppointmentPrice = (price: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(price / 100);
+  const formatAppointmentPrice = (price: number | string | undefined) => {
+    return formatCurrencyFromCents(price);
   };
 
   const resetAllForms = () => {
@@ -1325,7 +1409,7 @@ export default function NewAppointment() {
                   {selectedProcedures.length > 0 ? (
                     selectedProcedures.map((procedure, index) => (
                       <li key={index}>
-                        {procedure.name} - R$ {procedure.price ? (typeof procedure.price === 'string' ? (parseInt(procedure.price) / 100).toFixed(2).replace('.', ',') : (procedure.price / 100).toFixed(2).replace('.', ',')) : "0,00"}
+                        {procedure.name} - {formatCurrencyFromCents(procedure.price)}
                       </li>
                     ))
                   ) : (
@@ -1335,10 +1419,12 @@ export default function NewAppointment() {
                 {selectedProcedures.length > 0 && (
                   <div className="mt-2 pt-2 border-t">
                     <p className="font-bold text-gray-800">
-                      Total: R$ {selectedProcedures.reduce((sum, procedure) => {
-                        const price = typeof procedure.price === 'string' ? parseInt(procedure.price) : (procedure.price || 0);
-                        return sum + price;
-                      }, 0) / 100}
+                      Total: {formatCurrencyFromCents(
+                        selectedProcedures.reduce((sum, procedure) => {
+                          const price = typeof procedure.price === 'string' ? parseInt(procedure.price) : (procedure.price || 0);
+                          return sum + price;
+                        }, 0)
+                      )}
                     </p>
                   </div>
                 )}

@@ -39,6 +39,19 @@ try {
 }
 
 // Inicializar serviços apenas se o app foi criado com sucesso
+// Se o app não foi inicializado, criar um app padrão para evitar erros
+if (!app && typeof window !== 'undefined') {
+  // No cliente, se não houver app, tentar inicializar com valores padrão ou vazios
+  // Isso evita erros de "onAuthStateChanged is not a function"
+  try {
+    if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+      app = initializeApp(firebaseConfig);
+    }
+  } catch (error) {
+    console.error('❌ Erro ao inicializar Firebase:', error);
+  }
+}
+
 export const database = app ? getFirestore(app) : ({} as any);
 export const auth = app ? getAuth(app) : ({} as any);
 export const storage = app ? getStorage(app) : ({} as any);

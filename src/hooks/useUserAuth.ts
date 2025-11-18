@@ -23,6 +23,13 @@ export function useUserAuth() {
       setLoading(false);
     };
 
+    // Verificar se auth está inicializado corretamente
+    if (!auth || typeof auth.onAuthStateChanged !== 'function') {
+      console.error('❌ Firebase Auth não está inicializado. Verifique as variáveis de ambiente NEXT_PUBLIC_FIREBASE_*');
+      setLoading(false);
+      return;
+    }
+
     const subscriber = onAuthStateChanged(auth, async (authUser) => {
       if (authUser) {
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(authUser));

@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, FileText } from "lucide-react";
+import { formatCurrencyFromCents } from "@/utils/maks/masks";
 
 interface Procedure {
   id: string;
@@ -64,8 +65,8 @@ export function ProceduresModal({ isOpen, onClose, procedures, onSelect }: Proce
                       <FileText className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="font-medium">{procedure.name}</p>
-                                                 <p className="text-sm text-gray-500">
-                           R$ {typeof procedure.price === 'number' ? (procedure.price / 100).toFixed(2) : (procedure.price ? (Number(procedure.price) / 100).toFixed(2) : '0.00')}
+                         <p className="text-sm text-gray-500">
+                           {formatCurrencyFromCents(procedure.price)}
                          </p>
                       </div>
                     </div>
