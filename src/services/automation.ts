@@ -82,9 +82,11 @@ export type NewAppointmentPayload = {
 export async function triggerAppointmentConfirmationSite(payload: NewAppointmentPayload): Promise<boolean> {
   try {
     // URL do backend Node.js, pode ser sobrescrita via variável de ambiente
-    const backendUrl = process.env.NEXT_PUBLIC_AUTOMATION_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = process.env.NEXT_PUBLIC_AUTOMATION_BACKEND_URL
+      || process.env.NEXT_PUBLIC_AUTOMATION_FALLBACK_URL
+      || 'https://automacao-glowapp-production.up.railway.app';
     const endpoint = `${backendUrl}/schedule`;
-    
+
     if (!backendUrl) {
       console.warn('[Automation] NEXT_PUBLIC_AUTOMATION_BACKEND_URL não configurado');
       return false;
@@ -137,6 +139,9 @@ export async function triggerAppointmentConfirmationSite(payload: NewAppointment
         phone: payload.user.phone ?? '',
       },
     };
+
+    console.log('[Automation] Enviando agendamento para backend:', endpoint);
+    console.log('[Automation] Payload preparado:', body);
 
     const res = await fetch(endpoint, {
       method: 'POST',
