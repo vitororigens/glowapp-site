@@ -1,5 +1,7 @@
 import { Forms } from "./_components/Forms";
 import Logo from "./../../../../public/img/logos/main-logo.png";
+import BackgroundImage from './../../../../public/img/resource/backgroun-login.jpg'
+import Image from "next/image";
 
 const Login = () => {
   return (
@@ -26,7 +28,7 @@ const Login = () => {
         </div>
 
         <div className="hidden xl:block">
-          <div className="relative w-full h-screen bg-[url(https://ma.senac.br/wp-content/uploads/2017/11/instituto_mais_beleza_backg.jpg)] bg-center bg-cover"></div>
+            <Image src={BackgroundImage} alt="Background" className="w-full h-full object-cover" />
         </div>
       </div>
     </section>
