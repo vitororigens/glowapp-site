@@ -246,7 +246,6 @@ export const ImageSize = styled.img`
   border-top-left-radius: 20px;
   padding-top: 50px;
   padding-bottom: 10px;
-   width: 100%;
-   height: auto; /* Mantém a proporção da imagem */
-   max-width: 100%;
+   width: 90%;
+   height: auto; 
   `;

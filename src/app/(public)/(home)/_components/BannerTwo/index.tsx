@@ -10,8 +10,8 @@ const BannerTwo = () => {
       <div className="auto-container rounded-3">
         <div className="row clearfix rounded-3 g-4 flex flex-col md:flex-row items-center">
           <div className="story-two_image-column col-lg-6 col-md-12 col-sm-12 rounded-3 flex items-center justify-center">
-            <div className="relative mt-5 w-full max-w-full lg:max-w-[700px] aspect-square md:aspect-[1/1] flex items-center justify-center">
-                <ImageSize src="/img/resource/afterAndBefore.png" alt="Imagem antes e depois" className="rounded-3 w-full h-auto object-contain" />
+            <div className="relative mt-5 w-full max-w-full lg:max-w-[700px] xl:max-w-[900px] 2xl:max-w-[1100px] aspect-square md:aspect-[1/1] flex items-center justify-center">
+                <ImageSize src="/img/resource/afterAndBefore.png" alt="Imagem antes e depois" className="rounded-3 w-90% h-auto object-contain" />
             </div>
           </div>
 
