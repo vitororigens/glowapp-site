@@ -1910,7 +1910,7 @@ export default function NewService() {
             <div className="flex justify-between items-center">
               <span>Total pago:</span>
               <span className="font-semibold text-green-600">
-                {currencyMask(totalPaid * 100)}
+                {formatCurrencyFromCents(totalPaid)}
               </span>
             </div>
             <div className="flex justify-between items-center">
