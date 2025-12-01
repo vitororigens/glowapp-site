@@ -35,12 +35,21 @@ interface Appointment {
   createdAt: string;
 }
 
+interface TodayAppointmentsProps {
+  appointments?: Appointment[]; // Prop opcional para passar agendamentos já carregados
+}
+
 // Função para formatar valor do agendamento utilizando o padrão global
 const formatAppointmentPrice = (value: number | string | undefined) => {
   return formatCurrencyFromCents(value);
 };
 
-export default function TodayAppointments() {
+export default function TodayAppointments({ appointments: propsAppointments }: TodayAppointmentsProps = {}) {
+  console.log('🎬 TodayAppointments - Componente renderizado:', {
+    hasProps: !!propsAppointments,
+    propsLength: propsAppointments?.length || 0
+  });
+  
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -51,29 +60,141 @@ export default function TodayAppointments() {
   const uid = user?.uid;
   const router = useRouter();
 
+  // Se receber agendamentos como prop, usar eles diretamente
   useEffect(() => {
-    if (uid) {
-      fetchTodayAppointments();
+    console.log('🔄 TodayAppointments - useEffect propsAppointments:', {
+      hasProps: !!propsAppointments,
+      propsLength: propsAppointments?.length || 0,
+      propsAppointments: propsAppointments
+    });
+    
+    if (propsAppointments && propsAppointments.length > 0) {
+      console.log('📥 TodayAppointments - Usando agendamentos recebidos como prop:', propsAppointments.length);
+      filterTodayAppointments(propsAppointments);
+      setIsLoading(false);
+    } else if (propsAppointments && propsAppointments.length === 0) {
+      console.log('📭 TodayAppointments - Array vazio recebido como prop');
+      setAppointments([]);
+      setIsLoading(false);
     }
-  }, [uid]);
+  }, [propsAppointments]);
+
+  useEffect(() => {
+    console.log('🔍 TodayAppointments - useEffect executado:', { uid, hasUid: !!uid, hasProps: !!propsAppointments });
+    if (uid && !propsAppointments) {
+      console.log('✅ TodayAppointments - UID disponível, buscando agendamentos...');
+      fetchTodayAppointments();
+    } else if (!uid) {
+      console.log('❌ TodayAppointments - UID não disponível ainda');
+    }
+  }, [uid, propsAppointments]);
+  
+  const filterTodayAppointments = (allAppointments: Appointment[]) => {
+    // Formato de hoje: DD/MM/YYYY (igual ao app mobile)
+    const today = new Date();
+    const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+    const todayISO = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    console.log('📅 TodayAppointments - Filtrando agendamentos de hoje:', {
+      todayFormatted,
+      todayISO,
+      totalAppointments: allAppointments.length
+    });
+    
+    const todayAppointments = allAppointments.filter(appointment => {
+      // Filtrar apenas por data de hoje, sem excluir por status ou convertedToService
+      if (!appointment.appointment || !appointment.appointment.date) {
+        console.log('❌ Agendamento sem data:', appointment.id);
+        return false;
+      }
+      
+      const appointmentDate = appointment.appointment.date;
+      
+      // Suportar ambos os formatos: DD/MM/YYYY e YYYY-MM-DD
+      if (appointmentDate === todayFormatted || appointmentDate === todayISO) {
+        console.log('✅ Agendamento de hoje encontrado:', appointment.id, {
+          appointmentDate,
+          todayFormatted,
+          todayISO
+        });
+        return true;
+      }
+      
+      // Se estiver em formato YYYY-MM-DD, converter para DD/MM/YYYY e comparar
+      if (appointmentDate.includes('-')) {
+        const [year, month, day] = appointmentDate.split('-');
+        const formattedDate = `${day}/${month}/${year}`;
+        if (formattedDate === todayFormatted) {
+          console.log('✅ Agendamento de hoje encontrado (convertido):', appointment.id, {
+            appointmentDate,
+            formattedDate,
+            todayFormatted
+          });
+          return true;
+        }
+      }
+      
+      // Se estiver em formato DD/MM/YYYY, comparar diretamente
+      if (appointmentDate === todayFormatted) {
+        console.log('✅ Agendamento de hoje encontrado (DD/MM/YYYY):', appointment.id);
+        return true;
+      }
+      
+      return false;
+    }).sort((a, b) => a.appointment.startTime.localeCompare(b.appointment.startTime));
+    
+    console.log(`✅ TodayAppointments - Agendamentos de hoje encontrados: ${todayAppointments.length}`);
+    setAppointments(todayAppointments);
+  };
 
   const fetchTodayAppointments = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      console.log('🚀 TodayAppointments - fetchTodayAppointments iniciado');
+      
+      if (!uid) {
+        console.error('❌ TodayAppointments - UID não disponível na função');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Formato de hoje: DD/MM/YYYY (igual ao app mobile)
+      const today = new Date();
+      const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+      const todayISO = today.toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      console.log('📅 TodayAppointments - Datas de hoje:', {
+        todayFormatted,
+        todayISO,
+        uid,
+        todayObject: today
+      });
+      
       const appointmentsRef = collection(database, "Appointments");
       const q = query(appointmentsRef, where("uid", "==", uid));
+      console.log('🔍 TodayAppointments - Executando query...');
       const querySnapshot = await getDocs(q);
+      console.log('✅ TodayAppointments - Query executada, documentos encontrados:', querySnapshot.docs.length);
       
-      const appointmentsData = querySnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as Appointment))
-        .filter(appointment => 
-          appointment.appointment && 
-          appointment.appointment.date && 
-          appointment.appointment.date === today
-        )
-        .sort((a, b) => a.appointment.startTime.localeCompare(b.appointment.startTime));
-
-      setAppointments(appointmentsData);
+      console.log(`📅 Total de agendamentos do usuário: ${querySnapshot.docs.length}`);
+      
+      // Log dos primeiros 5 agendamentos para debug
+      const sampleAppointments = querySnapshot.docs.slice(0, 5).map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          date: data.appointment?.date || data.date,
+          status: data.status,
+          convertedToService: data.convertedToService,
+          clientName: data.client?.name || data.clientName
+        };
+      });
+      console.log('📋 Amostra de agendamentos (primeiros 5):', sampleAppointments);
+      
+      const allAppointments = querySnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+      
+      console.log(`📋 Total de agendamentos buscados: ${allAppointments.length}`);
+      filterTodayAppointments(allAppointments);
     } catch (error) {
       console.error("Erro ao buscar agendamentos:", error);
       toast.error("Erro ao carregar agendamentos!");

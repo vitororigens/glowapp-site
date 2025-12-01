@@ -188,14 +188,45 @@ export default function DashboardHome() {
       }, 0);
 
     // Calcular agendamentos de hoje
-    const today = new Date().toISOString().split('T')[0];
+    // Formato de hoje: DD/MM/YYYY (igual ao app mobile)
+    const today = new Date();
+    const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+    const todayISO = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    console.log('📅 Dashboard - Datas de hoje:', {
+      todayFormatted,
+      todayISO,
+      totalAppointments: appointments?.length || 0
+    });
+    
     const todayAppointments = appointments 
-      ? appointments.filter(appointment => 
-          appointment.appointment && 
-          appointment.appointment.date && 
-          appointment.appointment.date === today
-        ).length 
+      ? appointments.filter(appointment => {
+          // Mostrar TODOS os agendamentos de hoje, sem filtrar por status ou convertedToService
+          // Igual ao comportamento do app mobile
+          if (!appointment.appointment || !appointment.appointment.date) {
+            return false;
+          }
+          
+          const appointmentDate = appointment.appointment.date;
+          
+          // Suportar ambos os formatos: DD/MM/YYYY e YYYY-MM-DD
+          if (appointmentDate === todayFormatted || appointmentDate === todayISO) {
+            return true;
+          }
+          
+          // Se estiver em formato YYYY-MM-DD, converter para DD/MM/YYYY e comparar
+          if (appointmentDate.includes('-')) {
+            const [year, month, day] = appointmentDate.split('-');
+            const formattedDate = `${day}/${month}/${year}`;
+            return formattedDate === todayFormatted;
+          }
+          
+          // Se estiver em formato DD/MM/YYYY, comparar diretamente
+          return appointmentDate === todayFormatted;
+        }).length 
       : 0;
+    
+    console.log(`📅 Dashboard - Agendamentos de hoje: ${todayAppointments}`);
 
     // Últimos serviços (ordenados por data de criação) - APENAS SERVIÇOS, NÃO ORÇAMENTOS
     const recentServices = [...services]
@@ -385,7 +416,13 @@ export default function DashboardHome() {
         </div>
 
         {/* Agendamentos de Hoje */}
-        <TodayAppointments />
+        {(() => {
+          console.log('📤 Dashboard - Passando agendamentos para TodayAppointments:', {
+            appointmentsLength: appointments?.length || 0,
+            appointments: appointments
+          });
+          return <TodayAppointments appointments={appointments || undefined} />;
+        })()}
 
         {/* Últimos Serviços */}
         <div>
