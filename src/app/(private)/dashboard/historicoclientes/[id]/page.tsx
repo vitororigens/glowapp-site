@@ -169,9 +169,35 @@ export default function ClientHistory() {
   const fetchClientServices = async () => {
     try {
       setIsLoadingServices(true);
-      console.log("Buscando serviços para o cliente ID:", clientId);
+      console.log("🔍 Buscando serviços para o cliente:", {
+        clientId,
+        clientName,
+        uid
+      });
       
       const servicesRef = collection(database, "Services");
+      
+      // Debug: Buscar todos os serviços do usuário para análise
+      const qDebug = query(
+        servicesRef,
+        where("uid", "==", uid)
+      );
+      const allServicesSnapshot = await getDocs(qDebug);
+      console.log(`📊 Total de serviços do usuário: ${allServicesSnapshot.docs.length}`);
+      
+      // Log dos primeiros 5 serviços para debug
+      const sampleServices = allServicesSnapshot.docs.slice(0, 5).map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          contactUid: data.contactUid,
+          contactId: data.contactId,
+          clientId: data.clientId,
+          clientName: data.clientName,
+        };
+      });
+      console.log("📋 Amostra de serviços (primeiros 5):", sampleServices);
       
       // Primeiro, tentar buscar por contactUid (mais preciso)
       try {
@@ -254,7 +280,57 @@ export default function ClientHistory() {
         console.error("Erro na consulta por clientId:", clientIdError);
       }
       
-      // Se não encontrou por nenhum ID, não mostrar serviços de outros clientes
+      // Se não encontrou por nenhum ID, buscar por nome do cliente (fallback)
+      // Isso resolve casos onde serviços foram criados sem contactUid/clientId
+      if (clientName) {
+        try {
+          console.log("Buscando serviços por nome do cliente:", clientName);
+          
+          // Buscar todos os serviços do usuário
+          const qAll = query(
+            servicesRef,
+            where("uid", "==", uid)
+          );
+          
+          const querySnapshotAll = await getDocs(qAll);
+          console.log(`Total de serviços do usuário: ${querySnapshotAll.docs.length}`);
+          
+          // Filtrar por nome do cliente
+          const servicesByName = querySnapshotAll.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter((service: any) => {
+              const serviceName = service.name?.toLowerCase() || '';
+              const clientNameLower = clientName.toLowerCase();
+              
+              // Verificar se o nome do serviço corresponde ao nome do cliente
+              const matchesByName = serviceName === clientNameLower || 
+                                   service.clientName?.toLowerCase() === clientNameLower;
+              
+              if (matchesByName) {
+                console.log("✅ Serviço encontrado por nome:", service.id, {
+                  serviceName: service.name,
+                  clientName: clientName
+                });
+              }
+              
+              return matchesByName;
+            }) as Service[];
+          
+          console.log(`Serviços encontrados por nome: ${servicesByName.length}`);
+          
+          if (servicesByName.length > 0) {
+            setServices(servicesByName.sort((a, b) => 
+              new Date(b.date).getTime() - new Date(a.date).getTime()
+            ));
+            setIsLoadingServices(false);
+            return;
+          }
+        } catch (nameError) {
+          console.error("Erro na consulta por nome:", nameError);
+        }
+      }
+      
+      // Se não encontrou por nenhum método, não mostrar serviços de outros clientes
       console.log("Nenhum serviço encontrado para este cliente específico");
       setServices([]);
       
@@ -334,7 +410,49 @@ export default function ClientHistory() {
         console.error("Erro na consulta por contactId de imagens:", contactIdError);
       }
       
-      // Se não encontrou por nenhum ID, não contar imagens de outros clientes
+      // Se não encontrou por nenhum ID, buscar por nome do cliente (fallback)
+      if (clientName) {
+        try {
+          console.log(`Buscando imagens por nome do cliente: ${clientName}`);
+          
+          // Buscar todos os serviços do usuário
+          const qAll = query(
+            servicesRef,
+            where("uid", "==", uid)
+          );
+          
+          const querySnapshotAll = await getDocs(qAll);
+          
+          // Filtrar por nome do cliente e contar imagens
+          querySnapshotAll.docs.forEach(doc => {
+            const data = doc.data();
+            const serviceName = data.name?.toLowerCase() || '';
+            const clientNameLower = clientName.toLowerCase();
+            
+            // Verificar se o nome do serviço corresponde ao nome do cliente
+            const matchesByName = serviceName === clientNameLower || 
+                                 data.clientName?.toLowerCase() === clientNameLower;
+            
+            if (matchesByName) {
+              const beforeCount = (data.imagesBefore?.length || 0) + (data.beforePhotos?.length || 0);
+              const afterCount = (data.imagesAfter?.length || 0) + (data.afterPhotos?.length || 0);
+              totalImages += beforeCount + afterCount;
+              servicesFound++;
+              console.log(`Serviço encontrado por nome: ${beforeCount} antes + ${afterCount} depois = ${beforeCount + afterCount} total`);
+            }
+          });
+          
+          if (servicesFound > 0) {
+            console.log(`Total de imagens para cliente ${clientName}: ${totalImages} (${servicesFound} serviços encontrados por nome)`);
+            setClientImageCount(totalImages);
+            return;
+          }
+        } catch (nameError) {
+          console.error("Erro na consulta de imagens por nome:", nameError);
+        }
+      }
+      
+      // Se não encontrou por nenhum método, não contar imagens de outros clientes
       console.log(`Nenhuma imagem encontrada para cliente ${clientName}`);
       setClientImageCount(0);
     } catch (error) {

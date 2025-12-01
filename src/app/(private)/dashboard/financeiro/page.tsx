@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
-import { currencyMask, formatCurrencyFromCents } from "@/utils/maks/masks";
+import { currencyMask, formatCurrencyFromCents, normalizeValueToCents } from "@/utils/maks/masks";
 import { database } from "@/services/firebase";
 import { deleteDoc, doc } from "firebase/firestore";
 import { toast } from "react-toastify";
@@ -143,10 +143,7 @@ export default function Financeiro() {
   const formatPrice = (price: string | number | undefined, isExpense: boolean = false) => {
     if (!price) return "R$ 0,00";
     
-    // ✅ Normalizar: suportar valores em reais (antigo) ou centavos (novo)
-    const rawValue = typeof price === 'string' ? parseFloat(price) : price;
-    const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
-    
+    const valueInCents = normalizeValueToCents(price);
     const formattedValue = formatCurrencyFromCents(valueInCents);
     return isExpense ? `- ${formattedValue}` : formattedValue;
   };
@@ -195,7 +192,7 @@ export default function Financeiro() {
       })
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // ✅ Calcular total de receitas (normalizar valores antigos)
+  // Calcular total de receitas usando normalizeValueToCents
   const totalRevenue = [
     ...(revenues || []),
     ...(services || [])
@@ -203,23 +200,19 @@ export default function Financeiro() {
       .map(service => ({ 
         value: service.payments 
           ? service.payments
-              .reduce((sum, payment) => sum + Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", ".")), 0)
+              .reduce((sum, payment) => sum + normalizeValueToCents(payment.value), 0)
           : 0 
       }))
   ].reduce((acc, curr) => {
-    const rawValue = typeof curr.value === 'number' ? curr.value : parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
-    // Se < 1000, está em reais (antigo), converter para centavos
-    const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+    const valueInCents = normalizeValueToCents(curr.value);
     return acc + valueInCents;
   }, 0);
 
   const totalPending = 0;
 
-  // ✅ Calcular total de despesas (normalizar valores antigos)
+  // Calcular total de despesas usando normalizeValueToCents
   const totalExpense = (expenses || []).reduce((acc, curr) => {
-    const rawValue = parseFloat(String(curr.value).replace(/[^\d,-]/g, "").replace(",", "."));
-    // Se < 1000, está em reais (antigo), converter para centavos
-    const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+    const valueInCents = normalizeValueToCents(curr.value);
     return acc + valueInCents;
   }, 0);
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency, formatCurrencyFromCents } from "@/utils/maks/masks";
+import { formatCurrency, formatCurrencyFromCents, normalizeValueToCents } from "@/utils/maks/masks";
 import { formatDateToBrazilian } from "@/utils/formater/date";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 import { usePlanContext } from "@/context/PlanContext";
@@ -179,10 +179,8 @@ export default function DashboardHome() {
         if (service.payments && service.payments.length > 0) {
           return acc + service.payments
             .reduce((sum, payment) => {
-              const paymentValue = typeof payment.value === 'number' 
-                ? payment.value 
-                : Number(String(payment.value).replace(/[^\d,-]/g, "").replace(",", "."));
-              return sum + paymentValue;
+              const valueInCents = normalizeValueToCents(payment.value);
+              return sum + valueInCents;
             }, 0);
         } else {
           return acc;

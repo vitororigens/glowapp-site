@@ -26,7 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { dataMask, dataUnMask, horaMask, horaUnMask, phoneMask, cpfMask, formatCurrencyFromCents, currencyMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
+import { dataMask, dataUnMask, horaMask, horaUnMask, phoneMask, cpfMask, formatCurrencyFromCents, currencyMask, cpfUnMask, celularMask, celularUnMask, normalizeValueToCents } from "@/utils/maks/masks";
 import { z } from "zod";
 
 // Schemas de validação
@@ -1114,27 +1114,17 @@ export default function NewService() {
     });
   };
 
-  // Funções de pagamento baseadas no código antigo
+  // Funções de pagamento - todos os valores em centavos
   const totalPrice = selectedProcedures.reduce((sum, procedure) => {
-    const price = typeof procedure.price === 'string' ? parseInt(procedure.price) : (procedure.price || 0);
-    return sum + price;
-  }, 0);
-  const totalPaid = payments.reduce((acc, payment) => {
-    // Os valores dos pagamentos já estão formatados em reais, então convertemos para número
-    const paymentValue = Number(payment.value.replace(/\D/g, '')) / 100;
-    console.log("💰 Debug pagamento:", {
-      paymentValue: payment.value,
-      numericValue: Number(payment.value.replace(/\D/g, '')),
-      dividedValue: paymentValue,
-      acc: acc
-    });
-    return acc + paymentValue;
+    const priceInCents = normalizeValueToCents(procedure.price);
+    return sum + priceInCents;
   }, 0);
   
-  console.log("💰 Debug totalPaid:", {
-    totalPaid: totalPaid,
-    payments: payments.map(p => ({ value: p.value, numeric: Number(p.value.replace(/\D/g, '')) }))
-  });
+  const totalPaid = payments.reduce((acc, payment) => {
+    // payment.value está formatado como "R$ X.XXX,XX", normalizar para centavos
+    const valueInCents = normalizeValueToCents(payment.value);
+    return acc + valueInCents;
+  }, 0);
 
   const handlePaymentMethodChange = (value: "dinheiro" | "pix" | "cartao" | "boleto") => {
     setNewPayment({

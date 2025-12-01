@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 import { formatDateToBrazilian } from "@/utils/formater/date";
-import { formatCurrencyFromCents } from "@/utils/maks/masks";
+import { formatCurrencyFromCents, normalizeValueToCents } from "@/utils/maks/masks";
 import ServiceViewModal from "@/components/ServiceViewModal";
 import { useState } from "react";
 
@@ -85,11 +85,7 @@ export default function Services() {
       .reduce((acc, service) => {
         const paidAmount = service.payments
           ?.reduce((sum, p) => {
-            const rawValue = typeof p.value === 'number' 
-              ? p.value 
-              : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-            // ✅ Normalizar: se < 1000, está em reais (antigo)
-            const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+            const valueInCents = normalizeValueToCents(p.value);
             return sum + valueInCents;
           }, 0) || 0;
         return acc + paidAmount;
@@ -101,9 +97,7 @@ export default function Services() {
   const { totalPaid, totalServices: servicesCount, totalBudgets } = calculateTotals();
 
   const formatPrice = (price: number | string) => {
-    // ✅ Normalizar: suportar valores em reais (antigo) ou centavos (novo)
-    const rawValue = typeof price === 'string' ? parseFloat(price) : price;
-    const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+    const valueInCents = normalizeValueToCents(price);
     return formatCurrencyFromCents(valueInCents);
   };
 
@@ -203,17 +197,12 @@ export default function Services() {
                   .map((service: Service) => {
                   const paidAmount = service.payments 
                     ? service.payments.reduce((sum, p) => {
-                        const rawValue = typeof p.value === 'number' 
-                          ? p.value 
-                          : Number(String(p.value).replace(/[^\d,-]/g, "").replace(",", "."));
-                        // ✅ Normalizar valores antigos
-                        const valueInCents = rawValue < 1000 ? rawValue * 100 : rawValue;
+                        const valueInCents = normalizeValueToCents(p.value);
                         return sum + valueInCents;
                       }, 0)
                     : 0;
-                  // ✅ Normalizar preço total
-                  const rawPrice = typeof service.price === 'number' ? service.price : parseFloat(String(service.price));
-                  const valorTotal = rawPrice < 1000 ? rawPrice * 100 : rawPrice;
+                  // Normalizar preço total para centavos
+                  const valorTotal = normalizeValueToCents(service.price);
                   console.log(valorTotal);
                   return (
                     <TableRow 

@@ -1,62 +1,45 @@
 // utils/masks.ts
+// ============================================
+// FUNÇÕES DE VALORES FINANCEIROS (PADRÃO SEGURO)
+// ============================================
+// Sempre trabalhar com centavos (integer) no banco
+// Exemplo: R$ 19,90 → salva 1990 (centavos)
 
-import { currency } from "remask";
+/**
+ * Formata centavos para exibição em moeda brasileira
+ * @param cents - Valor em centavos (integer)
+ * @returns String formatada: "R$ 19,90"
+ */
+export function formatToMoney(cents: number): string {
+    if (isNaN(cents) || cents === null || cents === undefined) return 'R$ 0,00';
+    return (cents / 100).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+  }
+  
+  /**
+   * Converte string formatada (ex: "R$ 19,90") para centavos
+   * @param formattedValue - String formatada ou apenas números
+   * @returns Valor em centavos (integer)
+   */
+  export function parseMoneyToCents(formattedValue: string): number {
+    const onlyNumbers = formattedValue.replace(/\D/g, '');
+    const cents = Number(onlyNumbers);
+    return isNaN(cents) ? 0 : cents;
+  }
+  
+  /**
+   * Formata valor enquanto o usuário digita (para usar no onChange do input)
+   * @param inputValue - Valor digitado pelo usuário
+   * @returns String formatada para exibição: "R$ 19,90"
+   */
+  export function formatMoneyInput(inputValue: string): string {
+    const onlyNumbers = inputValue.replace(/\D/g, '');
+    const cents = Number(onlyNumbers);
+    return formatToMoney(cents);
+  }
 
-const DECIMAL_SEPARATOR_REGEX = /[.,]/;
-
-function normalizeValueToCents(value: string | number | undefined): number {
-    if (value === undefined || value === null || value === '') return 0;
-
-    if (typeof value === 'number') {
-        if (!Number.isFinite(value)) return 0;
-
-        if (!Number.isInteger(value)) {
-            return Math.round(value * 100);
-        }
-
-        return value >= 1000 ? value : value * 100;
-    }
-
-    const stringValue = String(value).trim();
-    if (!stringValue) return 0;
-
-    const hasDecimalSeparator = DECIMAL_SEPARATOR_REGEX.test(stringValue);
-    const cleanedValue = stringValue.replace(/[^\d,.-]/g, '');
-
-    if (hasDecimalSeparator) {
-        const normalizedValue = cleanedValue.replace(/\./g, '').replace(',', '.');
-        const parsed = parseFloat(normalizedValue);
-        return isNaN(parsed) ? 0 : Math.round(parsed * 100);
-    }
-
-    const digitsOnly = cleanedValue.replace(/\D/g, '');
-    if (!digitsOnly) return 0;
-    const numericValue = Number(digitsOnly);
-    if (isNaN(numericValue)) return 0;
-
-    return numericValue >= 1000 ? numericValue : numericValue * 100;
-}
-
-export function currencyMask(value: string | number | undefined) {
-    if (value === undefined || value === null) return '';
-    
-    // Se for número, formata diretamente
-    if (typeof value === 'number') {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(value / 100);
-    }
-
-    // Se for string, remove caracteres não numéricos e converte para número
-    const stringValue = String(value || '');
-    const numericValue = Number(stringValue.replace(/\D/g, ''));
-
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(numericValue / 100);
-}
 
 export function currencyUnMask(maskedValue: string | undefined) {
     if (!maskedValue) return '0';
@@ -68,6 +51,28 @@ export function formatCurrencyMask(value: string | undefined): string {
     const numericValue = parseFloat(value);
     if (isNaN(numericValue)) return '';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numericValue);
+}
+
+/**
+ * Aplica máscara de moeda enquanto o usuário digita
+ * Remove caracteres não numéricos e formata como moeda brasileira
+ * @param value - String digitada pelo usuário
+ * @returns String formatada como moeda (ex: "R$ 1.234,56")
+ */
+export function currencyMask(value: string | undefined): string {
+    if (!value) return '';
+    // Remove tudo exceto números
+    const onlyNumbers = value.replace(/\D/g, '');
+    if (!onlyNumbers) return '';
+    // Converte para número e divide por 100 para obter reais
+    const numericValue = parseFloat(onlyNumbers) / 100;
+    // Formata como moeda brasileira
+    return new Intl.NumberFormat('pt-BR', { 
+        style: 'currency', 
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(numericValue);
 }
 
 
@@ -183,6 +188,39 @@ export function phoneMask(value: string): string {
 }
 
 // ===== PADRÃO UNIFICADO PARA VALORES MONETÁRIOS =====
+
+/**
+ * Normaliza qualquer valor para centavos (integer)
+ * Detecta automaticamente se o valor está em reais ou centavos
+ * Padrão: se < 100, está em reais; se >= 100, já está em centavos
+ * @param value - Valor em qualquer formato (string, number, undefined)
+ * @returns Valor em centavos (integer)
+ */
+export function normalizeValueToCents(value: string | number | undefined): number {
+    if (value === null || value === undefined) return 0;
+    
+    // Se for string, extrair apenas números
+    let numValue: number;
+    if (typeof value === 'string') {
+        // Remove tudo exceto números
+        const onlyNumbers = value.replace(/\D/g, '');
+        if (!onlyNumbers) return 0;
+        numValue = Number(onlyNumbers);
+    } else {
+        numValue = value;
+    }
+    
+    if (isNaN(numValue) || numValue === 0) return 0;
+    
+    // Se o valor for menor que 100, assume que está em reais e converte para centavos
+    // Se for maior ou igual a 100, assume que já está em centavos
+    if (numValue < 100) {
+        return Math.round(numValue * 100);
+    }
+    
+    // Caso contrário, assume que já está em centavos
+    return Math.round(numValue);
+}
 
 /**
  * Converte valor do banco de dados (em centavos) para formato de exibição (R$ X.XXX,XX)

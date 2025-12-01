@@ -20,7 +20,7 @@ import { ptBR } from "date-fns/locale";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlusCircle, Pencil, Trash2, Calendar as CalendarIcon,  Search, X, CheckCircle, XCircle, User, ArrowLeft, ArrowRight, FileText, CreditCard, Receipt, AlertTriangle, Filter, Settings, HelpCircle, MessageCircle, ChevronLeft, ChevronRight, Clock, Users, Eye, List, Grid3X3, DollarSign } from "lucide-react";
-import { currencyMask, formatCurrencyFromCents } from "@/utils/maks/masks";
+import { currencyMask, formatCurrencyFromCents, normalizeValueToCents } from "@/utils/maks/masks";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import {
   AlertDialog,
@@ -556,13 +556,13 @@ export default function Agenda() {
     setShowAppointmentDetailsModal(true);
   };
 
-// Funções para pagamentos (igual ao novo serviço)
+// Funções para pagamentos - todos os valores em centavos
 const totalPrice = appointmentToConvert ? 
-  (appointmentToConvert.appointment?.servicePrice || appointmentToConvert.appointment?.procedurePrice || 0) : 0;
+  normalizeValueToCents(appointmentToConvert.appointment?.servicePrice || appointmentToConvert.appointment?.procedurePrice || 0) : 0;
 
 const totalPaid = payments.reduce((acc, payment) => {
-  // Os valores dos pagamentos já estão em centavos (formato "R$ 200,00" = 20000 centavos)
-  return acc + Number(payment.value.replace(/\D/g, ''));
+  // Normalizar valor do pagamento para centavos
+  return acc + normalizeValueToCents(payment.value);
 }, 0);
 
 const formattedTotalPrice = formatCurrencyFromCents(totalPrice);
@@ -599,7 +599,7 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
       return;
     }
 
-    const value = Number(newPayment.value.replace(/\D/g, ''));
+    const value = normalizeValueToCents(newPayment.value);
     
     if (value <= 0) {
       toast.error("O valor do pagamento deve ser maior que zero");
@@ -609,7 +609,7 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
     let adjustedTotalPaid = totalPaid;
     
     if (currentPaymentIndex !== -1) {
-      const oldPaymentValue = Number(payments[currentPaymentIndex].value.replace(/\D/g, ''));
+      const oldPaymentValue = normalizeValueToCents(payments[currentPaymentIndex].value);
       adjustedTotalPaid = adjustedTotalPaid - oldPaymentValue;
     }
     
@@ -813,10 +813,10 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
         }
       }
 
-      // Preparar pagamentos no formato do serviço padrão (valor numérico)
+      // Preparar pagamentos no formato do serviço padrão (valor em centavos)
       const processedPayments = payments.map(p => ({
         method: p.method,
-        value: Number((p.value || '').replace(/\D/g, '')),
+        value: normalizeValueToCents(p.value || ''),
         date: p.date || '',
         installments: p.installments ?? null,
       }));
