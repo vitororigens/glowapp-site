@@ -252,7 +252,7 @@ export default function AssinaturaPage() {
     if (hasPaidPlan) {
       const planPrices: { [key: string]: { amount: number; currency: string } } = {
         'glow-start': { amount: 0, currency: 'BRL' },
-        'glow-pro': { amount: 2990, currency: 'BRL' }, // R$ 29,90
+        'glow-pro': { amount: 7990, currency: 'BRL' }, // R$ 79,90
       };
       return planPrices[currentPlan] || { amount: 0, currency: 'BRL' };
     }

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     // Mapeamento de planos para preços (em centavos)
     const planPrices: { [key: string]: number } = {
       'glow-start': 0, // Gratuito
-      'glow-pro': 2990, // R$ 29,90 em centavos
+      'glow-pro': 7990, // R$ 79,90 em centavos
     };
 
     const amount = planPrices[planId];
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     if (planId === 'glow-pro') {
       price = existingPrices.data.find(p => 
-        p.unit_amount === 2990 && 
+        p.unit_amount === 7990 && 
         p.currency === 'brl' && 
         p.recurring?.interval === 'month'
       );
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       if (!price) {
         price = await stripe.prices.create({
           product: product.id,
-          unit_amount: 2990, // R$ 29,90 em centavos
+          unit_amount: 7990, // R$ 79,90 em centavos
           currency: 'brl',
           recurring: {
             interval: 'month',

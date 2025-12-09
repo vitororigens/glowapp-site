@@ -2,7 +2,7 @@
 
 ## 📋 Resumo Executivo
 
-Realizamos testes completos no sistema de pagamentos do GlowApp para verificar se o plano Pro (R$ 29,90/mês) está funcionando corretamente e se a cobrança recorrente está configurada adequadamente.
+Realizamos testes completos no sistema de pagamentos do GlowApp para verificar se o plano Pro (R$ 79,90/mês) está funcionando corretamente e se a cobrança recorrente está configurada adequadamente.
 
 ## 🧪 Testes Realizados
 
@@ -10,8 +10,8 @@ Realizamos testes completos no sistema de pagamentos do GlowApp para verificar s
 
 **Resultado:** ✅ **APROVADO**
 
-- **Plano Glow Pro (R$ 29,90):** ✅ Funcionando corretamente
-  - Valor: 2990 centavos (R$ 29,90) ✅
+- **Plano Glow Pro (R$ 79,90):** ✅ Funcionando corretamente
+  - Valor: 7990 centavos (R$ 79,90) ✅
   - Client Secret: ✅ Presente
   - Status: 200 OK
 
@@ -31,7 +31,7 @@ Realizamos testes completos no sistema de pagamentos do GlowApp para verificar s
 - **Assinatura Glow Pro:** ✅ Criada com sucesso
   - Subscription ID: `sub_1RxsrYGHVZFPCOKg4LIY1N5r` ✅
   - Customer ID: `cus_StgD60HzjxShD8` ✅
-  - Valor: 2990 centavos (R$ 29,90) ✅
+  - Valor: 7990 centavos (R$ 79,90) ✅
   - Status: "incomplete" (aguardando pagamento) ✅
   - Recurring billing configurado ✅
 
@@ -46,7 +46,7 @@ Realizamos testes completos no sistema de pagamentos do GlowApp para verificar s
 
 ### ✅ Pontos Positivos Identificados
 
-1. **Validação de Preços:** O sistema está validando corretamente o valor de R$ 29,90 para o plano Pro
+1. **Validação de Preços:** O sistema está validando corretamente o valor de R$ 79,90 para o plano Pro
 2. **Mapeamento de Planos:** O mapeamento entre planos e preços está funcionando
 3. **Tratamento de Erros:** Validações adequadas para planos inexistentes
 4. **Integração Stripe:** Conexão com Stripe funcionando corretamente
@@ -91,7 +91,7 @@ Realizamos testes completos no sistema de pagamentos do GlowApp para verificar s
 ### 2. Configuração de Cobrança Recorrente
 
 - **Intervalo:** Mensal
-- **Valor:** R$ 29,90/mês
+- **Valor:** R$ 79,90/mês
 - **Moeda:** BRL (Real Brasileiro)
 - **Comportamento de Pagamento:** `default_incomplete`
 - **Salvamento de Método:** `on_subscription`
@@ -102,7 +102,7 @@ Realizamos testes completos no sistema de pagamentos do GlowApp para verificar s
 {
   "subscriptionId": "sub_1RxsrYGHVZFPCOKg4LIY1N5r",
   "customerId": "cus_StgD60HzjxShD8",
-  "amount": 2990,
+  "amount": 7990,
   "status": "incomplete",
   "currentPeriodEnd": 1735689600
 }
@@ -112,7 +112,7 @@ Realizamos testes completos no sistema de pagamentos do GlowApp para verificar s
 
 | Funcionalidade | Status | Observações |
 |----------------|--------|-------------|
-| Validação de Preços | ✅ Aprovado | R$ 29,90 validado corretamente |
+| Validação de Preços | ✅ Aprovado | R$ 79,90 validado corretamente |
 | Criação de Payment Intent | ✅ Aprovado | Funcionando para pagamentos únicos |
 | Criação de Subscription | ✅ Aprovado | Cobrança recorrente implementada |
 | Customer Management | ✅ Aprovado | Clientes criados automaticamente |
@@ -158,11 +158,11 @@ Realizamos testes completos no sistema de pagamentos do GlowApp para verificar s
 
 ## 🎯 Conclusão
 
-**O sistema está funcionando corretamente para o plano Pro de R$ 29,90/mês!**
+**O sistema está funcionando corretamente para o plano Pro de R$ 79,90/mês!**
 
 ### ✅ Confirmações:
 
-1. **Validação de Preço:** ✅ R$ 29,90 está sendo validado corretamente
+1. **Validação de Preço:** ✅ R$ 79,90 está sendo validado corretamente
 2. **Cobrança Recorrente:** ✅ Implementada com sucesso
 3. **Integração Stripe:** ✅ Funcionando perfeitamente
 4. **Customer Management:** ✅ Clientes criados automaticamente

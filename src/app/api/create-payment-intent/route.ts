@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     // Mapeamento de planos para preços (em centavos)
     const planPrices: { [key: string]: number } = {
       'glow-start': 0, // Gratuito
-      'glow-pro': 2990, // R$ 29,90 em centavos
+      'glow-pro': 7990, // R$ 79,90 em centavos
     };
 
     const amount = planPrices[planId];

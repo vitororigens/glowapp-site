@@ -206,7 +206,7 @@ export default function TermsAndConditions() {
           * tempo indeterminado diz respeito ao limite de armazenamento do usuário. Este limite é de 10 clientes cadastrados na conta do usuário e quatro imagens por cliente, totalizando 40 imagens.
         </p>
         <h3 className="text-xl font-semibold mt-4">Plano Glow Pro</h3>
-        <p className="text-gray-600">Valor: R$ 29,90/mês</p>
+        <p className="text-gray-600">Valor: R$ 79,90/mês</p>
         <p className="text-gray-600 font-semibold mt-2">Funcionalidades incluídas:</p>
         <ul className="list-disc ml-6 text-gray-600">
           <li>Imagem do antes e depois</li>
