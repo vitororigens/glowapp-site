@@ -9,7 +9,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { useAuthContext } from "@/context/AuthContext";
 import { toast } from "react-toastify";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { celularMask, cpfMask } from "@/utils/maks/masks";
+import { phoneMask, cpfMask } from "@/utils/maks/masks";
 
 interface Client {
   id: string;
@@ -110,7 +110,7 @@ export function CustomModalClients({
                   <p className="font-medium text-lg text-gray-900">{client.name}</p>
                   <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
                     <p>CPF: {cpfMask(client.cpf)}</p>
-                    <p>Telefone: {celularMask(client.phone)}</p>
+                    <p>Telefone: {phoneMask(client.phone)}</p>
                     {client.email && <p className="md:col-span-2">Email: {client.email}</p>}
                   </div>
                 </div>

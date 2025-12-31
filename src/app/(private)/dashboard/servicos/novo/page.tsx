@@ -26,7 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { dataMask, dataUnMask, horaMask, horaUnMask, phoneMask, cpfMask, formatCurrencyFromCents, currencyMask, cpfUnMask, celularMask, celularUnMask, normalizeValueToCents } from "@/utils/maks/masks";
+import { dataMask, dataUnMask, horaMask, horaUnMask, phoneMask, cpfMask, formatCurrencyFromCents, currencyMask, cpfUnMask, phoneMask, phoneUnMask, normalizeValueToCents } from "@/utils/maks/masks";
 import { z } from "zod";
 
 // Schemas de validação
@@ -457,7 +457,7 @@ export default function NewService() {
         clientForm.reset({
           name: data.name || "",
           cpf: cpfMask(data.cpf || ""),
-          phone: celularMask(data.phone || ""),
+          phone: phoneMask(data.phone || ""),
           email: data.email || "",
         });
         
@@ -1783,7 +1783,7 @@ export default function NewService() {
                   // Processar dados do cliente
                   const clientName = clientData.name.trim();
                   const clientCpf = cpfUnMask(clientData.cpf || "");
-                  const clientPhone = celularUnMask(clientData.phone);
+                  const clientPhone = phoneUnMask(clientData.phone);
                   
                   // Criar ou atualizar cliente
                   if (clientName && (clientCpf || clientPhone)) {
@@ -2523,7 +2523,7 @@ export default function NewService() {
                   // Processar dados do cliente
                   const clientName = clientData.name.trim();
                   const clientCpf = cpfUnMask(clientData.cpf || "");
-                  const clientPhone = celularUnMask(clientData.phone);
+                  const clientPhone = phoneUnMask(clientData.phone);
                   
                   // Criar ou atualizar cliente
                   if (clientName && (clientCpf || clientPhone)) {

@@ -9,7 +9,7 @@ import { database } from "@/services/firebase";
 import { collection, getDocs, query, where, deleteDoc, doc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { celularMask, cpfMask } from "@/utils/maks/masks";
+import { phoneMask, cpfMask } from "@/utils/maks/masks";
 import {
   Table,
   TableBody,
@@ -187,7 +187,7 @@ export default function Contacts() {
                     </div>
                   </TableCell>
                   <TableCell>{cpfMask(contact.cpf)}</TableCell>
-                  <TableCell>{celularMask(contact.phone)}</TableCell>
+                  <TableCell>{phoneMask(contact.phone)}</TableCell>
                   <TableCell>{contact.email}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">

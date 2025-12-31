@@ -9,7 +9,7 @@ import { useAuthContext } from "@/context/AuthContext";
 import { toast } from "react-toastify";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { celularMask } from "@/utils/maks/masks";
+import { phoneMask } from "@/utils/maks/masks";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
 
@@ -140,7 +140,7 @@ export function CustomModalProfessionals({
                       Especialidade: {professional.specialty}
                     </p>
                     <p className="text-sm text-gray-500">
-                      Telefone: {celularMask(professional.phone)}
+                      Telefone: {phoneMask(professional.phone)}
                     </p>
                   </div>
                 </div>

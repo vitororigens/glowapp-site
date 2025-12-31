@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/context/AuthContext";
 import useFirestoreCollection from "@/hooks/useFirestoreCollection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { celularMask } from "@/utils/maks/masks";
+import { phoneMask } from "@/utils/maks/masks";
 
 interface Contact {
   id: string;
@@ -82,7 +82,7 @@ export default function HistoricoClientes() {
                 </Avatar>
                 <div>
                   <h3 className="font-medium text-lg">{contact.name}</h3>
-                  <p className="text-sm text-gray-500">{celularMask(contact.phone || '')}</p>
+                  <p className="text-sm text-gray-500">{phoneMask(contact.phone || '')}</p>
                 </div>
               </CardContent>
             </Card>

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
-import { currencyMask, currencyUnMask, cpfMask, cpfUnMask, celularMask, celularUnMask } from "@/utils/maks/masks";
+import { currencyMask, currencyUnMask, cpfMask, cpfUnMask, phoneMask, phoneUnMask } from "@/utils/maks/masks";
 import { useAuthContext } from "@/context/AuthContext";
 import { database, storage } from "@/services/firebase";
 import { doc, getDoc, setDoc, collection } from "firebase/firestore";
@@ -72,7 +72,7 @@ export default function NewContact() {
             reset({
               name: data.name || "",
               cpf: cpfMask(data.cpf || ""),
-              phone: celularMask(data.phone || ""),
+              phone: phoneMask(data.phone || ""),
               email: data.email || "",
               observations: data.observations || "",
               image: data.image || undefined,
@@ -130,7 +130,7 @@ export default function NewContact() {
       await setDoc(docRef, {
         ...data,
         cpf: cpfUnMask(data.cpf || ""),
-        phone: celularUnMask(data.phone || ""),
+        phone: phoneUnMask(data.phone || ""),
         uid,
         image: "",
         ...(image && { imageUrl: image }),
@@ -251,7 +251,7 @@ export default function NewContact() {
             <Input 
               {...register("phone")} 
               placeholder="Telefone"
-              onChange={(e) => setValue("phone", celularMask(e.target.value))}
+              onChange={(e) => setValue("phone", phoneMask(e.target.value))}
             />
             {errors.phone && (
               <p className="text-red-500 text-sm">{errors.phone.message}</p>

@@ -10,7 +10,7 @@ import { database, storage } from "@/services/firebase";
 import { doc, setDoc, collection, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-toastify";
-import { applyPhoneMask, celularMask, celularUnMask, cnpjMask, cnpjUnMask, cpfMask, phoneUnMask } from "@/utils/maks/masks";
+import { phoneMask, phoneMask, phoneUnMask, cnpjMask, cnpjUnMask, cpfMask, phoneUnMask } from "@/utils/maks/masks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthContext } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -103,7 +103,7 @@ export default function NewProfessional() {
           if (data) {
             setValue("name", data.name);
             setValue("cpfCnpj", data.cpfCnpj?.length > 11 ? cnpjMask(data.cpfCnpj) : cpfMask(data.cpfCnpj || ""));
-            setValue("phone", celularMask(data.phone || ""));
+            setValue("phone", phoneMask(data.phone || ""));
             setValue("email", data.email);
             setValue("observations", data.observations);
             setValue("adress", data.adress);
@@ -169,7 +169,7 @@ export default function NewProfessional() {
       await setDoc(docRef, {
         ...sanitizedData,
         cpfCnpj: data.cpfCnpj ? cnpjUnMask(data.cpfCnpj) : "",
-        phone: celularUnMask(data.phone || ""),
+        phone: phoneUnMask(data.phone || ""),
         uid,
         ...(imageUrl && { imageUrl }),
         // ✅ Timestamps padronizados
@@ -254,7 +254,7 @@ export default function NewProfessional() {
               <Input
                 {...field}
                 onChange={(e) => field.onChange(phoneUnMask(e.target.value))}
-                value={applyPhoneMask(field.value)}
+                value={phoneMask(field.value)}
                 placeholder="Telefone"
               />
             )}

@@ -8,7 +8,7 @@ import { useAuthContext } from "@/context/AuthContext";
 import { database } from "@/services/firebase";
 import { collection, getDocs, query, where, doc, getDoc, deleteDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
-import { currencyMask, celularMask, cpfMask, formatCurrencyFromCents } from "@/utils/maks/masks";
+import { currencyMask, phoneMask, cpfMask, formatCurrencyFromCents } from "@/utils/maks/masks";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, Edit, Trash2, AlertTriangle, Image, Eye, X, Calendar, Clock, DollarSign, User, Phone, Mail, FileText, ZoomIn, ChevronLeft, ChevronRight } from "lucide-react";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
@@ -570,7 +570,7 @@ export default function ClientHistory() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Telefone</p>
-              <p className="font-medium">{clientData?.phone ? celularMask(clientData.phone) : "-"}</p>
+              <p className="font-medium">{clientData?.phone ? phoneMask(clientData.phone) : "-"}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">CPF</p>

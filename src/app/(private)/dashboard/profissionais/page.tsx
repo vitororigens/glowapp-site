@@ -9,7 +9,7 @@ import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "./styles";
 import { useAuthContext } from "@/context/AuthContext";
-import { celularMask, cpfMask, cnpjMask } from "@/utils/maks/masks";  // ✅ Importar máscaras
+import { phoneMask, cpfMask, cnpjMask } from "@/utils/maks/masks";  // ✅ Importar máscaras
 
 // Tipagem do profissional
 type PropsCardProfessional = {
@@ -147,7 +147,7 @@ export default function Profissionais() {
                 </td>
                 <td className="py-2 px-4 border">{professional.name}</td>
                 <td className="py-2 px-4 border">{professional.specialty || '-'}</td>
-                <td className="py-2 px-4 border">{celularMask(professional.phone)}</td>
+                <td className="py-2 px-4 border">{phoneMask(professional.phone)}</td>
                 <td className="py-2 px-4 border">{professional.email}</td>
                 <td className="py-2 px-4 border">
                   <div className="flex gap-2 justify-center">
@@ -206,7 +206,7 @@ export default function Profissionais() {
 
             <div className="mt-4 space-y-2">
               <p><strong>Email:</strong> {selectedProfessional.email}</p>
-              <p><strong>Telefone:</strong> {celularMask(selectedProfessional.phone)}</p>
+              <p><strong>Telefone:</strong> {phoneMask(selectedProfessional.phone)}</p>
               <p><strong>CPF/CNPJ:</strong> {
                 selectedProfessional.cpfCnpj?.length > 11 
                   ? cnpjMask(selectedProfessional.cpfCnpj) 

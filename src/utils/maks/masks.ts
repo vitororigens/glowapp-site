@@ -119,7 +119,7 @@ export function metroQuadradoUnMask(maskedValue: string) {
     return unMaskedValue;
 }
 
-export function celularMask(value: string) {
+export function phoneMask(value: string) {
     let maskedValue = value;
     maskedValue = maskedValue.replace(/\D/g, '');
     // Limitar a 11 dígitos
@@ -129,7 +129,7 @@ export function celularMask(value: string) {
     return maskedValue;
 }
 
-export function celularUnMask(maskedValue: string) {
+export function phoneUnMask(maskedValue: string) {
     const unMaskedValue = maskedValue.replace(/\D/g, '');
     return unMaskedValue;
 }
@@ -175,16 +175,16 @@ export function cnpjUnMask(maskedValue: string): string {
     return maskedValue.replace(/\D/g, '');
 }
 
-export function applyPhoneMask(value: string): string {
-    return celularMask(value);
+export function phoneMask(value: string): string {
+    return phoneMask(value);
 }
 
 export function phoneUnMask(value: string): string {
-    return celularUnMask(value);
+    return phoneUnMask(value);
 }
 
 export function phoneMask(value: string): string {
-    return celularMask(value);
+    return phoneMask(value);
 }
 
 // ===== PADRÃO UNIFICADO PARA VALORES MONETÁRIOS =====
