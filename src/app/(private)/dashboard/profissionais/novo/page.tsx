@@ -10,7 +10,7 @@ import { database, storage } from "@/services/firebase";
 import { doc, setDoc, collection, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "react-toastify";
-import { phoneMask, phoneMask, phoneUnMask, cnpjMask, cnpjUnMask, cpfMask, phoneUnMask } from "@/utils/maks/masks";
+import { phoneMask, phoneUnMask, cnpjMask, cnpjUnMask, cpfMask } from "@/utils/maks/masks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthContext } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";

@@ -30,6 +30,14 @@ interface Transaction {
   description: string;
   collection: "Revenue" | "Expense";
   uid?: string;
+  payments?: Array<{
+    method: 'dinheiro' | 'pix' | 'cartao' | 'boleto';
+    value: string | number;
+    date: string;
+    installments?: number;
+    parcelas?: number;
+  }>;
+  originalPrice?: string | number;
 }
 
 interface Service {
@@ -45,6 +53,7 @@ interface Service {
     value: string | number;
     date: string;
     installments?: number;
+    parcelas?: number;
   }>;
   pendingValue?: number;
   originalPrice?: string | number;
@@ -90,7 +99,7 @@ export default function Financeiro() {
   console.log("========================");
 
   // Função para corrigir dados antigos que podem não ter UID
-  const fixMissingUid = async (data: any[], collectionName: string) => {
+  const fixMissingUid = async (data: (Transaction | Service)[], collectionName: string) => {
     if (!user?.uid) return;
     
     const itemsWithoutUid = data.filter(item => !item.uid);
@@ -317,14 +326,14 @@ export default function Financeiro() {
                   </TableCell>
                   <TableCell>
                     {transaction.type === "Serviço" ? 
-                      formatPrice(Number((transaction as any).originalPrice)) 
+                      formatPrice(Number(transaction.originalPrice)) 
                       : formatPrice(Number(transaction.value))}
                   </TableCell>
                   <TableCell className="text-green-600">{formatPrice(Number(transaction.value))}</TableCell>
                   <TableCell>
                     {transaction.type === "Serviço" ? (
                       (() => {
-                        const originalPrice = Number(String((transaction as any).originalPrice).replace(/[^\d,-]/g, "").replace(",", "."));
+                        const originalPrice = Number(String(transaction.originalPrice).replace(/[^\d,-]/g, "").replace(",", "."));
                         const paidValue = Number(transaction.value);
                         const pendingValue = originalPrice - paidValue;
                         return (
@@ -342,11 +351,11 @@ export default function Financeiro() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {transaction.type === "Serviço" && (transaction as any).payments && (transaction as any).payments.length > 0 ? (
+                    {transaction.type === "Serviço" && transaction.payments && transaction.payments.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
-                        {(transaction as any).payments.map((payment: any, idx: number) => {
-                          const pagamentos = (transaction as any).payments;
-                          const valorTotal = Number(String((transaction as any).originalPrice).replace(/[^\d,-]/g, "").replace(",", "."));
+                        {transaction.payments.map((payment, idx) => {
+                          const pagamentos = transaction.payments!;
+                          const valorTotal = Number(String(transaction.originalPrice).replace(/[^\d,-]/g, "").replace(",", "."));
                           const mostrarValor = pagamentos.length > 1 || Number(payment.value) !== valorTotal;
                           return (
                             <span
@@ -367,7 +376,7 @@ export default function Financeiro() {
                                 ? "PIX"
                                 : payment.method === "boleto"
                                 ? "Boleto"
-                                : `Cartão${(payment as any).parcelas || payment.installments ? ` ${(payment as any).parcelas || payment.installments}x` : ""}`}
+                                : `Cartão${payment.parcelas || payment.installments ? ` ${payment.parcelas || payment.installments}x` : ""}`}
                               {mostrarValor ? ` ${formatPrice(payment.value)}` : ""}
                             </span>
                           );

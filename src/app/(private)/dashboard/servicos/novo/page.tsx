@@ -74,8 +74,8 @@ const observationsSchema = z.object({
 interface ClientData {
   name: string;
   phone: string;
-  email: string;
-  cpf: string;
+  email?: string;
+  cpf?: string;
 }
 
 interface ProcedureData {
@@ -629,7 +629,7 @@ export default function NewService() {
   };
 
   // Função para criar ou atualizar cliente com verificação de limitações
-  const createOrUpdateClientWithLimitations = async (clientName: string, clientCpf: string, clientPhone: string, clientEmail: string): Promise<string | null> => {
+  const createOrUpdateClientWithLimitations = async (clientName: string, clientCpf?: string, clientPhone?: string, clientEmail?: string): Promise<string | null> => {
     if (!uid) return null;
     
     try {
@@ -759,7 +759,7 @@ export default function NewService() {
             draggable: true,
           });
           return newContactRef.id;
-        } catch (error: any) {
+        } catch (error) {
           console.error("Erro ao criar cliente:", error);
           toast.error("Não foi possível adicionar o cliente automaticamente, mas o serviço será salvo", {
             position: "top-center",
