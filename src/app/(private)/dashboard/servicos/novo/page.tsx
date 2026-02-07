@@ -26,7 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { dataMask, dataUnMask, horaMask, horaUnMask, phoneMask, cpfMask, formatCurrencyFromCents, currencyMask, cpfUnMask, phoneMask, phoneUnMask, normalizeValueToCents } from "@/utils/maks/masks";
+import { dataMask, dataUnMask, horaMask, horaUnMask, phoneMask, cpfMask, formatCurrencyFromCents, currencyMask, cpfUnMask, phoneUnMask, normalizeValueToCents } from "@/utils/maks/masks";
 import { z } from "zod";
 
 // Schemas de validação
@@ -203,6 +203,7 @@ export default function NewService() {
     value: string;
     date: string;
     installments?: number;
+    parcelas?: number;
   }>>([]);
   const [currentPaymentIndex, setCurrentPaymentIndex] = useState(-1);
   const [newPayment, setNewPayment] = useState({
@@ -347,7 +348,7 @@ export default function NewService() {
             
             // Carregar procedimentos selecionados
             if (data.services && data.services.length > 0) {
-              const selectedProcs = procedures.filter(p => data.services.some((s: any) => s.id === p.id));
+              const selectedProcs = procedures.filter(p => data.services.some((s: Procedure) => s.id === p.id));
               if (selectedProcs.length > 0) {
                 setSelectedProcedures(selectedProcs);
                 procedureForm.setValue("procedureName", selectedProcs.map(p => p.name).join(", "));
@@ -489,7 +490,13 @@ export default function NewService() {
         
         // Carregar pagamentos
         if (data.payments && data.payments.length > 0) {
-          const formattedPayments = data.payments.map((p: any) => ({
+          const formattedPayments = data.payments.map((p: { 
+            method: "dinheiro" | "pix" | "cartao" | "boleto"; 
+            value: number | string; 
+            date: string; 
+            installments?: number; 
+            parcelas?: number; 
+          }) => ({
             method: p.method,
             value: formatPaymentValue(p.value),
             date: p.date,
@@ -1022,7 +1029,7 @@ export default function NewService() {
     setShowProfessionalsModal(false);
   };
 
-  const handleClientSelect = async (client: any) => {
+  const handleClientSelect = async (client: ClientData & { id: string }) => {
     // Implementar seleção de cliente existente
     clientForm.setValue("name", client.name);
     clientForm.setValue("phone", client.phone);
@@ -1152,7 +1159,7 @@ export default function NewService() {
       method: payment.method,
       value: payment.value,
       date: payment.date,
-      installments: payment.installments || (payment.method === "cartao" ? 1 : undefined)
+      installments: payment.installments || payment.parcelas || (payment.method === "cartao" ? 1 : undefined)
     });
     setCurrentPaymentIndex(index);
   };
@@ -2068,7 +2075,7 @@ export default function NewService() {
                             ? "PIX"
                             : payment.method === "boleto"
                             ? "Boleto"
-                            : `Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
+                            : `Cartão ${payment.parcelas || payment.installments ? `${payment.parcelas || payment.installments}x` : ""}`}
                         </div>
                         <div className="text-sm font-semibold">
                           {payment.value}
@@ -2467,7 +2474,7 @@ export default function NewService() {
                   {payments.map((payment, index) => (
                     <div key={index} className="flex justify-between items-center py-1">
                       <span className="text-sm text-gray-600">
-                        {payment.method === "dinheiro" ? "Dinheiro" : payment.method === "pix" ? "PIX" : payment.method === "cartao" ? "Cartão" : "Boleto"}
+                        {payment.method === "dinheiro" ? "Dinheiro" : payment.method === "pix" ? "PIX" : payment.method === "cartao" ? `Cartão${payment.parcelas || payment.installments ? ` ${payment.parcelas || payment.installments}x` : ""}` : "Boleto"}
                       </span>
                       <span className="text-sm font-semibold text-gray-700">{payment.value}</span>
                     </div>
@@ -2543,7 +2550,7 @@ export default function NewService() {
                       method: payment.method,
                       value: numericValue,
                       date: payment.date,
-                      installments: payment.installments || null,
+                      installments: payment.parcelas || payment.installments || null,
                     };
                   });
 

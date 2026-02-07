@@ -217,7 +217,7 @@ export default function Historico() {
                               ? "💜 PIX"
                               : payment.method === "boleto"
                               ? "📄 Boleto"
-                              : `💳 Cartão ${payment.installments ? `${payment.installments}x` : ""}`}
+                              : `💳 Cartão ${(payment as any).parcelas || payment.installments ? `${(payment as any).parcelas || payment.installments}x` : ""}`}
                             <span className="ml-1 font-bold">
                               {formatCurrencyFromCents(Number(payment.value))}
                             </span>

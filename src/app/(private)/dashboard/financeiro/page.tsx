@@ -367,7 +367,7 @@ export default function Financeiro() {
                                 ? "PIX"
                                 : payment.method === "boleto"
                                 ? "Boleto"
-                                : `Cartão${payment.installments ? ` ${payment.installments}x` : ""}`}
+                                : `Cartão${(payment as any).parcelas || payment.installments ? ` ${(payment as any).parcelas || payment.installments}x` : ""}`}
                               {mostrarValor ? ` ${formatPrice(payment.value)}` : ""}
                             </span>
                           );

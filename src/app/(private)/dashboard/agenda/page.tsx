@@ -583,7 +583,7 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
       method: payment.method,
       value: payment.value,
       date: payment.date,
-      installments: payment.installments || 1
+      installments: payment.installments || (payment as any).parcelas || 1
     });
     setCurrentPaymentIndex(index);
   };
@@ -818,7 +818,7 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
         method: p.method,
         value: normalizeValueToCents(p.value || ''),
         date: p.date || '',
-        installments: p.installments ?? null,
+        installments: (p as any).parcelas || p.installments || null,
       }));
       const paidAmount = processedPayments.reduce((sum, p) => sum + (p.value || 0), 0);
 
@@ -2915,7 +2915,7 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
                                       : payment.method === "boleto"
                                       ? "Boleto"
                                       : payment.method === "cartao"
-                                      ? `Cartão ${payment.installments ? `${payment.installments}x` : ""}`
+                                      ? `Cartão ${(payment as any).parcelas || payment.installments ? `${(payment as any).parcelas || payment.installments}x` : ""}`
                                       : "Cartão"}
                                   </div>
                                   <div className="text-sm">

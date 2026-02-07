@@ -60,6 +60,7 @@ interface ServiceViewModalProps {
       value: string | number;
       date: string;
       installments?: number;
+      parcelas?: number;
     }>;
     beforePhotos?: Array<{
       url: string;
@@ -322,12 +323,28 @@ export default function ServiceViewModal({ isOpen, onClose, service }: ServiceVi
                         <p className="text-sm text-gray-500">Data</p>
                         <p className="font-medium">{formatDateToBrazilian(payment.date)}</p>
                       </div>
-                      {payment.installments && (
+                      {payment.parcelas || payment.installments ? (
                         <div>
                           <p className="text-sm text-gray-500">Parcelas</p>
-                          <p className="font-medium">{payment.installments}x</p>
+                          <p className="font-medium">
+                            {(() => {
+                              const installments = payment.parcelas || payment.installments;
+                              const value = Number(payment.value);
+                              const installmentValue = value / (installments || 1);
+                              return (
+                                <>
+                                  {installments}x
+                                  {(installments || 0) > 1 && (
+                                    <span className="text-gray-500 font-normal">
+                                      {' '}de {formatCurrencyFromCents(installmentValue)}
+                                    </span>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </p>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 ))}

@@ -49,6 +49,7 @@ interface Service {
     value: string | number;
     date: string;
     installments?: number;
+    parcelas?: number;
     status: 'pendente' | 'pago';
   }>;
 }
@@ -286,7 +287,7 @@ export default function Services() {
                                       ? "PIX"
                                       : payment.method === "boleto"
                                       ? "Boleto"
-                                      : `Cartão${payment.installments ? ` ${payment.installments}x` : ""}`}
+                                      : `Cartão${payment.parcelas || payment.installments ? ` ${payment.parcelas || payment.installments}x` : ""}`}
                                     {mostrarValor ? ` ${formatCurrencyFromCents(Number(payment.value))}` : ""}
                                   </span>
                                 );
