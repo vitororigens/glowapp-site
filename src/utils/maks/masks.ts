@@ -175,18 +175,6 @@ export function cnpjUnMask(maskedValue: string): string {
     return maskedValue.replace(/\D/g, '');
 }
 
-export function phoneMask(value: string): string {
-    return phoneMask(value);
-}
-
-export function phoneUnMask(value: string): string {
-    return phoneUnMask(value);
-}
-
-export function phoneMask(value: string): string {
-    return phoneMask(value);
-}
-
 // ===== PADRÃO UNIFICADO PARA VALORES MONETÁRIOS =====
 
 /**
@@ -212,9 +200,10 @@ export function normalizeValueToCents(value: string | number | undefined): numbe
     
     if (isNaN(numValue) || numValue === 0) return 0;
     
-    // Se o valor for menor que 100, assume que está em reais e converte para centavos
-    // Se for maior ou igual a 100, assume que já está em centavos
-    if (numValue < 100) {
+    // Se o valor for menor que 1000, assume que está em reais e converte para centavos
+    // Se for maior ou igual a 1000, assume que já está em centavos
+    // NOTA: Isso segue a lógica do App (glowapp-old), mas pode causar conflito para valores novos entre R$ 0,01 e R$ 9,99 (1-999 centavos)
+    if (numValue < 1000) {
         return Math.round(numValue * 100);
     }
     

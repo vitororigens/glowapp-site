@@ -22,7 +22,6 @@ const formSchema = z.object({
   duration: z.number().min(0, 'Duração deve ser maior ou igual a zero').optional(),  // ✅ Adicionado
   category: z.string().optional(),  // ✅ Adicionado
   isActive: z.boolean().default(true),  // ✅ Adicionado
-  date: z.string().optional(),
   type: z.enum(['revenue'], { message: "Tipo é obrigatório" }),
 });
 
@@ -90,7 +89,6 @@ export default function NewProcedure() {
       duration: 0,  // ✅ Adicionado
       category: "",  // ✅ Adicionado
       isActive: true,  // ✅ Adicionado
-      date: new Date().toISOString().split('T')[0],
       type: "revenue",
     },
   });
@@ -122,7 +120,6 @@ export default function NewProcedure() {
               duration: data.duration || 0,  // ✅ Carregar duration
               category: data.category || "",  // ✅ Carregar category
               isActive: data.isActive ?? true,  // ✅ Carregar isActive
-              date: data.date || new Date().toISOString().split('T')[0],
               type: "revenue",
             });
           }
@@ -162,7 +159,7 @@ export default function NewProcedure() {
         isActive: data.isActive ?? true,  // ✅ Status ativo
         uid,
         type: data.type,
-        date: data.date || new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split('T')[0],
         // ✅ Timestamps
         createdAt: existingCreatedAt,
         updatedAt: new Date().toISOString(),
@@ -265,17 +262,6 @@ export default function NewProcedure() {
           </select>
           {errors.category && (
             <p className="text-red-500 text-sm">{errors.category.message}</p>
-          )}
-        </div>
-
-        <div>
-          <Label>Data</Label>
-          <Input
-            type="date"
-            {...register("date")}
-          />
-          {errors.date && (
-            <p className="text-red-500 text-sm">{errors.date.message}</p>
           )}
         </div>
 

@@ -26,6 +26,7 @@ interface Procedure {
   price: string;
   description?: string;
   date?: string;
+  category?: string;  // ✅ Adicionado
   type: 'revenue';
 }
 
@@ -80,7 +81,7 @@ export default function Procedures() {
     router.push(`/dashboard/procedimentos/novo?id=${id}`);
   };
 
-  // ✅ Filtrar procedimentos pela busca
+  // ✅ Filtrar procedimentos pela busca (nome, código, descrição, categoria)
   const filteredProcedures = procedures.filter((procedure) => {
     if (!searchTerm.trim()) return true;
     
@@ -88,7 +89,8 @@ export default function Procedures() {
     return (
       procedure.name.toLowerCase().includes(searchLower) ||
       procedure.code.toLowerCase().includes(searchLower) ||
-      procedure.description?.toLowerCase().includes(searchLower)
+      procedure.description?.toLowerCase().includes(searchLower) ||
+      procedure.category?.toLowerCase().includes(searchLower) // ✅ Adicionado filtro por categoria
     );
   });
 
@@ -105,7 +107,7 @@ export default function Procedures() {
       <div className="mb-4">
         <Input
           type="text"
-          placeholder="Pesquisar por nome, código ou descrição..."
+          placeholder="Pesquisar por nome, código, categoria ou descrição..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-md"
@@ -127,6 +129,7 @@ export default function Procedures() {
               <TableRow>
                 <TableHead>Código</TableHead>
                 <TableHead>Nome</TableHead>
+                <TableHead>Categoria</TableHead> {/* ✅ Adicionado Coluna Categoria */}
                 <TableHead>Valor</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Data</TableHead>
@@ -138,6 +141,7 @@ export default function Procedures() {
                 <TableRow key={procedure.id}>
                   <TableCell>{procedure.code}</TableCell>
                   <TableCell>{procedure.name}</TableCell>
+                  <TableCell>{procedure.category || "-"}</TableCell> {/* ✅ Exibir Categoria */}
                   <TableCell>{formatCurrencyFromCents(Number(procedure.price))}</TableCell>
                   <TableCell>{procedure.description || "-"}</TableCell>
                   <TableCell>{procedure.date ? formatDateToBrazilian(procedure.date) : "-"}</TableCell>

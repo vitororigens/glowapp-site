@@ -26,6 +26,7 @@ interface CustomModalServicesProps {
   onClose: () => void;
   onConfirm: (selectedItems: string[]) => void;
   title: string;
+  onAddProcedure?: () => void;
 }
 
 export function CustomModalServices({
@@ -33,6 +34,7 @@ export function CustomModalServices({
   onClose,
   onConfirm,
   title,
+  onAddProcedure,
 }: CustomModalServicesProps) {
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -94,7 +96,16 @@ export function CustomModalServices({
       <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">{title}</h2>
-          <Button variant="outline" onClick={() => router.push('/dashboard/procedimentos/novo')}>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              if (onAddProcedure) {
+                onAddProcedure();
+              } else {
+                router.push('/dashboard/procedimentos/novo');
+              }
+            }}
+          >
             Adicionar Procedimento
           </Button>
         </div>

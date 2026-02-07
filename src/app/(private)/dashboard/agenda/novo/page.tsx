@@ -116,6 +116,9 @@ export default function NewAppointment() {
   const searchParams = useSearchParams();
   const appointmentId = searchParams.get('id');
 
+  // Chave para armazenamento de estado
+  const FORM_STATE_KEY = "NEW_APPOINTMENT_FORM_STATE";
+
   // Formulários
   const clientForm = useForm<ClientData>({
     resolver: zodResolver(clientSchema),
@@ -141,6 +144,70 @@ export default function NewAppointment() {
     },
   });
 
+  // Salvar estado do formulário antes de navegar
+  const saveFormState = () => {
+    const state = {
+      clientFormData: clientForm.getValues(),
+      appointmentFormData: appointmentForm.getValues(),
+      currentStep,
+      selectedProcedures,
+      selectedProfessional,
+      selectedClientId,
+      contactId,
+      clientImageInfo,
+      clientCountInfo,
+      clientDataModified
+    };
+    sessionStorage.setItem(FORM_STATE_KEY, JSON.stringify(state));
+  };
+
+  // Restaurar estado do formulário ao montar
+  const restoreFormState = () => {
+    const savedState = sessionStorage.getItem(FORM_STATE_KEY);
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        
+        // Restaurar dados do formulário
+        if (parsedState.clientFormData) {
+          clientForm.reset(parsedState.clientFormData);
+        }
+        
+        if (parsedState.appointmentFormData) {
+          // Converter string de data de volta para Date
+          if (parsedState.appointmentFormData.date) {
+            parsedState.appointmentFormData.date = new Date(parsedState.appointmentFormData.date);
+          }
+          appointmentForm.reset(parsedState.appointmentFormData);
+        }
+
+        // Restaurar outros estados
+        if (parsedState.currentStep) setCurrentStep(parsedState.currentStep);
+        if (parsedState.selectedProcedures) setSelectedProcedures(parsedState.selectedProcedures);
+        if (parsedState.selectedProfessional) setSelectedProfessional(parsedState.selectedProfessional);
+        if (parsedState.selectedClientId) setSelectedClientId(parsedState.selectedClientId);
+        if (parsedState.contactId) setContactId(parsedState.contactId);
+        if (parsedState.clientImageInfo) setClientImageInfo(parsedState.clientImageInfo);
+        if (parsedState.clientCountInfo) setClientCountInfo(parsedState.clientCountInfo);
+        if (parsedState.clientDataModified !== undefined) setClientDataModified(parsedState.clientDataModified);
+
+        // Limpar storage após restaurar
+        sessionStorage.removeItem(FORM_STATE_KEY);
+        
+        console.log("Estado do formulário restaurado com sucesso");
+      } catch (error) {
+        console.error("Erro ao restaurar estado do formulário:", error);
+        sessionStorage.removeItem(FORM_STATE_KEY);
+      }
+    }
+  };
+
+  // Handler para adicionar novo procedimento
+  const handleAddProcedure = () => {
+    saveFormState();
+    router.push('/dashboard/procedimentos/novo');
+  };
+
   // Carregar dados
   useEffect(() => {
     if (uid) {
@@ -148,6 +215,12 @@ export default function NewAppointment() {
       loadProcedures();
       loadProfessionals();
       checkClientCountStatus();
+      
+      // Tentar restaurar estado salvo se não estiver editando um agendamento existente
+      // ou se preferirmos o estado salvo (ex: voltando de criar procedimento)
+      if (!appointmentId) {
+        restoreFormState();
+      }
     }
   }, [uid]);
 
@@ -914,6 +987,27 @@ export default function NewAppointment() {
         updatedAt: new Date().toISOString(),
         status: 'pendente',
         convertedToService: false,
+
+        // ⚠️ CAMPOS DE COMPATIBILIDADE (Mantendo padrão do App Mobile)
+        // O App grava esses campos na raiz para suportar versões legadas e listagens antigas
+        clientId: contactUid || '',
+        clientName: clientData.name,
+        clientPhone: clientData.phone,
+        clientEmail: clientData.email || '',
+        professionalId: selectedProfessional?.id || "",
+        professionalName: selectedProfessional?.name || "",
+        professionalSpecialty: selectedProfessional?.specialty || '',
+        services: selectedProcedures.map(p => ({
+          id: p.id,
+          name: p.name,
+          price: typeof p.price === 'string' ? parseInt(p.price) : (p.price || 0),
+          duration: p.duration || 0
+        })),
+        date: format(appointmentData.date, 'yyyy-MM-dd'),
+        time: appointmentData.startTime || '',
+        duration: totalDuration,
+        observations: appointmentData.observations || '',
+        totalPrice: totalPrice,
       };
 
       if (appointmentId) {
@@ -1486,6 +1580,7 @@ export default function NewAppointment() {
           onClose={() => setShowServicesModal(false)}
           onConfirm={handleServiceSelect}
           title="Selecione o procedimento"
+          onAddProcedure={handleAddProcedure}
         />
         
         <CustomModalProfessionals

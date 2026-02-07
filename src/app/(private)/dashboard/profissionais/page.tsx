@@ -18,7 +18,7 @@ type PropsCardProfessional = {
   cpfCnpj: string;
   phone: string;
   email: string;
-  address: string;
+  adress: string;
   observations: string;
   registrationNumber: string;
   specialty: string;
@@ -213,7 +213,7 @@ export default function Profissionais() {
                   : cpfMask(selectedProfessional.cpfCnpj)
               }</p>
               <p><strong>Registro:</strong> {selectedProfessional.registrationNumber || '-'}</p>
-              <p><strong>Endereço:</strong> {selectedProfessional.address || '-'}</p>
+              <p><strong>Endereço:</strong> {selectedProfessional.adress || '-'}</p>
               {selectedProfessional.observations && (
                 <p><strong>Observações:</strong> {selectedProfessional.observations}</p>
               )}
