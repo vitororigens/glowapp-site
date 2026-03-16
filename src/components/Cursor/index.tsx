@@ -21,7 +21,8 @@ const Cursor = () => {
     let mouseX = 0,
       mouseY = 0;
 
-    gsap.to({}, 0.016, {
+    gsap.to({}, {
+      duration: 0.016,
       repeat: -1,
       onRepeat: function () {
         posX += (mouseX - posX) / 9;
