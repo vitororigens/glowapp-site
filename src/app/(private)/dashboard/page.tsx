@@ -441,13 +441,16 @@ export default function DashboardHome() {
             <div className="relative">
               {/* Carrossel Container */}
               <div className="overflow-hidden">
-                <div className="flex transition-transform duration-300 ease-in-out" style={{ transform: `translateX(-${currentServiceIndex * (100 / 3)}%)` }}>
+                <div
+                  className="flex transition-transform duration-300 ease-in-out"
+                  style={{ transform: `translateX(-${currentServiceIndex * (100 / 3)}%)` }}
+                >
                   {dashboardData.recentServices
                     .filter(service => service.id && typeof service.id === 'string')
                     .map((service) => (
-                      <div key={service.id} className="w-1/3 flex-shrink-0 px-3">
-                        <ProcedureCard 
-                          service={service} 
+                      <div key={service.id} className="w-full sm:w-1/2 lg:w-1/3 flex-shrink-0 px-3">
+                        <ProcedureCard
+                          service={service}
                           onViewDetails={handleViewServiceDetails}
                         />
                       </div>

@@ -84,9 +84,9 @@ export default function Historico() {
     transactions || [];
 
   return (
-    <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
+    <div className="max-w-full mx-auto p-3 md:p-4 bg-white shadow-md rounded-lg overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+        <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
           {tipo === 'receita' ? '💰 Histórico de Receitas' : '💸 Histórico de Despesas'}
         </h1>
         <Button 
@@ -98,14 +98,14 @@ export default function Historico() {
       </div>
 
       {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className={`p-6 rounded-lg shadow-lg ${
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className={`p-4 md:p-6 rounded-lg shadow-lg ${
           tipo === 'receita' 
             ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200' 
             : 'bg-gradient-to-br from-red-50 to-rose-100 border-red-200'
         } border`}>
           <div className="flex items-center gap-3 mb-2">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
               tipo === 'receita' ? 'bg-green-500' : 'bg-red-500'
             }`}>
               <span className="text-white text-xl">{tipo === 'receita' ? '💰' : '💸'}</span>
@@ -125,9 +125,9 @@ export default function Historico() {
           </p>
         </div>
         
-        <div className="p-6 rounded-lg shadow-lg bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200">
+        <div className="p-4 md:p-6 rounded-lg shadow-lg bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-white text-xl">📊</span>
             </div>
             <h3 className="text-sm font-bold text-blue-700">Total de Registros</h3>
@@ -135,9 +135,9 @@ export default function Historico() {
           <p className="text-2xl font-bold text-blue-600">{filteredTransactions.length}</p>
         </div>
         
-        <div className="p-6 rounded-lg shadow-lg bg-gradient-to-br from-purple-50 to-violet-100 border border-purple-200">
+        <div className="p-4 md:p-6 rounded-lg shadow-lg bg-gradient-to-br from-purple-50 to-violet-100 border border-purple-200">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-white text-xl">📅</span>
             </div>
             <h3 className="text-sm font-bold text-purple-700">Última Atualização</h3>
@@ -151,7 +151,7 @@ export default function Historico() {
         </div>
       </div>
       
-      <div className={`p-6 rounded-lg mb-6 border ${
+      <div className={`p-4 md:p-6 rounded-lg mb-6 border ${
         tipo === 'receita' 
           ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
           : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
@@ -159,7 +159,8 @@ export default function Historico() {
         <div className="mb-4 text-sm bg-white p-3 rounded-lg border">
           <strong>📅 Ordenado por data:</strong> {tipo === 'receita' ? 'Receitas' : 'Despesas'} mais recentes aparecem primeiro
         </div>
-        <div className="overflow-x-auto max-h-96 overflow-y-auto">
+        <div className="overflow-x-auto max-h-96 overflow-y-auto -mx-4 md:mx-0">
+          <div className="min-w-[600px] md:min-w-0 px-4 md:px-0">
           <Table>
             <TableHeader>
               <TableRow className={tipo === 'receita' ? 'bg-green-50' : 'bg-red-50'}>
@@ -257,6 +258,7 @@ export default function Historico() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
       </div>
     </div>

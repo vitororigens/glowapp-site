@@ -14,6 +14,10 @@ export const BannerContainer = styled.div`
   @media (max-width: 1080px) {
     width: 90%;
   }
+
+  @media (max-width: 480px) {
+    width: 95%;
+  }
 `;
 // 
 export const BannerImage = styled.div<{ $image?: string | StaticImageData }>`
@@ -50,6 +54,16 @@ export const BannerContentInner = styled.div`
   @media (max-width: 1599px) {
     padding-top: 120px;
     padding-bottom: 50px;
+  }
+
+  @media (max-width: 1080px) {
+    padding-top: 100px;
+    padding-bottom: 60px;
+  }
+
+  @media (max-width: 480px) {
+    padding-top: 80px;
+    padding-bottom: 40px;
   }
 `;
 export const BannerTitle = styled.div`
@@ -118,7 +132,8 @@ export const BannerText = styled.p`
   }
 
   @media (max-width: 1080px) {
-    margin: 30px 0;
+    margin: 20px 0 30px;
+    max-width: 100%;
   }
 `;
 export const BannerInfo = styled.div`

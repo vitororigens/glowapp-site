@@ -180,9 +180,9 @@ export default function Profissionais() {
 
       {showModal && selectedProfessional && (
         <div
-          className="fixed top-0 left-0 right-0 bottom-0 flex justify-center items-center bg-black bg-opacity-50"
+          className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-50 p-4"
         >
-          <div className="bg-white p-6 rounded-lg shadow-lg w-3/4 max-w-lg relative">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={handleCloseModal}
               className="absolute top-2 right-2 text-gray-600 hover:text-black"

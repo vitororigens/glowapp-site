@@ -95,15 +95,15 @@ export default function Procedures() {
   });
 
   return (
-    <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Procedimentos</h1>
+    <div className="max-w-full mx-auto p-3 md:p-4 bg-white shadow-md rounded-lg overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+        <h1 className="text-xl md:text-2xl font-bold">Procedimentos</h1>
         <Button onClick={() => router.push("/dashboard/procedimentos/novo")}>
           Novo Procedimento
         </Button>
       </div>
 
-      {/* ✅ Campo de Busca */}
+      {/* Campo de Busca */}
       <div className="mb-4">
         <Input
           type="text"
@@ -123,13 +123,14 @@ export default function Procedures() {
             : "Nenhum procedimento cadastrado."}
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto -mx-3 md:mx-0">
+          <div className="min-w-[600px] md:min-w-0 px-3 md:px-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Código</TableHead>
                 <TableHead>Nome</TableHead>
-                <TableHead>Categoria</TableHead> {/* ✅ Adicionado Coluna Categoria */}
+                <TableHead>Categoria</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Data</TableHead>
@@ -141,7 +142,7 @@ export default function Procedures() {
                 <TableRow key={procedure.id}>
                   <TableCell>{procedure.code}</TableCell>
                   <TableCell>{procedure.name}</TableCell>
-                  <TableCell>{procedure.category || "-"}</TableCell> {/* ✅ Exibir Categoria */}
+                  <TableCell>{procedure.category || "-"}</TableCell>
                   <TableCell>{formatCurrencyFromCents(Number(procedure.price))}</TableCell>
                   <TableCell>{procedure.description || "-"}</TableCell>
                   <TableCell>{procedure.date ? formatDateToBrazilian(procedure.date) : "-"}</TableCell>
@@ -166,6 +167,7 @@ export default function Procedures() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
       )}
     </div>

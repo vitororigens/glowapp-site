@@ -4,14 +4,13 @@ import { IconBrandWhatsapp } from "@tabler/icons-react";
 
 export default function Contact() {
   return (
-    <div id="contact" className="container mx-auto py-12">
-    
-      <div className="container mx-auto py-12">
-        <h2 className="text-3xl font-bold text-center mb-8">Entre em Contato</h2>
+    <div id="contact" className="w-full px-4 py-12 md:px-8 md:py-16">
+      <div className="max-w-5xl mx-auto">
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">Entre em Contato</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className=" border-gray-200">
+          <div>
             <CardHeader>
-              <CardTitle className="text-xl font-bold">Informaçoes de Contato</CardTitle>
+              <CardTitle className="text-xl font-bold">Informações de Contato</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="space-y-4 text-gray-600">
@@ -29,7 +28,7 @@ export default function Contact() {
               </ul>
             </CardContent>
           </div>
-          <Card className="shadow-lg p-6 rounded-2xl border border-gray-200">
+          <Card className="shadow-lg p-4 md:p-6 rounded-2xl border border-gray-200">
             <CardHeader>
               <CardTitle className="text-xl font-bold">Fale Conosco</CardTitle>
             </CardHeader>

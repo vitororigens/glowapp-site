@@ -10,7 +10,7 @@ import SubscriptionPlans from "./_components/Plans";
 
 const Home = () => {
   return (
-    <main className="overflow-x-hidden">
+    <main className="overflow-x-hidden pt-16 lg:pt-20">
       <Banner />
       <BannerTwo />
       <GlowAppBanner />

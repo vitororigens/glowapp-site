@@ -3,10 +3,7 @@ import styled from "styled-components";
 
 export const Footer = styled.footer`
   background-color: var(--color-two);
-  @media (max-width: 1080px) {
-    margin-bottom: 10px;
-    width: calc(100% - 20px);
-  }
+  width: 100%;
 `;
 export const FooterContainer = styled.div`
   width: 80%;

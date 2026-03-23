@@ -33,7 +33,7 @@ export function GlowAppBanner() {
               ecossistema completo para otimizar seu trabalho. Com ele, você tem tudo o que
               precisa em um só lugar, desde organização até gestão financeira.
             </p>
-            <div className="flex space-x-4 mt-4">
+            <div className="flex flex-wrap gap-4 mt-4">
               <motion.a
                 href="https://apps.apple.com"
                 target="_blank"
@@ -41,7 +41,7 @@ export function GlowAppBanner() {
                 variants={buttonVariants}
                 whileHover="hover"
               >
-                <img src="/img/resource/app-store.png" className='w-32 md:w-64' alt="Button loja Apple store" />
+                <img src="/img/resource/app-store.png" className='w-28 md:w-40' alt="Button loja Apple store" />
               </motion.a>
               <motion.a
                 href="https://play.google.com"
@@ -50,12 +50,12 @@ export function GlowAppBanner() {
                 variants={buttonVariants}
                 whileHover="hover"
               >
-                <img src="/img/resource/play-store.png" className='w-32 md:w-64' alt="Button loja Play store" />
+                <img src="/img/resource/play-store.png" className='w-28 md:w-40' alt="Button loja Play store" />
               </motion.a>
             </div>
           </div>
           <div className="story-two_content-column col-lg-6 col-md-12 col-sm-12 items-center justify-center flex">
-            <img src="/img/resource/mockup.png" className='w-40 md:w-96' alt="Mockup de um smarphone com a logo do GlowApp" />
+            <img src="/img/resource/mockup.png" className='w-40 md:w-64 lg:w-80' alt="Mockup de um smarphone com a logo do GlowApp" />
           </div>
         </div>
       </div>

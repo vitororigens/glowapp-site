@@ -150,8 +150,7 @@ export default function Financeiro() {
   }
 
   const formatPrice = (price: string | number | undefined, isExpense: boolean = false) => {
-    if (!price) return "R$ 0,00";
-    
+    if (price === undefined || price === null || price === '') return "R$ 0,00";
     const valueInCents = normalizeValueToCents(price);
     const formattedValue = formatCurrencyFromCents(valueInCents);
     return isExpense ? `- ${formattedValue}` : formattedValue;
@@ -240,50 +239,50 @@ export default function Financeiro() {
   resetMonthlyValues();
 
   return (
-    <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Financeiro</h1>
+    <div className="max-w-full mx-auto p-3 md:p-4 bg-white shadow-md rounded-lg overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+        <h1 className="text-xl md:text-2xl font-bold">Financeiro</h1>
         <Button onClick={() => router.push("/dashboard/financeiro/novo")}>
           Novo Registro
         </Button>
       </div>
 
       <div className="w-full flex flex-col items-center">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 w-full max-w-5xl">
-          <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 w-full">
+          <Card className="p-4 md:p-6 bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-white text-xl">💰</span>
               </div>
               <h3 className="text-sm font-bold text-green-700">Receitas</h3>
             </div>
-            <p className="text-3xl font-bold text-green-600">{formatCurrencyFromCents(totalRevenue)}</p>
+            <p className="text-2xl md:text-3xl font-bold text-green-600">{formatCurrencyFromCents(totalRevenue)}</p>
           </Card>
-          <Card className="p-6 bg-gradient-to-br from-red-50 to-rose-100 border-red-200 shadow-lg">
+          <Card className="p-4 md:p-6 bg-gradient-to-br from-red-50 to-rose-100 border-red-200 shadow-lg">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-white text-xl">💸</span>
               </div>
               <h3 className="text-sm font-bold text-red-700">Despesas</h3>
             </div>
-            <p className="text-3xl font-bold text-red-600">{formatCurrencyFromCents(totalExpense)}</p>
+            <p className="text-2xl md:text-3xl font-bold text-red-600">{formatCurrencyFromCents(totalExpense)}</p>
           </Card>
-          <Card className={`p-6 shadow-lg ${balance >= 0 ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200' : 'bg-gradient-to-br from-red-50 to-rose-100 border-red-200'}`}>
+          <Card className={`p-4 md:p-6 shadow-lg ${balance >= 0 ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200' : 'bg-gradient-to-br from-red-50 to-rose-100 border-red-200'}`}>
             <div className="flex items-center gap-3 mb-2">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${balance >= 0 ? 'bg-green-500' : 'bg-red-500'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${balance >= 0 ? 'bg-green-500' : 'bg-red-500'}`}>
                 <span className="text-white text-xl">{balance >= 0 ? '📈' : '📉'}</span>
               </div>
               <h3 className={`text-sm font-bold ${balance >= 0 ? 'text-green-700' : 'text-red-700'}`}>Saldo</h3>
             </div>
-            <p className={`text-3xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrencyFromCents(balance)}</p>
+            <p className={`text-2xl md:text-3xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrencyFromCents(balance)}</p>
           </Card>
         </div>
       </div>
 
       {/* Box de Receitas */}
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-lg mb-6 border border-green-200">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-green-800 flex items-center gap-2">
+      <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 md:p-6 rounded-lg mb-6 border border-green-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+          <h2 className="text-lg md:text-xl font-bold text-green-800 flex items-center gap-2">
             💰 Receitas
           </h2>
           <Button 
@@ -296,7 +295,8 @@ export default function Financeiro() {
         <div className="mb-4 text-sm text-green-700 bg-green-100 p-3 rounded-lg">
           <strong>📅 Ordenado por data:</strong> Receitas mais recentes aparecem primeiro
         </div>
-        <div className="overflow-x-auto max-h-96 overflow-y-auto">
+        <div className="overflow-x-auto max-h-96 overflow-y-auto -mx-4 md:mx-0">
+          <div className="min-w-[700px] md:min-w-0 px-4 md:px-0">
           <Table>
             <TableHeader>
               <TableRow className="bg-green-50">
@@ -410,13 +410,14 @@ export default function Financeiro() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
       </div>
 
       {/* Box de Despesas */}
-      <div className="bg-gradient-to-r from-red-50 to-rose-50 p-6 rounded-lg border border-red-200">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-red-800 flex items-center gap-2">
+      <div className="bg-gradient-to-r from-red-50 to-rose-50 p-4 md:p-6 rounded-lg border border-red-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+          <h2 className="text-lg md:text-xl font-bold text-red-800 flex items-center gap-2">
             💸 Despesas
           </h2>
           <Button 
@@ -429,7 +430,8 @@ export default function Financeiro() {
         <div className="mb-4 text-sm text-red-700 bg-red-100 p-3 rounded-lg">
           <strong>📅 Ordenado por data:</strong> Despesas mais recentes aparecem primeiro
         </div>
-        <div className="overflow-x-auto max-h-96 overflow-y-auto">
+        <div className="overflow-x-auto max-h-96 overflow-y-auto -mx-4 md:mx-0">
+          <div className="min-w-[400px] md:min-w-0 px-4 md:px-0">
           <Table>
             <TableHeader>
               <TableRow className="bg-red-50">
@@ -465,6 +467,7 @@ export default function Financeiro() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
       </div>
     </div>

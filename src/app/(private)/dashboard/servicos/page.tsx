@@ -129,9 +129,9 @@ export default function Services() {
   };
 
   return (
-    <div className="max-w-full mx-auto p-4 bg-white shadow-md rounded-lg">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Serviços</h1>
+    <div className="max-w-full mx-auto p-3 md:p-4 bg-white shadow-md rounded-lg overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+        <h1 className="text-xl md:text-2xl font-bold">Serviços</h1>
         <Button onClick={() => router.push("/dashboard/servicos/novo")}>
           Novo Serviço
         </Button>
@@ -143,24 +143,23 @@ export default function Services() {
         <div className="text-center py-4">Nenhum serviço cadastrado.</div>
       ) : (
         <>
-          <div className="w-full flex flex-col items-center">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10 w-full max-w-5xl">
-              <div className="bg-white p-4 rounded-lg shadow border">
-                <div className="text-sm text-gray-500 mb-1">Total de Serviços</div>
-                <div className="text-2xl font-bold text-blue-600">{servicesCount}</div>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow border">
-                <div className="text-sm text-gray-500 mb-1">Total de Orçamentos</div>
-                <div className="text-2xl font-bold text-yellow-600">{totalBudgets}</div>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow border">
-                <div className="text-sm text-gray-500 mb-1">Valores Recebidos</div>
-                <div className="text-2xl font-bold text-green-600">{formatCurrencyFromCents(totalPaid)}</div>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="bg-white p-4 rounded-lg shadow border">
+              <div className="text-sm text-gray-500 mb-1">Total de Serviços</div>
+              <div className="text-2xl font-bold text-blue-600">{servicesCount}</div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow border">
+              <div className="text-sm text-gray-500 mb-1">Total de Orçamentos</div>
+              <div className="text-2xl font-bold text-yellow-600">{totalBudgets}</div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow border">
+              <div className="text-sm text-gray-500 mb-1">Valores Recebidos</div>
+              <div className="text-2xl font-bold text-green-600">{formatCurrencyFromCents(totalPaid)}</div>
             </div>
           </div>
         
-            <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-3 md:mx-0">
+            <div className="min-w-[700px] md:min-w-0 px-3 md:px-0">
               <div className="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                 <strong>📅 Ordenado por data:</strong> Serviços mais recentes aparecem primeiro
               </div>
@@ -302,6 +301,7 @@ export default function Services() {
                 })}
               </TableBody>
             </Table>
+            </div>
           </div>
         </>
       )}
