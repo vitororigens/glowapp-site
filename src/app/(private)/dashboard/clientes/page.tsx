@@ -18,9 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { AlertTriangle, PlusCircle } from "lucide-react";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 interface Contact {
   id: string;
@@ -105,113 +106,128 @@ export default function Contacts() {
   }
 
   return (
-    <div className="p-4">
-      {/* Alerta de Limitação */}
-      {!canAddClient(contacts.length) && (
-        <Alert className="mb-4 border-yellow-200 bg-yellow-50">
-          <AlertTriangle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="text-yellow-800">
-            Você atingiu o limite de {planLimits.clients} clientes do seu plano {planLimits.planName}. 
-            <Button 
-              variant="link" 
-              className="p-0 h-auto font-semibold text-yellow-800"
-              onClick={() => router.push('/dashboard/planos')}
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Clientes</h1>
+            <p className="text-sm text-gray-600">
+              {contacts.length} de {planLimits.clients} clientes utilizados
+              {getRemainingClients(contacts.length) > 0 && (
+                <span className="text-green-600">
+                  {" "}
+                  • {getRemainingClients(contacts.length)} restantes
+                </span>
+              )}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <Button
+              onClick={() => router.push("/dashboard/clientes/novo")}
+              disabled={!canAddClient(contacts.length)}
+              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap"
             >
-              Faça upgrade para adicionar mais clientes.
+              <PlusCircle className="h-4 w-4" />
+              <span className="sm:hidden">Novo</span>
+              <span className="hidden sm:inline">Novo Cliente</span>
             </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Clientes</h1>
-          <p className="text-sm text-gray-600">
-            {contacts.length} de {planLimits.clients} clientes utilizados
-            {getRemainingClients(contacts.length) > 0 && (
-              <span className="text-green-600"> • {getRemainingClients(contacts.length)} restantes</span>
-            )}
-          </p>
+          </div>
         </div>
-        <Button 
-          onClick={() => router.push("/dashboard/clientes/novo")}
-          disabled={!canAddClient(contacts.length)}
-        >
-          Novo Cliente
-        </Button>
       </div>
 
-      {/* ✅ Campo de Busca */}
-      <div className="mb-4">
-        <Input
-          type="text"
-          placeholder="Pesquisar por nome, telefone, email ou CPF..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-md"
-        />
-      </div>
+      <div className="px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+        {!canAddClient(contacts.length) && (
+          <Alert className="border-yellow-200 bg-yellow-50">
+            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800">
+              Você atingiu o limite de {planLimits.clients} clientes do seu plano {planLimits.planName}.
+              <Button
+                variant="link"
+                className="p-0 h-auto font-semibold text-yellow-800"
+                onClick={() => router.push("/dashboard/planos")}
+              >
+                Faça upgrade para adicionar mais clientes.
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cliente</TableHead>
-              <TableHead>CPF</TableHead>
-              <TableHead>Telefone</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredContacts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-4">
-                  {searchTerm.trim() 
-                    ? "Nenhum cliente encontrado para esta busca." 
-                    : "Nenhum cliente encontrado."}
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredContacts.map((contact) => (
-                <TableRow key={contact.id}>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={contact.imageUrl} />
-                        <AvatarFallback>
-                          {contact.name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span>{contact.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{cpfMask(contact.cpf)}</TableCell>
-                  <TableCell>{phoneMask(contact.phone)}</TableCell>
-                  <TableCell>{contact.email}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(contact.id)}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(contact.id)}
-                      >
-                        Excluir
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <Card>
+          <CardHeader className="pb-4">
+            <Input
+              type="text"
+              placeholder="Pesquisar por nome, telefone, email ou CPF..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>CPF</TableHead>
+                    <TableHead>Telefone</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredContacts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-4">
+                        {searchTerm.trim()
+                          ? "Nenhum cliente encontrado para esta busca."
+                          : "Nenhum cliente encontrado."}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredContacts.map((contact) => (
+                      <TableRow key={contact.id}>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={contact.imageUrl} />
+                              <AvatarFallback>
+                                {contact.name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span>{contact.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{cpfMask(contact.cpf)}</TableCell>
+                        <TableCell>{phoneMask(contact.phone)}</TableCell>
+                        <TableCell>{contact.email}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(contact.id)}
+                            >
+                              Editar
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(contact.id)}
+                            >
+                              Excluir
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

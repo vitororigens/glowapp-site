@@ -1,39 +1,34 @@
 /* Estilos para o calendário */
-.rdp-weekdays {
-  display: grid !important;
-  grid-template-columns: repeat(7, 1fr) !important;
-  gap: 8px !important;
-  margin-bottom: 8px !important;
-}
-
-.rdp-head_cell {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-weight: 600 !important;
-  font-size: 0.875rem !important;
-  color: #6b7280 !important;
-  padding: 8px !important;
-  min-width: 32px !important;
-}
-
-.rdp-tbody {
-  display: grid !important;
-  grid-template-columns: repeat(7, 1fr) !important;
-  gap: 2px !important;
-}
-
-.rdp-cell {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  min-width: 32px !important;
-  height: 32px !important;
-}
-
-.rdp-button {
+.rdp-root,
+.rdp-months,
+.rdp-month {
   width: 100% !important;
-  height: 100% !important;
+}
+
+.rdp-months {
+  max-width: none !important;
+}
+
+.rdp-month_grid {
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+}
+
+.rdp-weekday,
+.rdp-day {
+  width: calc(100% / 7) !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.rdp-weekday {
+  white-space: nowrap !important;
+}
+
+.rdp-day_button {
+  width: 100% !important;
+  height: 32px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -42,15 +37,15 @@
   transition: all 0.2s !important;
 }
 
-.rdp-button:hover {
+.rdp-day_button:hover {
   background-color: #f3f4f6 !important;
 }
 
-.rdp-button[aria-selected="true"] {
+.rdp-selected .rdp-day_button {
   background-color: #3b82f6 !important;
   color: white !important;
 }
 
-.rdp-button[aria-selected="true"]:hover {
+.rdp-selected .rdp-day_button:hover {
   background-color: #2563eb !important;
 }

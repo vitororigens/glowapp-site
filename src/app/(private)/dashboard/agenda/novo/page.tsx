@@ -28,7 +28,6 @@ import { CustomModalServices } from "@/components/CustomModalServices";
 import { CustomModalProfessionals } from "@/components/CustomModalProfessionals";
 import { CustomModalClients } from "@/components/CustomModalClients";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
-import "@/styles/calendar.css";
 
 // Schema para dados do cliente
 const clientSchema = z.object({

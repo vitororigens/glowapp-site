@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/table";
 import { formatCurrencyFromCents } from "@/utils/maks/masks";
 import { formatDateToBrazilian } from "@/utils/formater/date";
+import { PlusCircle } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 interface Procedure {
   id: string;
@@ -95,81 +97,97 @@ export default function Procedures() {
   });
 
   return (
-    <div className="max-w-full mx-auto p-3 md:p-4 bg-white shadow-md rounded-lg overflow-x-hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
-        <h1 className="text-xl md:text-2xl font-bold">Procedimentos</h1>
-        <Button onClick={() => router.push("/dashboard/procedimentos/novo")}>
-          Novo Procedimento
-        </Button>
-      </div>
-
-      {/* Campo de Busca */}
-      <div className="mb-4">
-        <Input
-          type="text"
-          placeholder="Pesquisar por nome, código, categoria ou descrição..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-md"
-        />
-      </div>
-
-      {isLoading ? (
-        <div className="text-center py-4">Carregando...</div>
-      ) : filteredProcedures.length === 0 ? (
-        <div className="text-center py-4">
-          {searchTerm.trim() 
-            ? "Nenhum procedimento encontrado para esta busca." 
-            : "Nenhum procedimento cadastrado."}
-        </div>
-      ) : (
-        <div className="overflow-x-auto -mx-3 md:mx-0">
-          <div className="min-w-[600px] md:min-w-0 px-3 md:px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Código</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProcedures.map((procedure) => (
-                <TableRow key={procedure.id}>
-                  <TableCell>{procedure.code}</TableCell>
-                  <TableCell>{procedure.name}</TableCell>
-                  <TableCell>{procedure.category || "-"}</TableCell>
-                  <TableCell>{formatCurrencyFromCents(Number(procedure.price))}</TableCell>
-                  <TableCell>{procedure.description || "-"}</TableCell>
-                  <TableCell>{procedure.date ? formatDateToBrazilian(procedure.date) : "-"}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mr-2"
-                      onClick={() => handleEdit(procedure.id)}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(procedure.id)}
-                    >
-                      Excluir
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Procedimentos</h1>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <Button
+              onClick={() => router.push("/dashboard/procedimentos/novo")}
+              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span className="sm:hidden">Novo</span>
+              <span className="hidden sm:inline">Novo Procedimento</span>
+            </Button>
           </div>
         </div>
-      )}
+      </div>
+
+      <div className="px-4 sm:px-6 py-4 sm:py-6">
+        <Card>
+          <CardHeader className="pb-4">
+            <Input
+              type="text"
+              placeholder="Pesquisar por nome, código, categoria ou descrição..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </CardHeader>
+          <CardContent className="pt-0">
+            {isLoading ? (
+              <div className="text-center py-4">Carregando...</div>
+            ) : filteredProcedures.length === 0 ? (
+              <div className="text-center py-4">
+                {searchTerm.trim()
+                  ? "Nenhum procedimento encontrado para esta busca."
+                  : "Nenhum procedimento cadastrado."}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="min-w-[600px] md:min-w-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredProcedures.map((procedure) => (
+                        <TableRow key={procedure.id}>
+                          <TableCell>{procedure.code}</TableCell>
+                          <TableCell>{procedure.name}</TableCell>
+                          <TableCell>{procedure.category || "-"}</TableCell>
+                          <TableCell>{formatCurrencyFromCents(Number(procedure.price))}</TableCell>
+                          <TableCell>{procedure.description || "-"}</TableCell>
+                          <TableCell>
+                            {procedure.date ? formatDateToBrazilian(procedure.date) : "-"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mr-2"
+                              onClick={() => handleEdit(procedure.id)}
+                            >
+                              Editar
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(procedure.id)}
+                            >
+                              Excluir
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 } 

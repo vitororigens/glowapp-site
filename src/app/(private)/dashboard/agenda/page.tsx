@@ -19,6 +19,7 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addDays, 
 import { ptBR } from "date-fns/locale";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useIsMobile } from "@/hooks/useMobileDevice";
 import { PlusCircle, Pencil, Trash2, Calendar as CalendarIcon,  Search, X, CheckCircle, XCircle, User, ArrowLeft, ArrowRight, FileText, CreditCard, Receipt, AlertTriangle, Filter, Settings, HelpCircle, MessageCircle, ChevronLeft, ChevronRight, Clock, Users, Eye, List, Grid3X3, DollarSign } from "lucide-react";
 import { currencyMask, formatCurrencyFromCents, normalizeValueToCents } from "@/utils/maks/masks";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
@@ -188,6 +189,7 @@ export default function Agenda() {
   const { planLimits, canAddImageToClient, getRemainingImagesForClient } = usePlanLimitations();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isMobile } = useIsMobile({ breakpoint: 768 });
 
   useEffect(() => {
     if (uid) {
@@ -1055,23 +1057,23 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Principal */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Agenda</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="h-10 w-10">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0">
               <Settings className="h-5 w-5" />
             </Button>
             <div className="relative filter-menu-container">
               <Button 
                 variant="outline" 
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 whitespace-nowrap"
                 onClick={() => setShowFilterMenu(!showFilterMenu)}
               >
                 <Filter className="h-4 w-4" />
-                Filtrar
+                <span className="hidden sm:inline">Filtrar</span>
                 {statusFilter !== 'todos' && (
                   <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
                     {statusFilter === 'pendente' ? 'Pendente' :
@@ -1161,21 +1163,22 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
             </div>
             <Button 
               onClick={() => router.push('/dashboard/agenda/novo')} 
-              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap"
             >
               <PlusCircle className="h-4 w-4" />
-              Novo Agendamento
+              <span className="sm:hidden">Novo</span>
+              <span className="hidden sm:inline">Novo Agendamento</span>
             </Button>
           </div>
         </div>
       </div>
 
       {/* Barra de Controles */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Todos profissionais" />
               </SelectTrigger>
               <SelectContent>
@@ -1189,7 +1192,7 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
             </Select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 sm:justify-start">
             <Button
               variant="ghost"
               size="icon"
@@ -1230,7 +1233,7 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
 
           <div className="flex items-center gap-2">
             <Select value={viewMode} onValueChange={(value: ViewMode) => setViewMode(value)}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-full sm:w-32">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1245,11 +1248,102 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
       </div>
 
       {/* Área Principal */}
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-3 sm:p-6">
+        {/* Mobile: Calendário (react-day-picker) + listagem do dia */}
+        {isMobile && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-2 shadow-sm">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(d: Date | undefined) => d && setSelectedDate(d)}
+                weekStartsOn={1 as any}
+                ISOWeek
+                showOutsideDays
+                className="w-full"
+              />
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200">
+              <div className="p-4 border-b border-gray-100">
+                <h2 className="text-base font-semibold text-gray-900">
+                  {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                </h2>
+                <p className="text-xs text-gray-500">Agendamentos do dia selecionado</p>
+              </div>
+              <ScrollArea className="max-h-[60vh]">
+                <div className="divide-y divide-gray-100">
+                  {appointments
+                    .filter((a) => {
+                      if (!a.appointment?.date) return false;
+                      const d = createLocalDate(a.appointment.date);
+                      return isSameDay(d, selectedDate) &&
+                        (selectedProfessional === "todos" || a.appointment?.professionalId === selectedProfessional) &&
+                        (statusFilter === "todos" || a.status === statusFilter);
+                    })
+                    .sort((a, b) => {
+                      const ta = a.appointment?.startTime || "00:00";
+                      const tb = b.appointment?.startTime || "00:00";
+                      return ta.localeCompare(tb);
+                    })
+                    .map((appointment) => {
+                      const statusStyles: Record<Appointment['status'], string> = {
+                        pendente: 'bg-orange-50 text-orange-700 border-orange-200',
+                        confirmado: 'bg-blue-50 text-blue-700 border-blue-200',
+                        concluido: 'bg-green-50 text-green-700 border-green-200',
+                        cancelado: 'bg-red-50 text-red-700 border-red-200',
+                        nao_compareceu: 'bg-gray-50 text-gray-700 border-gray-200',
+                      };
+                      return (
+                        <button
+                          key={appointment.id}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 focus:bg-gray-50 outline-none"
+                          onClick={() => openAppointmentDetailsModal(appointment)}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">
+                                {appointment.client.name}
+                              </div>
+                              <div className="mt-0.5 text-xs text-gray-600 flex items-center gap-2">
+                                <span className="font-medium">
+                                  {appointment.appointment?.startTime || "--:--"}
+                                </span>
+                                {appointment.appointment?.serviceName && (
+                                  <span className="truncate">• {appointment.appointment.serviceName}</span>
+                                )}
+                              </div>
+                            </div>
+                            <span className={`shrink-0 rounded-full border text-[11px] px-2 py-0.5 ${statusStyles[appointment.status]}`}>
+                              {appointment.status === 'pendente' && 'Pendente'}
+                              {appointment.status === 'confirmado' && 'Confirmado'}
+                              {appointment.status === 'concluido' && 'Concluído'}
+                              {appointment.status === 'cancelado' && 'Cancelado'}
+                              {appointment.status === 'nao_compareceu' && 'Não Compareceu'}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  {appointments.filter((a) => {
+                    if (!a.appointment?.date) return false;
+                    const d = createLocalDate(a.appointment.date);
+                    return isSameDay(d, selectedDate) &&
+                      (selectedProfessional === "todos" || a.appointment?.professionalId === selectedProfessional) &&
+                      (statusFilter === "todos" || a.status === statusFilter);
+                  }).length === 0 && (
+                    <div className="p-6 text-center text-sm text-gray-500">
+                      Nenhum agendamento neste dia
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+        )}
 
 
         {/* Conteúdo Principal baseado no modo de visualização */}
-        {viewMode === 'dia' && (
+        {!isMobile && viewMode === 'dia' && (
           <div className="bg-white border border-gray-300 rounded-lg shadow-sm">
             <div className="p-0 relative">
               {/* Grid único com todas as células */}
@@ -1393,11 +1487,13 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
           </div>
         )}
 
-        {viewMode === 'semana' && (
+        {!isMobile && viewMode === 'semana' && (
           <div className="bg-white border border-gray-300 rounded-lg shadow-sm">
-            <div className="p-0 relative">
-              {/* Grid único com todas as células */}
-              <div className="grid border border-gray-300" style={{ gridTemplateColumns: "100px repeat(5, 1fr)", gridTemplateRows: "auto repeat(15, 80px)" }}>
+            <div className="p-0 relative overflow-x-auto">
+              <div
+                className="grid border border-gray-300 min-w-[820px]"
+                style={{ gridTemplateColumns: "100px repeat(5, 1fr)", gridTemplateRows: "auto repeat(15, 80px)" }}
+              >
                 {/* Cabeçalho da semana */}
                 <div className="border-r border-b border-gray-300 bg-gray-50 p-3">
                   <div className="text-sm font-medium text-gray-500">Horário</div>
@@ -1555,14 +1651,14 @@ const formattedPendingBalance = formatCurrencyFromCents(Math.max(totalPrice - to
           </div>
         )}
 
-        {viewMode === 'mes' && (
+        {!isMobile && viewMode === 'mes' && (
           <div className="bg-white rounded-lg border border-gray-200">
             <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">
                   {format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })}
                 </h2>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
                   <span>Legenda:</span>
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
